@@ -1,0 +1,57 @@
+{
+  "specification_version": "2.1.0",
+  "validation_scope": "development specification structure and candidate mathematical invariants; not legal/accounting approval",
+  "overall": "pass",
+  "checks": [
+    {
+      "name": "structured_file_parse",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "json_schema_validity",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "artifact_schema_validation",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "manifest_artifact_paths",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "workflow_reference_integrity",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "openapi_internal_contract",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "markdown_file_links",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "drivven_candidate_formula_invariants",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "platform_workspace_boundary",
+      "status": "pass",
+      "details": []
+    },
+    {
+      "name": "secret_pattern_scan",
+      "status": "pass",
+      "details": []
+    }
+  ]
+}
