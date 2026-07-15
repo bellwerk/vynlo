@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "document_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "location_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "seller_legal_entity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "buyer_party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "inventory_unit_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stock_number": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vin": {
+      "type": "string",
+      "minLength": 11,
+      "maxLength": 17
+    },
+    "odometer_value": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "odometer_unit": {
+      "enum": [
+        "km",
+        "mi"
+      ]
+    },
+    "currency_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 10000
+    },
+    "applicant_party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "finance_application_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "lender_party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "lender_reference": {
+      "type": "string"
+    },
+    "approved_amount_minor": {
+      "type": "integer"
+    },
+    "returned_rate_bps": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "returned_term_months": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "document_date",
+    "location_id",
+    "seller_legal_entity_id",
+    "inventory_unit_id",
+    "currency_code",
+    "applicant_party_id",
+    "finance_application_id",
+    "lender_party_id"
+  ]
+}

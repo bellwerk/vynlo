@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "document_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "location_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "seller_legal_entity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "buyer_party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "inventory_unit_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stock_number": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vin": {
+      "type": "string",
+      "minLength": 11,
+      "maxLength": 17
+    },
+    "odometer_value": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "odometer_unit": {
+      "enum": [
+        "km",
+        "mi"
+      ]
+    },
+    "currency_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 10000
+    },
+    "seller_party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "purchase_price_minor": {
+      "type": "integer"
+    },
+    "acquisition_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "lien_declared": {
+      "type": "boolean"
+    },
+    "lien_amount_minor": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "ownership_document_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "required": [
+    "document_date",
+    "location_id",
+    "seller_legal_entity_id",
+    "inventory_unit_id",
+    "currency_code",
+    "seller_party_id",
+    "purchase_price_minor",
+    "acquisition_date"
+  ]
+}

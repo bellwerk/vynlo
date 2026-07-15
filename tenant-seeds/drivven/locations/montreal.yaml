@@ -1,0 +1,15 @@
+schema_version: "1.0"
+location:
+  key: montreal
+  name: Montreal
+  address:
+    line1: "9110 Bd Saint-Michel"
+    city: "Montréal"
+    region: "QC"
+    postal_code: "H3X 2T8"
+    country: "CA"
+  phone_e164: "+14384496777"
+  timezone: America/Toronto
+  locale: fr-CA
+  active: true
+  verification_status: approved_business_input

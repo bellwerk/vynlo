@@ -1,0 +1,23 @@
+schema_version: "1.0"
+legal_entity:
+  key: auto-bs-inc
+  legal_name: "Auto BS Inc."
+  operating_names:
+    - Drivven
+  registered_address:
+    line1: "2258 Rue King Ouest"
+    city: "Sherbrooke"
+    region: "QC"
+    postal_code: "J1J 2E8"
+    country: "CA"
+  default_currency: CAD
+  default_locale: fr-CA
+  timezone: America/Toronto
+  identifiers:
+    gst_tps: "REQUIRED_AT_PRODUCTION"
+    qst_tvq: "REQUIRED_AT_PRODUCTION"
+    quebec_enterprise_number: "REQUIRED_IF_APPLICABLE"
+    dealer_permit_number: "REQUIRED_AT_PRODUCTION"
+    saaq_identifier: "REQUIRED_IF_APPLICABLE"
+  status: pending_verification
+  activation_gate: exact_legal_entity_verified

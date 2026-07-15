@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<style>@page{size:Letter;margin:18mm}body{font-family:Arial,sans-serif}
+.wm{position:fixed;top:45%;left:10%;transform:rotate(-25deg);font-size:40px;color:#d99}
+</style></head><body>
+<div class="wm">BROUILLON — NON PRODUCTION</div>
+<h1>Location à court terme</h1><p>Short-term rental</p>
+<p>Ce modèle valide uniquement la génération et le mappage des champs. Le texte final approuvé est requis avant activation.</p>
+<p>Numéro : {{ document.document_number | default: "APERÇU" }}</p>
+<p>Stock : {{ vehicle.stock_number | default: "—" }}</p>
+<p>VIN : {{ vehicle.vin | default: "—" }}</p>
+</body></html>

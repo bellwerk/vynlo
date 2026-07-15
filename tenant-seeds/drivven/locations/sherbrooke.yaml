@@ -1,0 +1,15 @@
+schema_version: "1.0"
+location:
+  key: sherbrooke
+  name: Sherbrooke
+  address:
+    line1: "2258 Rue King Ouest"
+    city: "Sherbrooke"
+    region: "QC"
+    postal_code: "J1J 2E8"
+    country: "CA"
+  phone_e164: "+18193000777"
+  timezone: America/Toronto
+  locale: fr-CA
+  active: true
+  verification_status: approved_business_input

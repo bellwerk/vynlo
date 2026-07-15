@@ -1,0 +1,92 @@
+{
+  "key": "drivven-webflow-daily-payment",
+  "version": "1.0.0",
+  "status": "approved",
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "cash_price_minor",
+      "currency_code"
+    ],
+    "properties": {
+      "cash_price_minor": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "currency_code": {
+        "const": "CAD"
+      }
+    }
+  },
+  "outputs": {
+    "daily_payment_minor": {
+      "op": "round",
+      "value": {
+        "op": "divide",
+        "args": [
+          {
+            "op": "multiply",
+            "args": [
+              {
+                "op": "divide",
+                "args": [
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "op": "field",
+                        "path": "cash_price_minor"
+                      },
+                      {
+                        "op": "constant",
+                        "value": "1.15"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "constant",
+                    "value": "1.30"
+                  }
+                ]
+              },
+              {
+                "op": "constant",
+                "value": "1.15"
+              }
+            ]
+          },
+          {
+            "op": "constant",
+            "value": "24"
+          },
+          {
+            "op": "constant",
+            "value": "30"
+          }
+        ]
+      },
+      "scale": 0,
+      "mode": "half_up"
+    }
+  },
+  "rounding": {
+    "money_minor_units": 2,
+    "mode": "half_up"
+  },
+  "fixtures": [
+    "tests/cash-price-10000.json"
+  ],
+  "approval_refs": [
+    "DRV-DEC-009"
+  ],
+  "metadata": {
+    "classification": "marketing_estimate",
+    "contractual_payment": false,
+    "owner": "Drivven",
+    "display_suffix": {
+      "en": "/day",
+      "fr": "/jour"
+    }
+  }
+}

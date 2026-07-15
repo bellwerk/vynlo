@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "document_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "location_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "seller_legal_entity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "buyer_party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "inventory_unit_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "stock_number": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vin": {
+      "type": "string",
+      "minLength": 11,
+      "maxLength": 17
+    },
+    "odometer_value": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "odometer_unit": {
+      "enum": [
+        "km",
+        "mi"
+      ]
+    },
+    "currency_code": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 10000
+    },
+    "cash_price_minor": {
+      "type": "integer"
+    },
+    "fee_lines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/line"
+      }
+    },
+    "tax_profile_version_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "trade_in_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "deposit_minor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "balance_due_minor": {
+      "type": "integer"
+    },
+    "delivery_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    }
+  },
+  "required": [
+    "document_date",
+    "location_id",
+    "seller_legal_entity_id",
+    "inventory_unit_id",
+    "currency_code",
+    "buyer_party_id",
+    "cash_price_minor"
+  ],
+  "$defs": {
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label",
+        "amount_minor"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "amount_minor": {
+          "type": "integer"
+        },
+        "tax_classification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

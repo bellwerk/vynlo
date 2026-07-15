@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document",
+    "buyer",
+    "vehicle",
+    "financial",
+    "signatures"
+  ],
+  "properties": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_number",
+        "document_date",
+        "location_id",
+        "seller_legal_entity_id"
+      ],
+      "properties": {
+        "document_number": {
+          "type": "string"
+        },
+        "document_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "location_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seller_legal_entity_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "buyer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "party_id",
+        "legal_name",
+        "address",
+        "authorized_representative"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "legal_name": {
+          "type": "string"
+        },
+        "operating_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "line1",
+            "city",
+            "region",
+            "postal_code",
+            "country"
+          ],
+          "properties": {
+            "line1": {
+              "type": "string"
+            },
+            "line2": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "city": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "postal_code": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            }
+          }
+        },
+        "registration_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tax_identifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "authorized_representative": {
+          "type": "string"
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "email"
+        }
+      }
+    },
+    "vehicle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_unit_id",
+        "stock_number",
+        "vin",
+        "model_year",
+        "make",
+        "model",
+        "odometer_value",
+        "odometer_unit"
+      ],
+      "properties": {
+        "inventory_unit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stock_number": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "model_year": {
+          "type": "integer"
+        },
+        "make": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "trim": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "odometer_value": {
+          "type": "integer"
+        },
+        "odometer_unit": {
+          "enum": [
+            "km",
+            "mi"
+          ]
+        }
+      }
+    },
+    "financial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency_code",
+        "cash_price_minor",
+        "tax_snapshot_id",
+        "total_minor"
+      ],
+      "properties": {
+        "currency_code": {
+          "const": "CAD"
+        },
+        "cash_price_minor": {
+          "type": "integer"
+        },
+        "fees": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "trade_in_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "deposit_minor": {
+          "type": "integer"
+        },
+        "tax_snapshot_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "total_minor": {
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "required": [
+        "buyer_name",
+        "seller_name"
+      ],
+      "properties": {
+        "buyer_name": {
+          "type": "string"
+        },
+        "seller_name": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

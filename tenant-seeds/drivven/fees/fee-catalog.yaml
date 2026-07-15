@@ -1,0 +1,47 @@
+schema_version: "1.0"
+catalog:
+  key: drivven-rtb-fees
+  version: "1.0.0"
+  status: draft_pending_accounting_approval
+  currency: CAD
+  entries:
+    - key: installation_delivery_other
+      labels:
+        fr: "Frais d’installation, de livraison et autres"
+        en: "Installation, delivery and other fees"
+      amount_editable_by_sales: true
+      financed_default: true
+      tax_classification_default: standard_taxable
+      tax_override_permission: configuration.manage
+    - key: rdprm_registration
+      labels:
+        fr: "Frais d’inscription au RDPRM"
+        en: "RDPRM registration fee"
+      amount_editable_by_sales: true
+      financed_default: true
+      tax_classification_default: standard_taxable
+      tax_override_permission: configuration.manage
+    - key: extended_warranty
+      labels:
+        fr: "Prime de garantie prolongée"
+        en: "Extended warranty premium"
+      amount_editable_by_sales: true
+      financed_default: true
+      tax_classification_default: standard_taxable
+      tax_override_permission: configuration.manage
+    - key: approved_government_non_taxable
+      labels:
+        fr: "Frais gouvernemental approuvé non taxable"
+        en: "Approved non-taxable government fee"
+      amount_editable_by_sales: true
+      financed_default: true
+      tax_classification_default: non_taxable
+      availability: disabled_until_accounting_approval
+      tax_override_permission: configuration.manage
+  rules:
+    sales_can_add_arbitrary_fee_type: false
+    sales_can_edit_amount: true
+    sales_can_change_tax_classification: false
+    sales_can_change_financed_flag: false
+    admin_change_creates_new_catalog_version: true
+  activation_gate: accountant_fee_taxability_approval

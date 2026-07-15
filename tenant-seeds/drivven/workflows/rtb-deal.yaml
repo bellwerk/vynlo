@@ -1,0 +1,216 @@
+schema_version: '1.0'
+workflow:
+  key: drivven_rtb_deal
+  entity_type: deal
+  deal_type: drivven_rtb
+  version: 1.0.0
+  initial_state: draft
+  states:
+  - key: draft
+    category: draft
+    labels:
+      en: Draft
+      fr: Brouillon
+    flags:
+      terminal: false
+  - key: awaiting_initial_payment
+    category: pending
+    labels:
+      en: Awaiting Initial Payment
+      fr: En attente du versement initial
+    flags:
+      terminal: false
+  - key: ready_to_finalize
+    category: active
+    labels:
+      en: Ready To Finalize
+      fr: Prêt à finaliser
+    flags:
+      terminal: false
+  - key: official_generated
+    category: pending
+    labels:
+      en: Official Generated
+      fr: Contrat officiel généré
+    flags:
+      terminal: false
+  - key: signed
+    category: active
+    labels:
+      en: Signed
+      fr: Signé
+    flags:
+      terminal: false
+  - key: delivered
+    category: active
+    labels:
+      en: Delivered
+      fr: Livré
+    flags:
+      terminal: false
+  - key: completed
+    category: closed
+    labels:
+      en: Completed
+      fr: Terminé
+    flags:
+      terminal: true
+  - key: customer_returned
+    category: closed
+    labels:
+      en: Customer Returned
+      fr: Véhicule retourné par le client
+    flags:
+      terminal: true
+  - key: repossessed
+    category: closed
+    labels:
+      en: Repossessed
+      fr: Véhicule repris
+    flags:
+      terminal: true
+  - key: cancelled_before_delivery
+    category: closed
+    labels:
+      en: Cancelled Before Delivery
+      fr: Annulé avant la livraison
+    flags:
+      terminal: true
+  - key: cancelled_after_delivery
+    category: closed
+    labels:
+      en: Cancelled After Delivery
+      fr: Annulé après la livraison
+    flags:
+      terminal: true
+  - key: total_loss
+    category: closed
+    labels:
+      en: Total Loss
+      fr: Perte totale
+    flags:
+      terminal: true
+  - key: replaced_by_new_contract
+    category: closed
+    labels:
+      en: Replaced By New Contract
+      fr: Remplacé par un nouveau contrat
+    flags:
+      terminal: true
+  - key: written_off
+    category: closed
+    labels:
+      en: Written Off
+      fr: Radié
+    flags:
+      terminal: true
+  transitions:
+  - from: draft
+    to: awaiting_initial_payment
+    permission: deals.update
+    guard: rtb_minimum_data_complete
+    key: draft__awaiting_initial_payment
+  - from: awaiting_initial_payment
+    to: ready_to_finalize
+    permission: payments.record
+    guard: initial_payment_fully_settled
+    key: awaiting_initial_payment__ready_to_finalize
+  - from: ready_to_finalize
+    to: official_generated
+    permission: documents.generate_approved
+    guard: rtb_generation_requirements_met
+    effects:
+    - allocate_rtb_number
+    - queue_rtb_render
+    key: ready_to_finalize__official_generated
+  - from: official_generated
+    to: signed
+    permission: documents.mark_signed
+    guard: signature_date_matches_official_document
+    effects:
+    - activate_original_schedule
+    - set_inventory_active_rtb
+    key: official_generated__signed
+  - from: signed
+    to: delivered
+    permission: deals.close
+    guard: signed_scan_uploaded
+    effects:
+    - set_inventory_delivered
+    key: signed__delivered
+  - from: delivered
+    to: completed
+    permission: deals.close
+    guard: ownership_transfer_completed
+    key: delivered__completed
+  - from: delivered
+    to: customer_returned
+    permission: deals.close
+    reason_required: true
+    effects:
+    - set_inventory_returned
+    key: delivered__customer_returned
+  - from: delivered
+    to: repossessed
+    permission: deals.close
+    reason_required: true
+    effects:
+    - set_inventory_repossessed
+    key: delivered__repossessed
+  - from: draft
+    to: cancelled_before_delivery
+    permission: deals.cancel
+    reason_required: true
+    key: draft__cancelled_before_delivery
+  - from: awaiting_initial_payment
+    to: cancelled_before_delivery
+    permission: deals.cancel
+    reason_required: true
+    key: awaiting_initial_payment__cancelled_before_delivery
+  - from: ready_to_finalize
+    to: cancelled_before_delivery
+    permission: deals.cancel
+    reason_required: true
+    key: ready_to_finalize__cancelled_before_delivery
+  - from: official_generated
+    to: cancelled_before_delivery
+    permission: documents.void
+    reason_required: true
+    effects:
+    - void_official_document
+    key: official_generated__cancelled_before_delivery
+  - from: signed
+    to: cancelled_before_delivery
+    permission: documents.void_signed
+    reason_required: true
+    key: signed__cancelled_before_delivery
+  - from: delivered
+    to: cancelled_after_delivery
+    permission: documents.void_signed
+    reason_required: true
+    key: delivered__cancelled_after_delivery
+  - from: delivered
+    to: total_loss
+    permission: deals.close
+    reason_required: true
+    key: delivered__total_loss
+  - from: official_generated
+    to: replaced_by_new_contract
+    permission: documents.supersede
+    reason_required: true
+    key: official_generated__replaced_by_new_contract
+  - from: signed
+    to: replaced_by_new_contract
+    permission: documents.supersede
+    reason_required: true
+    key: signed__replaced_by_new_contract
+  - from: delivered
+    to: written_off
+    permission: deals.close
+    reason_required: true
+    key: delivered__written_off
+  invariants:
+  - one_active_rtb_per_inventory_unit
+  - official_document_data_is_immutable
+  - original_schedule_is_immutable
+  - official_number_is_never_reused

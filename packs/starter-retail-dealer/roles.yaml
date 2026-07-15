@@ -1,0 +1,51 @@
+schema_version: "1.0"
+roles:
+  - key: owner_admin
+    names: { en: Owner / administrator, fr: Propriétaire / administrateur }
+    permissions:
+      - workspace.manage
+      - users.manage
+      - integrations.manage
+      - configuration.manage
+      - inventory.*
+      - crm.*
+      - deals.*
+      - documents.*
+      - exports.*
+      - audit.read
+  - key: manager
+    names: { en: Manager, fr: Gestionnaire }
+    permissions:
+      - inventory.*
+      - crm.*
+      - deals.*
+      - documents.generate
+      - documents.read
+      - documents.upload_signed
+      - exports.run
+      - reports.read
+  - key: sales
+    names: { en: Sales, fr: Ventes }
+    permissions:
+      - inventory.read
+      - crm.*
+      - deals.create
+      - deals.read
+      - deals.update_owned
+      - documents.preview
+      - documents.generate_approved
+      - documents.upload_signed
+  - key: inventory
+    names: { en: Inventory, fr: Inventaire }
+    permissions:
+      - inventory.*
+      - media.*
+      - listings.*
+  - key: read_only
+    names: { en: Read only, fr: Lecture seule }
+    permissions:
+      - inventory.read
+      - crm.read
+      - deals.read
+      - documents.read
+      - reports.read

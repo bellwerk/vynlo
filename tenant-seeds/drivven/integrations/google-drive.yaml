@@ -1,0 +1,58 @@
+schema_version: "1.0"
+integration:
+  key: drivven-google-drive
+  provider: google_drive
+  provider_contract: storage_provider_v1
+  environment: workspace_configured
+  authentication:
+    method: oauth
+    account_policy: dedicated_company_controlled_google_workspace_account
+    secret_reference: DRIVVEN_GOOGLE_OAUTH_SECRET_REF
+  shared_drive:
+    drive_id: "REQUIRED_AT_ACTIVATION"
+    supports_all_drives: true
+    include_items_from_all_drives: true
+  roots:
+    active_inventory_folder_id: "REQUIRED_AT_ACTIVATION"
+    sold_inventory_folder_id: "REQUIRED_AT_ACTIVATION"
+    archived_inventory_folder_id: "REQUIRED_AT_ACTIVATION"
+    returns_intake_folder_id: "REQUIRED_AT_ACTIVATION"
+  vehicle_folder:
+    name_template: "{{stock_number}} - {{model_year}} {{make|upper}} {{model|upper}}"
+    subfolders:
+      - { key: photos, name: "01 PHOTOS" }
+      - { key: purchase_documents, name: "02 PURCHASE DOCUMENTS" }
+      - { key: contracts, name: "03 CONTRACTS" }
+      - { key: repairs_invoices, name: "04 REPAIRS AND INVOICES" }
+      - { key: registration_other, name: "05 REGISTRATION AND OTHER" }
+  moves:
+    delivered:
+      root: sold_inventory_folder_id
+      path_template: "{{delivered_at|year}}/Q{{delivered_at|quarter}}/{{delivered_at|month2}} - {{delivered_at|month_name_en|upper}}/{{vehicle_folder_name}}"
+    archived:
+      root: archived_inventory_folder_id
+      path_template: "{{archived_at|year}}/{{vehicle_folder_name}}"
+    returned_or_repossessed:
+      root: returns_intake_folder_id
+      path_template: "{{vehicle_folder_name}}"
+    approved_for_resale:
+      root: active_inventory_folder_id
+      path_template: "{{vehicle_folder_name}}"
+  file_policy:
+    vynlo_upload_is_preferred: true
+    direct_drive_changes_allowed: true
+    reconciliation_scan_enabled: true
+    missing_or_moved_object_behavior: flag_drift_and_require_review
+    signed_contract_permissions: restricted
+    public_drive_links_for_customer_data: forbidden
+  reliability:
+    asynchronous: true
+    idempotency_key_template: "{{workspace_id}}:drive:{{operation}}:{{entity_id}}:{{version}}"
+    retry_profile: provider_default_exponential
+    dead_letter_after_attempts: 8
+  activation_checks:
+    - verify_shared_drive_access
+    - verify_root_folders
+    - verify_create_move_rename_delete_test_objects
+    - verify_reconciliation
+    - verify_restricted_document_access

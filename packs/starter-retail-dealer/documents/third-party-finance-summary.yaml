@@ -1,0 +1,14 @@
+schema_version: "1.0"
+key: third-party-finance-summary
+version: "1.0.0"
+labels:
+  en: "Third-party finance summary"
+  fr: "Sommaire de financement externe"
+field_schema: "schemas/third-party-finance-summary.schema.json"
+numbering: "TFS-{{sequence:6}}"
+template: "templates/third-party-finance-summary.html"
+workflow: null
+tax_pack: "workspace_active_tax_pack"
+calculation: null
+production_enabled: false
+approval_refs: []

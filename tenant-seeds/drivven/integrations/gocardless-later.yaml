@@ -1,0 +1,19 @@
+schema_version: "1.0"
+integration:
+  key: drivven-gocardless
+  status: future_disabled
+  provider: gocardless
+  private_tenant_module: recurring_payment_servicing
+  authentication_secret_reference: DRIVVEN_GOCARDLESS_SECRET_REF
+  planned_behavior:
+    - read_existing_customers_and_mandates
+    - consume_webhooks_and_run_daily_reconciliation
+    - match_by_stock_number_and_customer_name_with_manual_review
+    - import_payment_statuses
+    - create_follow_up_tasks_for_failures
+    - allow_admin_resolution_with_audit
+  exclusions:
+    - create_or_modify_mandates_in_initial_module
+    - automatic_retry_trigger
+    - silent_automatic_customer_matching
+  activation_gate: future_module_spec_and_security_review

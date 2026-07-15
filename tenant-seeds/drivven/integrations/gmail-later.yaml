@@ -1,0 +1,19 @@
+schema_version: "1.0"
+integration:
+  key: drivven-gmail-etransfer
+  status: future_disabled
+  provider: gmail
+  private_tenant_module: payment_reconciliation
+  mailbox: "info@autobs.ca"
+  authentication_secret_reference: DRIVVEN_GMAIL_SECRET_REF
+  planned_behavior:
+    - read_only_search_of_interac_deposit_messages
+    - extract_sender_amount_date_and_reference
+    - suggest_matches_only
+    - require_office_or_admin_confirmation
+    - store_link_to_original_message
+  security:
+    least_privilege_scope: required
+    message_body_retention: minimize
+    automatic_payment_application: forbidden
+  activation_gate: future_module_spec_privacy_and_security_review

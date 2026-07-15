@@ -1,0 +1,24 @@
+schema_version: "1.0"
+export:
+  key: inventory_summary
+  version: "1.0.0"
+  labels: { en: Inventory summary, fr: Sommaire de l’inventaire }
+  entity: inventory_unit
+  formats: [csv, xlsx]
+  columns:
+    - { key: stock_number, source: inventory_unit.stock_number }
+    - { key: vin, source: vehicle.vin }
+    - { key: year, source: vehicle.model_year }
+    - { key: make, source: vehicle.make }
+    - { key: model, source: vehicle.model }
+    - { key: trim, source: vehicle.trim }
+    - { key: status, source: inventory_unit.workflow_state_label }
+    - { key: location, source: location.name }
+    - { key: acquired_at, source: inventory_unit.acquired_at }
+    - { key: days_in_stock, source: metrics.days_in_stock }
+    - { key: advertised_price_minor, source: inventory_unit.advertised_price_minor }
+    - { key: total_cost_minor, source: metrics.total_cost_minor }
+    - { key: estimated_gross_minor, source: metrics.estimated_gross_minor }
+    - { key: currency_code, source: inventory_unit.currency_code }
+  default_filters:
+    include_archived: false

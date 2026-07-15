@@ -1,0 +1,89 @@
+{
+  "case_id": "DRV-RTB-FINAL-ROUNDING-001",
+  "title": "Final payment rounding adjustment",
+  "status": "candidate_requires_approval",
+  "input": {
+    "currency_code": "CAD",
+    "signature_date": "2026-08-03",
+    "vehicle_cash_price_minor": 1234567,
+    "initial_payment_total_minor": 123456,
+    "fees": [
+      {
+        "key": "other",
+        "label": "Autres frais",
+        "amount_minor": 33333,
+        "taxable": true,
+        "financed": true,
+        "tax_classification": "standard"
+      }
+    ],
+    "eligible_trade_in_credit_minor": 0,
+    "trade_in_lien_payoff_minor": 0,
+    "trade_in_tax_eligibility_confirmed": false,
+    "annual_rate_bps": 1725,
+    "duration_months": 18,
+    "payment_frequency": "biweekly"
+  },
+  "formula_version": "1.0.0",
+  "tax_pack_version": "tax-ca-qc@1.0.0-candidate",
+  "expected": {
+    "brokerage_fee_base_minor": 86419,
+    "capital_down_payment_minor": 37037,
+    "taxable_financed_fees_minor": 33333,
+    "non_taxable_financed_fees_minor": 0,
+    "vehicle_price_after_capital_and_trade_in_minor": 1197530,
+    "vehicle_taxable_consideration_minor": 1230863,
+    "vehicle_gst_minor": 61543,
+    "vehicle_qst_minor": 122779,
+    "brokerage_gst_minor": 4321,
+    "brokerage_qst_minor": 8620,
+    "net_capital_financed_minor": 1428126,
+    "periods_per_year": 26,
+    "number_of_payments": 39,
+    "first_payment_date": "2026-08-17",
+    "regular_payment_minor": 41681,
+    "total_schedule_payments_minor": 1625552,
+    "total_interest_minor": 197426,
+    "first_three_schedule_rows": [
+      {
+        "payment_number": 1,
+        "due_date": "2026-08-17",
+        "payment_minor": 41681,
+        "principal_minor": 32206,
+        "interest_minor": 9475,
+        "remaining_balance_minor": 1395920
+      },
+      {
+        "payment_number": 2,
+        "due_date": "2026-08-31",
+        "payment_minor": 41681,
+        "principal_minor": 32420,
+        "interest_minor": 9261,
+        "remaining_balance_minor": 1363500
+      },
+      {
+        "payment_number": 3,
+        "due_date": "2026-09-14",
+        "payment_minor": 41681,
+        "principal_minor": 32635,
+        "interest_minor": 9046,
+        "remaining_balance_minor": 1330865
+      }
+    ],
+    "final_schedule_row": {
+      "payment_number": 39,
+      "due_date": "2028-01-31",
+      "payment_minor": 41674,
+      "principal_minor": 41399,
+      "interest_minor": 275,
+      "remaining_balance_minor": 0
+    },
+    "final_payment_adjustment_minor": -7,
+    "ending_balance_minor": 0
+  },
+  "approval": {
+    "admin": false,
+    "accountant": false,
+    "legal_if_applicable": false
+  }
+}

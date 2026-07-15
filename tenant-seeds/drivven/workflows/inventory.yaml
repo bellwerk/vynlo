@@ -1,0 +1,247 @@
+schema_version: '1.0'
+workflow:
+  key: drivven_inventory
+  entity_type: inventory_unit
+  version: 1.0.0
+  initial_state: draft
+  states:
+  - key: draft
+    labels:
+      en: Draft
+      fr: Brouillon
+    category: draft
+    flags:
+      publishable: false
+      blocks_new_deal: false
+      terminal: false
+  - key: incomplete
+    labels:
+      en: Incomplete
+      fr: Incomplet
+    category: draft
+    flags:
+      publishable: false
+      blocks_new_deal: false
+      terminal: false
+  - key: available
+    labels:
+      en: Available
+      fr: Disponible
+    category: active
+    flags:
+      publishable: true
+      blocks_new_deal: false
+      terminal: false
+  - key: listed
+    labels:
+      en: Listed
+      fr: Publié
+    category: active
+    flags:
+      publishable: true
+      blocks_new_deal: false
+      terminal: false
+  - key: reserved
+    labels:
+      en: Reserved
+      fr: Réservé
+    category: pending
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      terminal: false
+  - key: active_rtb
+    labels:
+      en: Active rent-to-buy
+      fr: Location-vente active
+    category: pending
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      terminal: false
+  - key: delivered
+    labels:
+      en: Delivered
+      fr: Livré
+    category: closed
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      terminal: false
+  - key: returned
+    labels:
+      en: Returned
+      fr: Retourné
+    category: pending
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      requires_inspection: true
+      terminal: false
+  - key: repossessed
+    labels:
+      en: Repossessed
+      fr: Repris
+    category: pending
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      requires_inspection: true
+      terminal: false
+  - key: ownership_transferred
+    labels:
+      en: Ownership transferred
+      fr: Propriété transférée
+    category: closed
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      terminal: true
+  - key: archived
+    labels:
+      en: Archived
+      fr: Archivé
+    category: archived
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      terminal: true
+  - key: written_off
+    labels:
+      en: Written off
+      fr: Radié
+    category: archived
+    flags:
+      publishable: false
+      blocks_new_deal: true
+      terminal: true
+  transitions:
+  - from: draft
+    to: incomplete
+    permission: inventory.update
+    key: draft__incomplete
+  - from: draft
+    to: available
+    permission: inventory.update
+    guard: drivven_minimum_inventory_complete
+    key: draft__available
+  - from: incomplete
+    to: available
+    permission: inventory.update
+    guard: drivven_minimum_inventory_complete
+    key: incomplete__available
+  - from: available
+    to: listed
+    permission: listings.publish
+    effects:
+    - queue_webflow_publish
+    key: available__listed
+  - from: listed
+    to: available
+    permission: listings.unpublish
+    effects:
+    - queue_webflow_unpublish
+    key: listed__available
+  - from: available
+    to: reserved
+    permission: deals.update
+    effects:
+    - queue_webflow_unavailable
+    key: available__reserved
+  - from: listed
+    to: reserved
+    permission: deals.update
+    effects:
+    - queue_webflow_unavailable
+    key: listed__reserved
+  - from: reserved
+    to: available
+    permission: deals.update
+    key: reserved__available
+  - from: reserved
+    to: active_rtb
+    permission: documents.mark_signed
+    guard: active_rtb_contract_exists
+    key: reserved__active_rtb
+  - from: active_rtb
+    to: delivered
+    permission: deals.close
+    guard: drivven_delivery_requirements_met
+    effects:
+    - queue_webflow_unavailable
+    - queue_drive_move_sold
+    key: active_rtb__delivered
+  - from: delivered
+    to: returned
+    permission: deals.update
+    reason_required: true
+    effects:
+    - queue_drive_move_returns_intake
+    key: delivered__returned
+  - from: delivered
+    to: repossessed
+    permission: deals.update
+    reason_required: true
+    effects:
+    - queue_drive_move_returns_intake
+    key: delivered__repossessed
+  - from: returned
+    to: available
+    permission: inventory.update
+    guard: inspection_approved
+    effects:
+    - queue_drive_move_active
+    key: returned__available
+  - from: repossessed
+    to: available
+    permission: inventory.update
+    guard: inspection_approved
+    effects:
+    - queue_drive_move_active
+    key: repossessed__available
+  - from: delivered
+    to: ownership_transferred
+    permission: deals.close
+    guard: ownership_transfer_requirements_met
+    key: delivered__ownership_transferred
+  - from: draft
+    to: archived
+    permission: inventory.archive
+    key: draft__archived
+  - from: incomplete
+    to: archived
+    permission: inventory.archive
+    key: incomplete__archived
+  - from: available
+    to: archived
+    permission: inventory.archive
+    effects:
+    - queue_webflow_unavailable
+    - queue_drive_move_archived
+    key: available__archived
+  - from: listed
+    to: archived
+    permission: inventory.archive
+    effects:
+    - queue_webflow_unavailable
+    - queue_drive_move_archived
+    key: listed__archived
+  - from: returned
+    to: archived
+    permission: inventory.archive
+    guard: inspection_complete
+    effects:
+    - queue_drive_move_archived
+    key: returned__archived
+  - from: repossessed
+    to: archived
+    permission: inventory.archive
+    guard: inspection_complete
+    effects:
+    - queue_drive_move_archived
+    key: repossessed__archived
+  - from: delivered
+    to: written_off
+    permission: inventory.archive
+    reason_required: true
+    key: delivered__written_off

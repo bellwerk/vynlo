@@ -1,0 +1,44 @@
+key: tax-ca-qc
+version: 1.0.0
+jurisdiction: CA-QC
+contexts:
+- vehicle_retail_sale
+- vehicle_wholesale_sale
+- vehicle_purchase
+- taxable_service_fee
+effective_from: '2026-07-15'
+effective_to: null
+rules:
+  currency: CAD
+  rounding:
+    mode: HALF_UP
+    scale: 2
+    stage: tax_total_per_tax_type
+  taxes:
+  - key: gst
+    labels:
+      en: GST
+      fr: TPS
+    rate: '0.05'
+    taxable_base: eligible_taxable_consideration
+  - key: qst
+    labels:
+      en: QST
+      fr: TVQ
+    rate: '0.09975'
+    taxable_base: eligible_taxable_consideration
+    gst_included_in_base: false
+  trade_in:
+    strategy: conditional_credit_reduces_taxable_consideration
+    requires_explicit_eligibility_inputs: true
+    lien_payoff_is_not_automatically_tax_credit: true
+  unsupported_without_override:
+  - cross_border_sale
+  - exempt_purchaser
+  - unusual_vehicle_category
+  - multiple_tax_jurisdictions
+golden_tests:
+- tests/vehicle-sale-no-trade-in.json
+- tests/eligible-trade-in.json
+activation_status: draft
+approval_refs: []

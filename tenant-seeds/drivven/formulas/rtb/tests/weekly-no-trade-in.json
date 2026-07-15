@@ -1,0 +1,80 @@
+{
+  "case_id": "DRV-RTB-WEEKLY-001",
+  "title": "Weekly, no trade-in",
+  "status": "candidate_requires_approval",
+  "input": {
+    "currency_code": "CAD",
+    "signature_date": "2026-08-03",
+    "vehicle_cash_price_minor": 1500000,
+    "initial_payment_total_minor": 200000,
+    "fees": [],
+    "eligible_trade_in_credit_minor": 0,
+    "trade_in_lien_payoff_minor": 0,
+    "trade_in_tax_eligibility_confirmed": false,
+    "annual_rate_bps": 1999,
+    "duration_months": 36,
+    "payment_frequency": "weekly"
+  },
+  "formula_version": "1.0.0",
+  "tax_pack_version": "tax-ca-qc@1.0.0-candidate",
+  "expected": {
+    "brokerage_fee_base_minor": 140000,
+    "capital_down_payment_minor": 60000,
+    "taxable_financed_fees_minor": 0,
+    "non_taxable_financed_fees_minor": 0,
+    "vehicle_price_after_capital_and_trade_in_minor": 1440000,
+    "vehicle_taxable_consideration_minor": 1440000,
+    "vehicle_gst_minor": 72000,
+    "vehicle_qst_minor": 143640,
+    "brokerage_gst_minor": 7000,
+    "brokerage_qst_minor": 13965,
+    "net_capital_financed_minor": 1676605,
+    "periods_per_year": 52,
+    "number_of_payments": 156,
+    "first_payment_date": "2026-08-10",
+    "regular_payment_minor": 14310,
+    "total_schedule_payments_minor": 2232430,
+    "total_interest_minor": 555825,
+    "first_three_schedule_rows": [
+      {
+        "payment_number": 1,
+        "due_date": "2026-08-10",
+        "payment_minor": 14310,
+        "principal_minor": 7865,
+        "interest_minor": 6445,
+        "remaining_balance_minor": 1668740
+      },
+      {
+        "payment_number": 2,
+        "due_date": "2026-08-17",
+        "payment_minor": 14310,
+        "principal_minor": 7895,
+        "interest_minor": 6415,
+        "remaining_balance_minor": 1660845
+      },
+      {
+        "payment_number": 3,
+        "due_date": "2026-08-24",
+        "payment_minor": 14310,
+        "principal_minor": 7925,
+        "interest_minor": 6385,
+        "remaining_balance_minor": 1652920
+      }
+    ],
+    "final_schedule_row": {
+      "payment_number": 156,
+      "due_date": "2029-07-30",
+      "payment_minor": 14380,
+      "principal_minor": 14325,
+      "interest_minor": 55,
+      "remaining_balance_minor": 0
+    },
+    "final_payment_adjustment_minor": 70,
+    "ending_balance_minor": 0
+  },
+  "approval": {
+    "admin": false,
+    "accountant": false,
+    "legal_if_applicable": false
+  }
+}

@@ -1,0 +1,18 @@
+schema_version: "1.0"
+key: drivven_short_term_rental
+version: "1.0.0"
+labels:
+  en: "Short-term rental"
+  fr: "Location à court terme"
+field_schema: "field-schema.v1.json"
+numbering: "../../numbering/documents.yaml#short_term_rental"
+template: "templates/v1.html"
+workflow: null
+tax_pack: "tax-ca-qc@approved-active-version"
+calculation: null
+production_enabled: false
+activation_gates:
+  - short_term_rental_template_approved
+  - legal_template_approved
+  - field_mapping_approved
+approval_refs: []

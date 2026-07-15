@@ -1,0 +1,28 @@
+{
+  "case_id": "CA-QC-VEHICLE-SALE-TRADEIN-001",
+  "status": "candidate",
+  "description": "Illustrative eligible dealer trade-in credit reducing taxable consideration; eligibility must be recorded.",
+  "currency": "CAD",
+  "input": {
+    "vehicle_price_minor": 1000000,
+    "taxable_fees_minor": 0,
+    "non_taxable_fees_minor": 0,
+    "eligible_trade_in_credit_minor": 300000,
+    "trade_in_eligibility": {
+      "explicitly_confirmed": true,
+      "review_reference": "REQUIRED_AT_ACTIVATION"
+    }
+  },
+  "expected": {
+    "eligible_taxable_consideration_minor": 700000,
+    "gst_minor": 35000,
+    "qst_minor": 69825,
+    "total_tax_minor": 104825,
+    "net_cash_consideration_before_payments_minor": 804825
+  },
+  "rounding": {
+    "mode": "HALF_UP",
+    "scale": 2
+  },
+  "approval_required": true
+}

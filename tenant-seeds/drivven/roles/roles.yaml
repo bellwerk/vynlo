@@ -1,0 +1,75 @@
+schema_version: "1.0"
+roles:
+  - key: admin
+    names: { en: Administrator, fr: Administrateur }
+    permissions:
+      - workspace.manage
+      - users.manage
+      - roles.manage
+      - integrations.manage
+      - configuration.manage
+      - inventory.*
+      - media.*
+      - listings.*
+      - crm.*
+      - deals.*
+      - payments.*
+      - documents.*
+      - exports.*
+      - approvals.*
+      - jobs.manage
+      - audit.read
+    step_up_actions:
+      - configuration.activate
+      - formula.activate
+      - tax.activate
+      - template.activate
+      - payments.reverse
+      - payments.refund
+      - documents.void_signed
+      - integrations.credentials_change
+      - users.roles_change
+  - key: sales
+    names: { en: Sales, fr: Ventes }
+    permissions:
+      - inventory.read
+      - inventory.create
+      - inventory.update
+      - inventory.archive
+      - media.*
+      - listings.read
+      - listings.publish
+      - listings.unpublish
+      - crm.*
+      - deals.create
+      - deals.read
+      - deals.update
+      - payments.record
+      - documents.preview
+      - documents.generate_approved
+      - documents.print
+      - documents.mark_signed
+      - documents.upload_signed
+    restrictions:
+      - no_inventory_delete
+      - no_tax_override
+      - no_formula_or_template_activation
+      - no_payment_reverse_or_refund
+      - no_signed_document_void
+  - key: sales_office
+    names: { en: Sales / office, fr: Ventes / bureau }
+    inherits: sales
+    permissions:
+      - payments.read_all
+      - tasks.manage_collections_later
+      - exports.run_approved
+      - provider_events.review_later
+    restrictions:
+      - no_payment_reverse_or_refund
+      - no_late_fee_waiver
+      - no_formula_or_template_activation
+policy:
+  workspace_access:
+    all_roles_locations: [montreal, sherbrooke]
+  mfa_required: true
+  shared_accounts_forbidden: true

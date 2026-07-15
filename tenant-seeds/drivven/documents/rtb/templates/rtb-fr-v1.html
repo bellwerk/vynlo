@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+@page { size: Letter; margin: 14mm 14mm 18mm; }
+body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
+h1 { font-size: 18px; } h2 { font-size: 13px; border-bottom: 1px solid #222; padding-bottom: 3px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+table { width: 100%; border-collapse: collapse; } td, th { border: 1px solid #555; padding: 4px; }
+.money { text-align: right; } .page-break { break-before: page; }
+.watermark { position: fixed; top: 43%; left: 8%; transform: rotate(-24deg);
+  font-size: 42px; font-weight: 700; color: rgba(180,0,0,.18); z-index: 10; }
+.footer { position: fixed; bottom: -10mm; left: 0; right: 0; font-size: 7px; text-align: center; }
+.legal-placeholder { border: 2px dashed #b00; padding: 12px; color: #800; }
+.signature { height: 45px; border-bottom: 1px solid #000; }
+</style>
+</head>
+<body>
+<div class="watermark">BROUILLON — NON PRODUCTION</div>
+<div class="footer">
+  {{ document.document_number | default: "APERÇU NON NUMÉROTÉ" }} ·
+  Modèle {{ document.template_version }} · Formule {{ document.formula_version }} · Fiscalité {{ document.tax_pack_version }}
+</div>
+
+<h1>CONTRAT DE LOCATION-VENTE — BROUILLON TECHNIQUE</h1>
+<div class="grid">
+  <div><strong>Numéro :</strong> {{ document.document_number | default: "—" }}</div>
+  <div><strong>Date prévue de signature :</strong> {{ document.signature_date }}</div>
+  <div><strong>Entité juridique :</strong> {{ seller.legal_name }}</div>
+  <div><strong>Succursale :</strong> {{ location.name }}</div>
+</div>
+
+<h2>Client</h2>
+<div class="grid">
+  <div>{{ customer.full_name }}</div><div>{{ customer.phone }}</div>
+  <div>{{ customer.address.line1 }}, {{ customer.address.city }}</div><div>{{ customer.email }}</div>
+  <div>Permis : {{ customer.driver_license.number }}</div><div>Naissance : {{ customer.date_of_birth }}</div>
+</div>
+
+<h2>Véhicule</h2>
+<div class="grid">
+  <div>Stock : {{ vehicle.stock_number }}</div><div>VIN : {{ vehicle.vin }}</div>
+  <div>{{ vehicle.model_year }} {{ vehicle.make }} {{ vehicle.model }} {{ vehicle.trim }}</div>
+  <div>{{ vehicle.odometer_value }} km</div>
+</div>
+
+<h2>Sommaire financier</h2>
+<table>
+<tr><th>Description</th><th>Montant</th></tr>
+<tr><td>Prix comptant du véhicule</td><td class="money">{{ financial.vehicle_cash_price_minor | money:"CAD" }}</td></tr>
+{% for fee in financial.fees %}
+<tr><td>{{ fee.label_fr }}</td><td class="money">{{ fee.amount_minor | money:"CAD" }}</td></tr>
+{% endfor %}
+<tr><td>Versement initial total</td><td class="money">{{ financial.initial_payment_total_minor | money:"CAD" }}</td></tr>
+<tr><td>Frais de courtage</td><td class="money">{{ financial.brokerage_fee_base_minor | money:"CAD" }}</td></tr>
+<tr><td>Acompte appliqué au capital</td><td class="money">{{ financial.capital_down_payment_minor | money:"CAD" }}</td></tr>
+<tr><td>TPS/TVQ sur frais de courtage financés</td><td class="money">{{ financial.brokerage_gst_minor | add:financial.brokerage_qst_minor | money:"CAD" }}</td></tr>
+<tr><td>Crédit d’échange admissible</td><td class="money">{{ financial.eligible_trade_in_credit_minor | money:"CAD" }}</td></tr>
+<tr><td>Solde du véhicule d’échange financé</td><td class="money">{{ financial.trade_in_lien_payoff_minor | money:"CAD" }}</td></tr>
+<tr><td>TPS</td><td class="money">{{ financial.vehicle_gst_minor | money:"CAD" }}</td></tr>
+<tr><td>TVQ</td><td class="money">{{ financial.vehicle_qst_minor | money:"CAD" }}</td></tr>
+<tr><th>Capital net financé</th><th class="money">{{ financial.net_capital_financed_minor | money:"CAD" }}</th></tr>
+</table>
+
+<h2>Modalités</h2>
+<div class="grid">
+  <div>Taux annuel : {{ payment_terms.annual_rate_bps | basis_points_percent }}</div>
+  <div>Durée : {{ payment_terms.duration_months }} mois</div>
+  <div>Fréquence : {{ payment_terms.payment_frequency | translate_frequency:"fr" }}</div>
+  <div>Nombre de versements : {{ payment_terms.number_of_payments }}</div>
+  <div>Premier versement : {{ payment_terms.first_payment_date }}</div>
+  <div>Versement régulier : {{ payment_terms.regular_payment_minor | money:"CAD" }}</div>
+</div>
+
+<div class="page-break"></div>
+<h2>Conditions juridiques</h2>
+<div class="legal-placeholder">
+  TEXTE FRANÇAIS FINAL APPROUVÉ REQUIS AVANT ACTIVATION. Le moteur ne doit jamais inventer,
+  traduire ou modifier ce contenu.
+</div>
+
+<div class="page-break"></div>
+<h2>Annexe — frais de courtage</h2>
+<div class="legal-placeholder">
+  ANNEXE FINALE APPROUVÉE REQUISE AVANT ACTIVATION.
+</div>
+
+<div class="page-break"></div>
+<h2>Signatures</h2>
+<p>Client : {{ signatures.customer_name }}</p><div class="signature"></div>
+<p>Représentant : {{ signatures.seller_representative_name }}</p><div class="signature"></div>
+<p>Initiales requises par page/section selon le modèle final approuvé.</p>
+</body>
+</html>
