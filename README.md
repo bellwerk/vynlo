@@ -8,6 +8,32 @@
 
 Vynlo is a configurable, inventory-first dealership operations and merchandising SaaS for small and medium vehicle dealerships. Drivven is the first configured workspace and has private operating rules, document templates, formulas, workflows, integrations, and exports. Those settings must never become hardcoded Vynlo behavior.
 
+## Stage 0 developer quick start
+
+Requirements: Git, Node.js 24.18.0, pnpm 11.13.0 through Corepack, Python 3 with `scripts/requirements.txt`, Docker, and the pinned Supabase CLI installed by pnpm.
+
+```bash
+corepack enable
+corepack prepare pnpm@11.13.0 --activate
+pnpm install --frozen-lockfile
+python -m pip install -r scripts/requirements.txt
+cp .env.example .env.local
+pnpm supabase:start
+pnpm db:reset
+pnpm dev
+```
+
+The web shell runs at `http://127.0.0.1:3000`, its health page at `/health`, and the worker health command is `pnpm worker:health`. The local Supabase seed creates two synthetic Stage 0 workspaces only; it is not the production tenancy schema.
+
+Run the complete available scaffold checks with:
+
+```bash
+pnpm validate
+pnpm test:e2e
+```
+
+See [`docs/operations/LOCAL_DEVELOPMENT.md`](docs/operations/LOCAL_DEVELOPMENT.md) for commands and troubleshooting and [`docs/operations/REPOSITORY_ADMINISTRATION.md`](docs/operations/REPOSITORY_ADMINISTRATION.md) for owner-only GitHub settings.
+
 ## Repository rule
 
 Vynlo uses **one application repository**. A dealership tenant is a workspace in the database, not a Git repository or a code fork.

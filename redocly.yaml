@@ -1,0 +1,7 @@
+apis:
+  vynlo:
+    root: ./contracts/openapi.v1.yaml
+rules:
+  no-unresolved-refs: error
+  operation-operationId-unique: error
+  path-parameters-defined: error

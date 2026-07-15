@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, asdict
@@ -24,11 +25,32 @@ from jsonschema import Draft202012Validator
 
 getcontext().prec = 60
 
+EXCLUDED_DIRECTORIES = {
+    ".git",
+    ".next",
+    ".supabase",
+    ".turbo",
+    "coverage",
+    "dist",
+    "node_modules",
+    "playwright-report",
+    "test-results",
+}
+
 @dataclass
 class Result:
     name: str
     status: str
     details: list[str]
+
+
+def repository_files(root: Path) -> Iterable[Path]:
+    """Yield repository source files without generated dependency/build trees."""
+    for directory, names, files in os.walk(root):
+        names[:] = [name for name in names if name not in EXCLUDED_DIRECTORIES]
+        base = Path(directory)
+        for name in files:
+            yield base / name
 
 
 def load(path: Path) -> Any:
@@ -169,8 +191,8 @@ def calculate_rtb(inputs: dict[str, Any]) -> dict[str, Any]:
 
 def check_parse(root: Path) -> Result:
     errors: list[str] = []
-    for path in root.rglob("*"):
-        if not path.is_file() or path.suffix not in {".json", ".yaml", ".yml"}:
+    for path in repository_files(root):
+        if path.suffix not in {".json", ".yaml", ".yml"}:
             continue
         try:
             load(path)
@@ -312,7 +334,7 @@ def check_openapi(root: Path) -> Result:
 def check_markdown_links(root: Path) -> Result:
     errors: list[str] = []
     pattern = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
-    for path in root.rglob("*.md"):
+    for path in (path for path in repository_files(root) if path.suffix == ".md"):
         text = path.read_text(encoding="utf-8")
         for raw in pattern.findall(text):
             target = raw.strip().split(" ")[0].strip("<>")
@@ -372,8 +394,8 @@ def check_no_secret_like_values(root: Path) -> Result:
         re.compile(r"\b(?:ghp|github_pat)_[A-Za-z0-9_]{20,}"),
         re.compile(r"\bya29\.[A-Za-z0-9_-]{20,}"),
     ]
-    for path in root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() in {".png", ".jpg", ".jpeg", ".pdf", ".zip"}:
+    for path in repository_files(root):
+        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".pdf", ".zip"}:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for pattern in patterns:
@@ -386,7 +408,7 @@ def check_no_secret_like_values(root: Path) -> Result:
 def sha_manifest(root: Path) -> list[str]:
     lines: list[str] = []
     excluded = {"FILE_MANIFEST.sha256", "VALIDATION_RESULTS.json"}
-    for path in sorted(p for p in root.rglob("*") if p.is_file() and p.name not in excluded):
+    for path in sorted(p for p in repository_files(root) if p.name not in excluded):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         lines.append(f"{digest}  {path.relative_to(root).as_posix()}")
     return lines

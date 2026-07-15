@@ -20,6 +20,7 @@ Optional provider CLIs are not required for normal local work. Google Drive and 
 git clone <private-vynlo-repository-url>
 cd vynlo
 corepack enable
+corepack prepare pnpm@11.13.0 --activate
 pnpm install --frozen-lockfile
 cp .env.example .env.local
 pnpm supabase:start
@@ -32,7 +33,7 @@ Expected services:
 ```text
 web/PWA: http://localhost:3000
 local Supabase Studio: printed by Supabase CLI
-worker: started by pnpm dev or pnpm worker:dev
+worker: started by pnpm dev; health check available through pnpm worker:health
 ```
 
 ## Required root scripts
@@ -59,6 +60,17 @@ pnpm db:reset
 pnpm db:migrate
 pnpm seed:synthetic
 ```
+
+At Stage 0, `test:db` validates the safety and two-workspace shape of the disposable synthetic seed. Production tenancy migrations, pgTAP, RLS policies, and cross-workspace database tests begin in PR 2.
+
+## Common setup failures
+
+- **Wrong Node or pnpm version:** use Node 24.18.0 and run `corepack prepare pnpm@11.13.0 --activate`.
+- **Frozen lockfile failure:** do not regenerate with npm or yarn; use the pinned pnpm version and commit intentional dependency changes with `pnpm-lock.yaml`.
+- **Supabase will not start:** confirm Docker is running and ports 54320-54323 are available, then run `pnpm supabase:stop` before retrying.
+- **Playwright browser missing:** run `pnpm exec playwright install chromium`.
+- **Python validation import error:** install `python -m pip install -r scripts/requirements.txt`.
+- **Windows Corepack permission error:** open an elevated shell only for `corepack enable`; normal project commands should run without elevation.
 
 ## Local data rules
 

@@ -1,0 +1,17 @@
+node_modules/
+__pycache__/
+*.pyc
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+.turbo/
+.env
+.env.*
+!.env.example
+.supabase/
+supabase/.branches/
+supabase/.temp/
+*.tsbuildinfo
+.DS_Store

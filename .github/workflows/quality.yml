@@ -1,0 +1,83 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.0
+
+      - name: Activate pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.13.0 --activate
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: TypeScript
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Specification and schemas
+        run: pnpm check:spec
+
+      - name: OpenAPI
+        run: pnpm check:openapi
+
+      - name: Markdown links
+        run: pnpm check:markdown
+
+      - name: Package boundaries and secrets
+        run: pnpm test:security
+
+      - name: Supabase Stage 0 fixture safety
+        run: pnpm test:db
+
+      - name: Dependency audit
+        run: pnpm check:deps
+
+      - name: Build applications
+        run: pnpm build
+
+      - name: Browser tests
+        run: pnpm test:e2e
+
+      - name: Upload web build
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-build
+          path: apps/web/.next
+          if-no-files-found: error
+          retention-days: 7
