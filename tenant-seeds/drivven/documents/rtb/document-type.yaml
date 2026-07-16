@@ -1,0 +1,29 @@
+schema_version: "1.0"
+key: drivven_rtb
+version: "1.0.0"
+labels:
+  en: "Drivven rent-to-buy"
+  fr: "Location-vente Drivven"
+field_schema: "field-schema.v1.json"
+numbering: "../../numbering/documents.yaml#rtb"
+template: "templates/rtb-fr-v1.html"
+workflow: "../../workflows/rtb-deal.yaml"
+tax_pack: "tax-ca-qc@approved-active-version"
+calculation: "../../formulas/rtb/formula.v1.json"
+production_enabled: false
+activation_gates:
+  - rtb_final_template_approved
+  - rtb_legal_approval_recorded
+  - rtb_accounting_approval_recorded
+  - rtb_golden_cases_approved
+  - rtb_number_start_approved
+file_naming:
+  generated: "{{stock_number}}_{{document_number}}.pdf"
+  signed_first: "{{stock_number}}_{{document_number}}_SIGNED.pdf"
+  signed_replacement: "{{stock_number}}_{{document_number}}_SIGNED_{{version:2}}.pdf"
+signing:
+  method: physical
+  signed_status_set_manually: true
+  signed_scan_required_before_delivery: true
+  future_digital_signature: allowed_as_future_module
+approval_refs: []

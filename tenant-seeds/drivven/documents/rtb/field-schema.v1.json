@@ -1,0 +1,610 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "drivven://documents/rtb/field-schema/1.0.0",
+  "title": "Drivven RTB document data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document",
+    "seller",
+    "location",
+    "customer",
+    "vehicle",
+    "financial",
+    "payment_terms",
+    "signatures"
+  ],
+  "properties": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_number",
+        "contract_date",
+        "signature_date",
+        "delivery_date",
+        "template_version",
+        "formula_version",
+        "tax_pack_version"
+      ],
+      "properties": {
+        "document_number": {
+          "type": "string",
+          "pattern": "^RTB-[0-9]{6}$",
+          "readOnly": true
+        },
+        "contract_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "signature_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "delivery_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "template_version": {
+          "type": "string",
+          "readOnly": true
+        },
+        "formula_version": {
+          "type": "string",
+          "readOnly": true
+        },
+        "tax_pack_version": {
+          "type": "string",
+          "readOnly": true
+        }
+      }
+    },
+    "seller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "legal_name",
+        "registered_address",
+        "phone",
+        "email"
+      ],
+      "properties": {
+        "legal_name": {
+          "type": "string"
+        },
+        "operating_name": {
+          "type": "string"
+        },
+        "registered_address": {
+          "$ref": "#/$defs/address"
+        },
+        "gst_tps_number": {
+          "type": "string"
+        },
+        "qst_tvq_number": {
+          "type": "string"
+        },
+        "dealer_permit_number": {
+          "type": "string"
+        },
+        "saaq_identifier": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "address",
+        "phone"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/$defs/address"
+        },
+        "phone": {
+          "type": "string"
+        }
+      }
+    },
+    "customer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "party_id",
+        "full_name",
+        "address",
+        "phone",
+        "email",
+        "date_of_birth",
+        "driver_license"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/$defs/address"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "date_of_birth": {
+          "type": "string",
+          "format": "date"
+        },
+        "driver_license": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "number",
+            "jurisdiction"
+          ],
+          "properties": {
+            "number": {
+              "type": "string"
+            },
+            "jurisdiction": {
+              "type": "string"
+            },
+            "expiry_date": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            }
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "relationship",
+          "phone"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          }
+        }
+      }
+    },
+    "vehicle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_unit_id",
+        "stock_number",
+        "vin",
+        "model_year",
+        "make",
+        "model",
+        "odometer_value",
+        "odometer_unit"
+      ],
+      "properties": {
+        "inventory_unit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stock_number": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string",
+          "minLength": 11,
+          "maxLength": 17
+        },
+        "model_year": {
+          "type": "integer",
+          "minimum": 1886
+        },
+        "make": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "trim": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "odometer_value": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "odometer_unit": {
+          "const": "km"
+        },
+        "plate_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "accessories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rebuilt_vga": {
+          "type": "boolean"
+        },
+        "condition_disclosures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "financial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency_code",
+        "vehicle_cash_price_minor",
+        "fees",
+        "initial_payment_total_minor",
+        "brokerage_fee_base_minor",
+        "capital_down_payment_minor",
+        "eligible_trade_in_credit_minor",
+        "trade_in_lien_payoff_minor",
+        "vehicle_gst_minor",
+        "vehicle_qst_minor",
+        "brokerage_gst_minor",
+        "brokerage_qst_minor",
+        "net_capital_financed_minor"
+      ],
+      "properties": {
+        "currency_code": {
+          "const": "CAD"
+        },
+        "vehicle_cash_price_minor": {
+          "type": "integer"
+        },
+        "fees": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/fee"
+          }
+        },
+        "initial_payment_total_minor": {
+          "type": "integer"
+        },
+        "brokerage_percentage": {
+          "const": "0.70",
+          "readOnly": true
+        },
+        "brokerage_fee_base_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "capital_down_payment_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "eligible_trade_in_credit_minor": {
+          "type": "integer"
+        },
+        "trade_in_lien_payoff_minor": {
+          "type": "integer"
+        },
+        "taxable_financed_fees_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "non_taxable_financed_fees_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "vehicle_gst_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "vehicle_qst_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "brokerage_gst_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "brokerage_qst_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "net_capital_financed_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "total_interest_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "total_customer_obligation_minor": {
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
+    "payment_terms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annual_rate_bps",
+        "duration_months",
+        "payment_frequency",
+        "number_of_payments",
+        "first_payment_date",
+        "regular_payment_minor"
+      ],
+      "properties": {
+        "annual_rate_bps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duration_months": {
+          "enum": [
+            12,
+            18,
+            24,
+            30,
+            36,
+            48
+          ]
+        },
+        "payment_frequency": {
+          "enum": [
+            "weekly",
+            "biweekly"
+          ]
+        },
+        "number_of_payments": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "first_payment_date": {
+          "type": "string",
+          "format": "date",
+          "readOnly": true
+        },
+        "regular_payment_minor": {
+          "type": "integer",
+          "readOnly": true
+        },
+        "final_payment_minor": {
+          "type": "integer",
+          "readOnly": true
+        }
+      }
+    },
+    "insurance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provided_by_lessor": {
+          "type": "boolean"
+        },
+        "customer_must_obtain": {
+          "type": "boolean"
+        },
+        "coverage_minor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "deductible_minor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "proof_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "warranty": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "statutory_category": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extended_warranty_selected": {
+          "type": "boolean"
+        },
+        "extended_warranty_description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "acknowledgements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vehicle_tracking_consent": {
+          "type": "boolean"
+        },
+        "privacy_disclosure_consent": {
+          "type": "boolean"
+        },
+        "rebuilt_title_acknowledged": {
+          "type": "boolean"
+        },
+        "insurance_acknowledged": {
+          "type": "boolean"
+        },
+        "warranty_acknowledged": {
+          "type": "boolean"
+        }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "customer_name",
+        "seller_representative_name"
+      ],
+      "properties": {
+        "customer_name": {
+          "type": "string"
+        },
+        "seller_representative_name": {
+          "type": "string"
+        },
+        "customer_signature_placeholder": {
+          "type": "boolean",
+          "const": true
+        },
+        "seller_signature_placeholder": {
+          "type": "boolean",
+          "const": true
+        },
+        "page_initials_required": {
+          "type": "boolean"
+        },
+        "section_initials": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line1",
+        "city",
+        "region",
+        "postal_code",
+        "country"
+      ],
+      "properties": {
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "city": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "postal_code": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        }
+      }
+    },
+    "fee": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label_fr",
+        "amount_minor",
+        "taxable",
+        "financed"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "label_fr": {
+          "type": "string"
+        },
+        "amount_minor": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "taxable": {
+          "type": "boolean"
+        },
+        "financed": {
+          "type": "boolean"
+        },
+        "tax_classification": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

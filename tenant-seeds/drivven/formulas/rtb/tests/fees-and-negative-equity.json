@@ -1,0 +1,105 @@
+{
+  "case_id": "DRV-RTB-FEES-NEG-EQUITY-001",
+  "title": "Taxable/non-taxable fees and trade-in lien exceeding allowance",
+  "status": "candidate_requires_approval",
+  "input": {
+    "currency_code": "CAD",
+    "signature_date": "2026-08-03",
+    "vehicle_cash_price_minor": 1800000,
+    "initial_payment_total_minor": 250000,
+    "fees": [
+      {
+        "key": "warranty",
+        "label": "Garantie prolongée",
+        "amount_minor": 90000,
+        "taxable": true,
+        "financed": true,
+        "tax_classification": "standard"
+      },
+      {
+        "key": "installation",
+        "label": "Frais d’installation et livraison",
+        "amount_minor": 30000,
+        "taxable": true,
+        "financed": true,
+        "tax_classification": "standard"
+      },
+      {
+        "key": "rdprm",
+        "label": "Inscription RDPRM",
+        "amount_minor": 15000,
+        "taxable": false,
+        "financed": true,
+        "tax_classification": null
+      }
+    ],
+    "eligible_trade_in_credit_minor": 200000,
+    "trade_in_lien_payoff_minor": 350000,
+    "trade_in_tax_eligibility_confirmed": true,
+    "annual_rate_bps": 2199,
+    "duration_months": 30,
+    "payment_frequency": "weekly"
+  },
+  "formula_version": "1.0.0",
+  "tax_pack_version": "tax-ca-qc@1.0.0-candidate",
+  "expected": {
+    "brokerage_fee_base_minor": 175000,
+    "capital_down_payment_minor": 75000,
+    "taxable_financed_fees_minor": 120000,
+    "non_taxable_financed_fees_minor": 15000,
+    "vehicle_price_after_capital_and_trade_in_minor": 1525000,
+    "vehicle_taxable_consideration_minor": 1645000,
+    "vehicle_gst_minor": 82250,
+    "vehicle_qst_minor": 164089,
+    "brokerage_gst_minor": 8750,
+    "brokerage_qst_minor": 17456,
+    "net_capital_financed_minor": 2282545,
+    "periods_per_year": 52,
+    "number_of_payments": 130,
+    "first_payment_date": "2026-08-10",
+    "regular_payment_minor": 22860,
+    "total_schedule_payments_minor": 2971888,
+    "total_interest_minor": 689343,
+    "first_three_schedule_rows": [
+      {
+        "payment_number": 1,
+        "due_date": "2026-08-10",
+        "payment_minor": 22860,
+        "principal_minor": 13207,
+        "interest_minor": 9653,
+        "remaining_balance_minor": 2269338
+      },
+      {
+        "payment_number": 2,
+        "due_date": "2026-08-17",
+        "payment_minor": 22860,
+        "principal_minor": 13263,
+        "interest_minor": 9597,
+        "remaining_balance_minor": 2256075
+      },
+      {
+        "payment_number": 3,
+        "due_date": "2026-08-24",
+        "payment_minor": 22860,
+        "principal_minor": 13319,
+        "interest_minor": 9541,
+        "remaining_balance_minor": 2242756
+      }
+    ],
+    "final_schedule_row": {
+      "payment_number": 130,
+      "due_date": "2029-01-29",
+      "payment_minor": 22948,
+      "principal_minor": 22851,
+      "interest_minor": 97,
+      "remaining_balance_minor": 0
+    },
+    "final_payment_adjustment_minor": 88,
+    "ending_balance_minor": 0
+  },
+  "approval": {
+    "admin": false,
+    "accountant": false,
+    "legal_if_applicable": false
+  }
+}

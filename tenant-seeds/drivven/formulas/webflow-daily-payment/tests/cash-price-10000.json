@@ -1,0 +1,13 @@
+{
+  "case_id": "DRV-WEB-PAY-001",
+  "input": {
+    "cash_price_minor": 1000000,
+    "currency_code": "CAD"
+  },
+  "expected": {
+    "daily_payment_minor": 1413,
+    "display_en": "$14.13/day",
+    "display_fr": "14,13 $/jour"
+  },
+  "formula_version": "1.0.0"
+}

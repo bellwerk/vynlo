@@ -1,0 +1,21 @@
+schema_version: "1.0"
+numbering_definitions:
+  - key: rtb
+    prefix: RTB-
+    width: 6
+    scope: workspace_global
+    start_value: "REQUIRED_AT_ACTIVATION"
+    reset: never
+    reuse: never
+    allocation_event: official_pdf_generation
+    examples: [RTB-000001, RTB-000257]
+  - { key: cash_private, prefix: "CSP-", width: 6, scope: workspace_global, start_value: "REQUIRED_AT_ACTIVATION", reset: never, reuse: never, allocation_event: official_pdf_generation }
+  - { key: cash_dealer, prefix: "CSD-", width: 6, scope: workspace_global, start_value: "REQUIRED_AT_ACTIVATION", reset: never, reuse: never, allocation_event: official_pdf_generation }
+  - { key: vehicle_purchase, prefix: "PUR-", width: 6, scope: workspace_global, start_value: "REQUIRED_AT_ACTIVATION", reset: never, reuse: never, allocation_event: official_pdf_generation }
+  - { key: service_invoice, prefix: "SVC-", width: 6, scope: workspace_global, start_value: "REQUIRED_AT_ACTIVATION", reset: never, reuse: never, allocation_event: official_pdf_generation }
+  - { key: short_term_rental, prefix: "STR-", width: 6, scope: workspace_global, start_value: "REQUIRED_AT_ACTIVATION", reset: never, reuse: never, allocation_event: official_pdf_generation }
+filename_rules:
+  rtb_generated: "{{stock_number}}_{{document_number}}.pdf"
+  rtb_signed_first: "{{stock_number}}_{{document_number}}_SIGNED.pdf"
+  rtb_signed_replacement: "{{stock_number}}_{{document_number}}_SIGNED_{{version:2}}.pdf"
+  other_generated: "{{stock_number}}_{{document_number}}.pdf"

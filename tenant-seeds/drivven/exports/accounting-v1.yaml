@@ -1,0 +1,65 @@
+schema_version: "1.0"
+export:
+  key: drivven_accounting_contract_summary
+  version: "1.0.0"
+  owner: Drivven
+  formats: [csv, xlsx]
+  entity: document
+  enabled_document_types: [drivven_rtb]
+  profiles:
+    detailed:
+      labels: { en: Detailed accounting, fr: Comptabilité détaillée }
+      columns:
+        - { key: legal_entity, source: legal_entity.legal_name }
+        - { key: location, source: location.name }
+        - { key: contract_number, source: document.number }
+        - { key: contract_status, source: document.status }
+        - { key: stock_number, source: inventory_unit.stock_number }
+        - { key: vin, source: vehicle.vin }
+        - { key: customer_name, source: primary_buyer.display_name }
+        - { key: signature_date, source: document.input.signature_date }
+        - { key: delivery_date, source: deal.delivery_date }
+        - { key: currency_code, source: calculation.input.currency_code }
+        - { key: vehicle_cash_price_minor, source: calculation.input.vehicle_cash_price_minor }
+        - { key: trade_in_credit_minor, source: calculation.input.eligible_trade_in_credit_minor }
+        - { key: trade_in_lien_payoff_minor, source: calculation.input.trade_in_lien_payoff_minor }
+        - { key: initial_payment_total_minor, source: calculation.input.initial_payment_total_minor }
+        - { key: brokerage_fee_base_minor, source: calculation.output.brokerage_fee_base_minor }
+        - { key: brokerage_gst_minor, source: calculation.output.brokerage_gst_minor }
+        - { key: brokerage_qst_minor, source: calculation.output.brokerage_qst_minor }
+        - { key: capital_down_payment_minor, source: calculation.output.capital_down_payment_minor }
+        - { key: taxable_financed_fees_minor, source: calculation.output.taxable_financed_fees_minor }
+        - { key: non_taxable_financed_fees_minor, source: calculation.output.non_taxable_financed_fees_minor }
+        - { key: vehicle_gst_minor, source: calculation.output.vehicle_gst_minor }
+        - { key: vehicle_qst_minor, source: calculation.output.vehicle_qst_minor }
+        - { key: net_capital_financed_minor, source: calculation.output.net_capital_financed_minor }
+        - { key: annual_rate_bps, source: calculation.input.annual_rate_bps }
+        - { key: frequency, source: calculation.input.payment_frequency }
+        - { key: payment_count, source: calculation.output.number_of_payments }
+        - { key: regular_payment_minor, source: calculation.output.regular_payment_minor }
+        - { key: total_interest_minor, source: calculation.output.original_schedule.total_interest_minor }
+        - { key: final_payment_minor, source: calculation.output.original_schedule.final_payment_minor }
+        - { key: generated_pdf_link, source: document.files.generated_original.secure_link }
+        - { key: signed_pdf_link, source: document.files.current_signed_scan.secure_link }
+        - { key: created_by, source: document.created_by.display_name }
+        - { key: formula_version, source: calculation.version }
+        - { key: tax_pack_version, source: tax_snapshot.version }
+        - { key: template_version, source: document.template_version }
+    simplified_bookkeeping:
+      labels: { en: Simplified bookkeeping, fr: Comptabilité simplifiée }
+      columns:
+        - { key: contract_number, source: document.number }
+        - { key: stock_number, source: inventory_unit.stock_number }
+        - { key: customer_name, source: primary_buyer.display_name }
+        - { key: contract_date, source: document.input.signature_date }
+        - { key: initial_payment_car_downpayment_minor, source: calculation.input.initial_payment_total_minor }
+        - { key: net_capital_financed_minor, source: calculation.output.net_capital_financed_minor }
+        - { key: vehicle_gst_minor, source: calculation.output.vehicle_gst_minor }
+        - { key: vehicle_qst_minor, source: calculation.output.vehicle_qst_minor }
+        - { key: currency_code, source: calculation.input.currency_code }
+  security:
+    permission: exports.run_drivven_accounting
+    step_up_required: true
+    audit_required: true
+    links_expire: true
+  activation_gate: accountant_approval_recorded

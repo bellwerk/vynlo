@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.vynlo.example/document-type/1.0.0",
+  "title": "Vynlo Document Type",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "key",
+    "version",
+    "labels",
+    "field_schema",
+    "numbering",
+    "template",
+    "production_enabled"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "key": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "labels": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "field_schema": {
+      "type": "string"
+    },
+    "numbering": {
+      "type": "string"
+    },
+    "template": {
+      "type": "string"
+    },
+    "workflow": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tax_pack": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "calculation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "production_enabled": {
+      "type": "boolean"
+    },
+    "activation_gates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "approval_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "file_naming": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "signing": {
+      "type": "object"
+    }
+  }
+}

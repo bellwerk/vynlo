@@ -1,0 +1,18 @@
+schema_version: "1.0"
+key: drivven_service_invoice
+version: "1.0.0"
+labels:
+  en: "Service invoice"
+  fr: "Facture de service"
+field_schema: "field-schema.v1.json"
+numbering: "../../numbering/documents.yaml#service_invoice"
+template: "templates/v1.html"
+workflow: null
+tax_pack: "tax-ca-qc@approved-active-version"
+calculation: null
+production_enabled: false
+activation_gates:
+  - service_invoice_template_approved
+  - legal_template_approved
+  - field_mapping_approved
+approval_refs: []

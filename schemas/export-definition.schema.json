@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.vynlo.example/export-definition/1.1.0",
+  "title": "Vynlo Export Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "export"],
+  "properties": {
+    "schema_version": {
+      "enum": ["1.0", "1.1"]
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "version", "formats", "entity"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,95}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "owner": {"type": "string"},
+        "labels": {"$ref": "#/$defs/localizedLabel"},
+        "entity": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,95}$"
+        },
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["csv", "xlsx"]}
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/column"}
+        },
+        "profiles": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/profile"}
+        },
+        "enabled_document_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "default_filters": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "available_filters": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "security": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "permission": {"type": "string"},
+            "step_up_required": {"type": "boolean"},
+            "audit_required": {"type": "boolean"},
+            "links_expire": {"type": "boolean"}
+          }
+        },
+        "activation_gate": {"type": "string"}
+      },
+      "oneOf": [
+        {"required": ["columns"]},
+        {"required": ["profiles"]}
+      ]
+    }
+  },
+  "$defs": {
+    "localizedLabel": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "source"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,95}$"
+        },
+        "label": {"type": "string"},
+        "labels": {"$ref": "#/$defs/localizedLabel"},
+        "source": {"type": "string", "minLength": 1},
+        "format": {"type": "string"},
+        "sensitive": {"type": "boolean"},
+        "permission": {"type": "string"},
+        "nullable": {"type": "boolean"}
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns"],
+      "properties": {
+        "labels": {"$ref": "#/$defs/localizedLabel"},
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/column"}
+        },
+        "security": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "permission": {"type": "string"},
+            "step_up_required": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  }
+}

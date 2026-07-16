@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document",
+    "renter",
+    "vehicle",
+    "rental",
+    "signatures"
+  ],
+  "properties": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_number",
+        "document_date",
+        "location_id",
+        "seller_legal_entity_id"
+      ],
+      "properties": {
+        "document_number": {
+          "type": "string"
+        },
+        "document_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "location_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seller_legal_entity_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "renter": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "party_id",
+        "full_name",
+        "address",
+        "driver_license_number"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "line1",
+            "city",
+            "region",
+            "postal_code",
+            "country"
+          ],
+          "properties": {
+            "line1": {
+              "type": "string"
+            },
+            "line2": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "city": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "postal_code": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            }
+          }
+        },
+        "driver_license_number": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "email"
+        }
+      }
+    },
+    "vehicle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_unit_id",
+        "stock_number",
+        "vin",
+        "model_year",
+        "make",
+        "model",
+        "odometer_value",
+        "odometer_unit"
+      ],
+      "properties": {
+        "inventory_unit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stock_number": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "model_year": {
+          "type": "integer"
+        },
+        "make": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "trim": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "odometer_value": {
+          "type": "integer"
+        },
+        "odometer_unit": {
+          "enum": [
+            "km",
+            "mi"
+          ]
+        }
+      }
+    },
+    "rental": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pickup_at",
+        "planned_return_at",
+        "currency_code",
+        "daily_rate_minor",
+        "deposit_minor"
+      ],
+      "properties": {
+        "pickup_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "planned_return_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "actual_return_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "currency_code": {
+          "const": "CAD"
+        },
+        "daily_rate_minor": {
+          "type": "integer"
+        },
+        "deposit_minor": {
+          "type": "integer"
+        },
+        "pickup_odometer": {
+          "type": "integer"
+        },
+        "return_odometer": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "pickup_fuel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "return_fuel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "insurance": {
+          "type": "object"
+        },
+        "damage_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "required": [
+        "renter_name",
+        "representative_name"
+      ],
+      "properties": {
+        "renter_name": {
+          "type": "string"
+        },
+        "representative_name": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

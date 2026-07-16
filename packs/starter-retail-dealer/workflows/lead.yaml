@@ -1,0 +1,90 @@
+schema_version: '1.0'
+workflow:
+  key: lead_standard
+  entity_type: lead
+  version: 1.0.0
+  initial_state: new
+  states:
+  - key: new
+    category: active
+    labels:
+      en: New
+      fr: Nouveau
+    flags:
+      terminal: false
+  - key: contacted
+    category: active
+    labels:
+      en: Contacted
+      fr: Contacté
+    flags:
+      terminal: false
+  - key: appointment
+    category: pending
+    labels:
+      en: Appointment
+      fr: Rendez-vous
+    flags:
+      terminal: false
+  - key: qualified
+    category: active
+    labels:
+      en: Qualified
+      fr: Qualifié
+    flags:
+      terminal: false
+  - key: converted
+    category: closed
+    labels:
+      en: Converted
+      fr: Converti
+    flags:
+      terminal: true
+  - key: lost
+    category: closed
+    labels:
+      en: Lost
+      fr: Perdu
+    flags:
+      terminal: true
+  transitions:
+  - from: new
+    to: contacted
+    permission: crm.update
+    key: new__contacted
+  - from: contacted
+    to: appointment
+    permission: crm.update
+    key: contacted__appointment
+  - from: contacted
+    to: qualified
+    permission: crm.update
+    key: contacted__qualified
+  - from: appointment
+    to: qualified
+    permission: crm.update
+    key: appointment__qualified
+  - from: qualified
+    to: converted
+    permission: deals.create
+    key: qualified__converted
+  - from: new
+    to: lost
+    permission: crm.update
+    reason_required: true
+    key: new__lost
+  - from: contacted
+    to: lost
+    permission: crm.update
+    reason_required: true
+    key: contacted__lost
+  - from: appointment
+    to: lost
+    permission: crm.update
+    reason_required: true
+    key: appointment__lost
+  - from: qualified
+    to: lost
+    permission: crm.update
+    reason_required: true
+    key: qualified__lost

@@ -1,0 +1,97 @@
+{
+  "case_id": "DRV-RTB-BIWEEKLY-TRADE-001",
+  "title": "Biweekly with positive trade-in credit and lien",
+  "status": "candidate_requires_approval",
+  "input": {
+    "currency_code": "CAD",
+    "signature_date": "2026-08-03",
+    "vehicle_cash_price_minor": 2000000,
+    "initial_payment_total_minor": 300000,
+    "fees": [
+      {
+        "key": "installation",
+        "label": "Frais d’installation",
+        "amount_minor": 80000,
+        "taxable": true,
+        "financed": true,
+        "tax_classification": "standard"
+      },
+      {
+        "key": "registration",
+        "label": "Frais d’immatriculation",
+        "amount_minor": 10000,
+        "taxable": false,
+        "financed": true,
+        "tax_classification": null
+      }
+    ],
+    "eligible_trade_in_credit_minor": 400000,
+    "trade_in_lien_payoff_minor": 150000,
+    "trade_in_tax_eligibility_confirmed": true,
+    "annual_rate_bps": 1550,
+    "duration_months": 24,
+    "payment_frequency": "biweekly"
+  },
+  "formula_version": "1.0.0",
+  "tax_pack_version": "tax-ca-qc@1.0.0-candidate",
+  "expected": {
+    "brokerage_fee_base_minor": 210000,
+    "capital_down_payment_minor": 90000,
+    "taxable_financed_fees_minor": 80000,
+    "non_taxable_financed_fees_minor": 10000,
+    "vehicle_price_after_capital_and_trade_in_minor": 1510000,
+    "vehicle_taxable_consideration_minor": 1590000,
+    "vehicle_gst_minor": 79500,
+    "vehicle_qst_minor": 158603,
+    "brokerage_gst_minor": 10500,
+    "brokerage_qst_minor": 20948,
+    "net_capital_financed_minor": 2019551,
+    "periods_per_year": 26,
+    "number_of_payments": 52,
+    "first_payment_date": "2026-08-17",
+    "regular_payment_minor": 45283,
+    "total_schedule_payments_minor": 2354693,
+    "total_interest_minor": 335142,
+    "first_three_schedule_rows": [
+      {
+        "payment_number": 1,
+        "due_date": "2026-08-17",
+        "payment_minor": 45283,
+        "principal_minor": 33243,
+        "interest_minor": 12040,
+        "remaining_balance_minor": 1986308
+      },
+      {
+        "payment_number": 2,
+        "due_date": "2026-08-31",
+        "payment_minor": 45283,
+        "principal_minor": 33442,
+        "interest_minor": 11841,
+        "remaining_balance_minor": 1952866
+      },
+      {
+        "payment_number": 3,
+        "due_date": "2026-09-14",
+        "payment_minor": 45283,
+        "principal_minor": 33641,
+        "interest_minor": 11642,
+        "remaining_balance_minor": 1919225
+      }
+    ],
+    "final_schedule_row": {
+      "payment_number": 52,
+      "due_date": "2028-07-31",
+      "payment_minor": 45260,
+      "principal_minor": 44992,
+      "interest_minor": 268,
+      "remaining_balance_minor": 0
+    },
+    "final_payment_adjustment_minor": -23,
+    "ending_balance_minor": 0
+  },
+  "approval": {
+    "admin": false,
+    "accountant": false,
+    "legal_if_applicable": false
+  }
+}

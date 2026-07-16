@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "document",
+    "seller_party",
+    "vehicle",
+    "purchase",
+    "signatures"
+  ],
+  "properties": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_number",
+        "document_date",
+        "location_id",
+        "seller_legal_entity_id"
+      ],
+      "properties": {
+        "document_number": {
+          "type": "string"
+        },
+        "document_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "location_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "seller_legal_entity_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "seller_party": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "party_id",
+        "display_name",
+        "address"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "line1",
+            "city",
+            "region",
+            "postal_code",
+            "country"
+          ],
+          "properties": {
+            "line1": {
+              "type": "string"
+            },
+            "line2": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "city": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "postal_code": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "vehicle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_unit_id",
+        "stock_number",
+        "vin",
+        "model_year",
+        "make",
+        "model",
+        "odometer_value",
+        "odometer_unit"
+      ],
+      "properties": {
+        "inventory_unit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stock_number": {
+          "type": "string"
+        },
+        "vin": {
+          "type": "string"
+        },
+        "model_year": {
+          "type": "integer"
+        },
+        "make": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "trim": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "odometer_value": {
+          "type": "integer"
+        },
+        "odometer_unit": {
+          "enum": [
+            "km",
+            "mi"
+          ]
+        }
+      }
+    },
+    "purchase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency_code",
+        "purchase_price_minor",
+        "acquisition_date",
+        "lien_declared"
+      ],
+      "properties": {
+        "currency_code": {
+          "const": "CAD"
+        },
+        "purchase_price_minor": {
+          "type": "integer"
+        },
+        "acquisition_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "lien_declared": {
+          "type": "boolean"
+        },
+        "lien_amount_minor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "payment_method": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "required": [
+        "seller_name",
+        "buyer_representative_name"
+      ],
+      "properties": {
+        "seller_name": {
+          "type": "string"
+        },
+        "buyer_representative_name": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "case_id": "CA-QC-VEHICLE-SALE-001",
+  "status": "candidate",
+  "description": "Conventional taxable vehicle retail sale with no trade-in or additional line items.",
+  "currency": "CAD",
+  "input": {
+    "vehicle_price_minor": 1000000,
+    "taxable_fees_minor": 0,
+    "non_taxable_fees_minor": 0,
+    "eligible_trade_in_credit_minor": 0
+  },
+  "expected": {
+    "eligible_taxable_consideration_minor": 1000000,
+    "gst_minor": 50000,
+    "qst_minor": 99750,
+    "total_tax_minor": 149750,
+    "cash_total_before_payments_minor": 1149750
+  },
+  "rounding": {
+    "mode": "HALF_UP",
+    "scale": 2
+  },
+  "approval_required": true
+}

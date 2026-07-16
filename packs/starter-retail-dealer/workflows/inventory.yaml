@@ -1,0 +1,147 @@
+schema_version: '1.0'
+workflow:
+  key: inventory_standard
+  entity_type: inventory_unit
+  version: 1.0.0
+  initial_state: draft
+  states:
+  - key: draft
+    category: draft
+    labels:
+      en: Draft
+      fr: Brouillon
+    flags:
+      publishable: false
+      terminal: false
+  - key: incomplete
+    category: draft
+    labels:
+      en: Incomplete
+      fr: Incomplet
+    flags:
+      publishable: false
+      terminal: false
+  - key: in_preparation
+    category: active
+    labels:
+      en: In preparation
+      fr: En préparation
+    flags:
+      publishable: false
+      terminal: false
+  - key: ready
+    category: active
+    labels:
+      en: Ready
+      fr: Prêt
+    flags:
+      publishable: true
+      terminal: false
+  - key: listed
+    category: active
+    labels:
+      en: Listed
+      fr: Publié
+    flags:
+      publishable: true
+      terminal: false
+  - key: pending_sale
+    category: pending
+    labels:
+      en: Pending sale
+      fr: Vente en attente
+    flags:
+      publishable: false
+      terminal: false
+  - key: sold
+    category: closed
+    labels:
+      en: Sold
+      fr: Vendu
+    flags:
+      publishable: false
+      terminal: true
+  - key: wholesale
+    category: closed
+    labels:
+      en: Wholesale
+      fr: Vente en gros
+    flags:
+      publishable: false
+      terminal: true
+  - key: archived
+    category: archived
+    labels:
+      en: Archived
+      fr: Archivé
+    flags:
+      publishable: false
+      terminal: true
+  transitions:
+  - from: draft
+    to: incomplete
+    permission: inventory.update
+    key: draft__incomplete
+  - from: draft
+    to: in_preparation
+    permission: inventory.update
+    guard: required_fields_complete
+    key: draft__in_preparation
+  - from: incomplete
+    to: in_preparation
+    permission: inventory.update
+    guard: required_fields_complete
+    key: incomplete__in_preparation
+  - from: in_preparation
+    to: ready
+    permission: inventory.update
+    key: in_preparation__ready
+  - from: ready
+    to: listed
+    permission: listings.publish
+    key: ready__listed
+  - from: listed
+    to: ready
+    permission: listings.unpublish
+    key: listed__ready
+  - from: ready
+    to: pending_sale
+    permission: deals.update
+    key: ready__pending_sale
+  - from: listed
+    to: pending_sale
+    permission: deals.update
+    key: listed__pending_sale
+  - from: pending_sale
+    to: ready
+    permission: deals.update
+    key: pending_sale__ready
+  - from: pending_sale
+    to: sold
+    permission: deals.close
+    guard: sale_completion_requirements_met
+    key: pending_sale__sold
+  - from: ready
+    to: wholesale
+    permission: deals.close
+    key: ready__wholesale
+  - from: listed
+    to: wholesale
+    permission: deals.close
+    key: listed__wholesale
+  - from: draft
+    to: archived
+    permission: inventory.archive
+    key: draft__archived
+  - from: incomplete
+    to: archived
+    permission: inventory.archive
+    key: incomplete__archived
+  - from: in_preparation
+    to: archived
+    permission: inventory.archive
+    key: in_preparation__archived
+  - from: ready
+    to: archived
+    permission: inventory.archive
+    key: ready__archived

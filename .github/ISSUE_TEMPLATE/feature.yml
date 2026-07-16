@@ -1,0 +1,51 @@
+name: Feature or requirement
+about: Propose implementation work tied to an approved requirement
+labels: ["feature"]
+body:
+  - type: input
+    id: requirement_ids
+    attributes:
+      label: Requirement IDs
+      description: List VYN-, STD-, TAX-, or DRV- requirement IDs.
+    validations:
+      required: true
+  - type: input
+    id: acceptance_ids
+    attributes:
+      label: Acceptance-criterion IDs
+    validations:
+      required: true
+  - type: dropdown
+    id: classification
+    attributes:
+      label: Classification
+      options:
+        - Vynlo platform core
+        - Retail starter configuration
+        - Tax pack
+        - Drivven workspace configuration
+        - Future optional capability
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User outcome
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Scope, non-goals, and platform/workspace boundary
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Security, privacy, data, integration, and activation-gate risks
+  - type: textarea
+    id: tests
+    attributes:
+      label: Planned test evidence
+    validations:
+      required: true

@@ -1,0 +1,43 @@
+schema_version: "1.0"
+pack:
+  id: starter-retail-dealer
+  name:
+    en: Standard Retail Dealer
+    fr: Concessionnaire automobile standard
+  version: "1.0.0"
+  kind: starter
+  status: installable
+  compatible_platform: ">=2.1.0 <3.0.0"
+  production_legal_templates_included: false
+  modules:
+    - inventory
+    - media
+    - listings
+    - crm
+    - deals
+    - third_party_finance
+    - one_time_payments
+    - documents
+    - exports
+  excludes:
+    - recurring_payment_servicing
+    - in_house_financing
+    - leasing
+    - rent_to_buy
+    - short_term_rental
+    - collections
+    - repossession
+  files:
+    roles: roles.yaml
+    workflows:
+      - workflows/inventory.yaml
+      - workflows/lead.yaml
+      - workflows/deal.yaml
+    document_types:
+      - documents/cash-retail-sale.yaml
+      - documents/third-party-finance-summary.yaml
+      - documents/vehicle-purchase.yaml
+      - documents/trade-in.yaml
+      - documents/generic-invoice.yaml
+    exports:
+      - exports/inventory-summary.yaml

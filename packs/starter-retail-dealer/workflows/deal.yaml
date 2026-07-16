@@ -1,0 +1,120 @@
+schema_version: '1.0'
+workflow:
+  key: retail_deal_standard
+  entity_type: deal
+  version: 1.0.0
+  initial_state: draft
+  states:
+  - key: draft
+    category: draft
+    labels:
+      en: Draft
+      fr: Brouillon
+    flags:
+      terminal: false
+  - key: preparing
+    category: active
+    labels:
+      en: Preparing
+      fr: En préparation
+    flags:
+      terminal: false
+  - key: awaiting_customer
+    category: pending
+    labels:
+      en: Awaiting customer
+      fr: En attente du client
+    flags:
+      terminal: false
+  - key: awaiting_lender
+    category: pending
+    labels:
+      en: Awaiting lender
+      fr: En attente du prêteur
+    flags:
+      terminal: false
+  - key: approved
+    category: active
+    labels:
+      en: Approved
+      fr: Approuvé
+    flags:
+      terminal: false
+  - key: ready_for_delivery
+    category: active
+    labels:
+      en: Ready for delivery
+      fr: Prêt pour la livraison
+    flags:
+      terminal: false
+  - key: completed
+    category: closed
+    labels:
+      en: Completed
+      fr: Terminé
+    flags:
+      terminal: true
+  - key: cancelled
+    category: closed
+    labels:
+      en: Cancelled
+      fr: Annulé
+    flags:
+      terminal: true
+  transitions:
+  - from: draft
+    to: preparing
+    permission: deals.update
+    key: draft__preparing
+  - from: preparing
+    to: awaiting_customer
+    permission: deals.update
+    key: preparing__awaiting_customer
+  - from: preparing
+    to: awaiting_lender
+    permission: finance_applications.create
+    key: preparing__awaiting_lender
+  - from: awaiting_customer
+    to: approved
+    permission: deals.update
+    key: awaiting_customer__approved
+  - from: awaiting_lender
+    to: approved
+    permission: finance_applications.update
+    guard: lender_approval_recorded
+    key: awaiting_lender__approved
+  - from: approved
+    to: ready_for_delivery
+    permission: deals.update
+    guard: required_documents_generated
+    key: approved__ready_for_delivery
+  - from: ready_for_delivery
+    to: completed
+    permission: deals.close
+    guard: completion_requirements_met
+    key: ready_for_delivery__completed
+  - from: draft
+    to: cancelled
+    permission: deals.cancel
+    reason_required: true
+    key: draft__cancelled
+  - from: preparing
+    to: cancelled
+    permission: deals.cancel
+    reason_required: true
+    key: preparing__cancelled
+  - from: awaiting_customer
+    to: cancelled
+    permission: deals.cancel
+    reason_required: true
+    key: awaiting_customer__cancelled
+  - from: awaiting_lender
+    to: cancelled
+    permission: deals.cancel
+    reason_required: true
+    key: awaiting_lender__cancelled
+  - from: approved
+    to: cancelled
+    permission: deals.cancel
+    reason_required: true
+    key: approved__cancelled

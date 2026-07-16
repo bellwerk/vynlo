@@ -1,0 +1,2253 @@
+{
+  "key": "drivven-rtb",
+  "version": "1.0.0",
+  "status": "draft",
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "currency_code",
+      "signature_date",
+      "vehicle_cash_price_minor",
+      "initial_payment_total_minor",
+      "fees",
+      "eligible_trade_in_credit_minor",
+      "trade_in_lien_payoff_minor",
+      "annual_rate_bps",
+      "duration_months",
+      "payment_frequency"
+    ],
+    "properties": {
+      "currency_code": {
+        "const": "CAD"
+      },
+      "signature_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "vehicle_cash_price_minor": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "initial_payment_total_minor": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "fees": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "label",
+            "amount_minor",
+            "taxable",
+            "financed"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "amount_minor": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "taxable": {
+              "type": "boolean"
+            },
+            "financed": {
+              "type": "boolean"
+            },
+            "tax_classification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "eligible_trade_in_credit_minor": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "trade_in_lien_payoff_minor": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "trade_in_tax_eligibility_confirmed": {
+        "type": "boolean"
+      },
+      "annual_rate_bps": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "duration_months": {
+        "enum": [
+          12,
+          18,
+          24,
+          30,
+          36,
+          48
+        ]
+      },
+      "payment_frequency": {
+        "enum": [
+          "weekly",
+          "biweekly"
+        ]
+      }
+    }
+  },
+  "outputs": {
+    "brokerage_fee_base_minor": {
+      "op": "round",
+      "value": {
+        "op": "multiply",
+        "args": [
+          {
+            "op": "field",
+            "path": "initial_payment_total_minor"
+          },
+          {
+            "op": "constant",
+            "value": "0.70"
+          }
+        ]
+      },
+      "scale": 0,
+      "mode": "half_up"
+    },
+    "capital_down_payment_minor": {
+      "op": "subtract",
+      "args": [
+        {
+          "op": "field",
+          "path": "initial_payment_total_minor"
+        },
+        {
+          "op": "round",
+          "value": {
+            "op": "multiply",
+            "args": [
+              {
+                "op": "field",
+                "path": "initial_payment_total_minor"
+              },
+              {
+                "op": "constant",
+                "value": "0.70"
+              }
+            ]
+          },
+          "scale": 0,
+          "mode": "half_up"
+        }
+      ]
+    },
+    "taxable_financed_fees_minor": {
+      "op": "sum_rows",
+      "rows_path": "fees",
+      "value_path": "amount_minor",
+      "where": {
+        "all": [
+          {
+            "path": "taxable",
+            "eq": true
+          },
+          {
+            "path": "financed",
+            "eq": true
+          }
+        ]
+      }
+    },
+    "non_taxable_financed_fees_minor": {
+      "op": "sum_rows",
+      "rows_path": "fees",
+      "value_path": "amount_minor",
+      "where": {
+        "all": [
+          {
+            "path": "taxable",
+            "eq": false
+          },
+          {
+            "path": "financed",
+            "eq": true
+          }
+        ]
+      }
+    },
+    "vehicle_price_after_capital_and_trade_in_minor": {
+      "op": "max",
+      "args": [
+        {
+          "op": "subtract",
+          "args": [
+            {
+              "op": "field",
+              "path": "vehicle_cash_price_minor"
+            },
+            {
+              "op": "subtract",
+              "args": [
+                {
+                  "op": "field",
+                  "path": "initial_payment_total_minor"
+                },
+                {
+                  "op": "round",
+                  "value": {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "op": "field",
+                        "path": "initial_payment_total_minor"
+                      },
+                      {
+                        "op": "constant",
+                        "value": "0.70"
+                      }
+                    ]
+                  },
+                  "scale": 0,
+                  "mode": "half_up"
+                }
+              ]
+            },
+            {
+              "op": "field",
+              "path": "eligible_trade_in_credit_minor"
+            }
+          ]
+        },
+        {
+          "op": "constant",
+          "value": 0
+        }
+      ]
+    },
+    "vehicle_taxable_consideration_minor": {
+      "op": "add",
+      "args": [
+        {
+          "op": "max",
+          "args": [
+            {
+              "op": "subtract",
+              "args": [
+                {
+                  "op": "field",
+                  "path": "vehicle_cash_price_minor"
+                },
+                {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "initial_payment_total_minor"
+                    },
+                    {
+                      "op": "round",
+                      "value": {
+                        "op": "multiply",
+                        "args": [
+                          {
+                            "op": "field",
+                            "path": "initial_payment_total_minor"
+                          },
+                          {
+                            "op": "constant",
+                            "value": "0.70"
+                          }
+                        ]
+                      },
+                      "scale": 0,
+                      "mode": "half_up"
+                    }
+                  ]
+                },
+                {
+                  "op": "field",
+                  "path": "eligible_trade_in_credit_minor"
+                }
+              ]
+            },
+            {
+              "op": "constant",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "op": "sum_rows",
+          "rows_path": "fees",
+          "value_path": "amount_minor",
+          "where": {
+            "all": [
+              {
+                "path": "taxable",
+                "eq": true
+              },
+              {
+                "path": "financed",
+                "eq": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "vehicle_gst_minor": {
+      "op": "tax_pack",
+      "context": "vehicle_retail_sale",
+      "inputs": {
+        "eligible_taxable_consideration_minor": {
+          "op": "add",
+          "args": [
+            {
+              "op": "max",
+              "args": [
+                {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "vehicle_cash_price_minor"
+                    },
+                    {
+                      "op": "subtract",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "initial_payment_total_minor"
+                        },
+                        {
+                          "op": "round",
+                          "value": {
+                            "op": "multiply",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "constant",
+                                "value": "0.70"
+                              }
+                            ]
+                          },
+                          "scale": 0,
+                          "mode": "half_up"
+                        }
+                      ]
+                    },
+                    {
+                      "op": "field",
+                      "path": "eligible_trade_in_credit_minor"
+                    }
+                  ]
+                },
+                {
+                  "op": "constant",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "sum_rows",
+              "rows_path": "fees",
+              "value_path": "amount_minor",
+              "where": {
+                "all": [
+                  {
+                    "path": "taxable",
+                    "eq": true
+                  },
+                  {
+                    "path": "financed",
+                    "eq": true
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "currency_code": {
+          "op": "field",
+          "path": "currency_code"
+        },
+        "transaction_date": {
+          "op": "field",
+          "path": "signature_date"
+        }
+      },
+      "output": "gst_minor"
+    },
+    "vehicle_qst_minor": {
+      "op": "tax_pack",
+      "context": "vehicle_retail_sale",
+      "inputs": {
+        "eligible_taxable_consideration_minor": {
+          "op": "add",
+          "args": [
+            {
+              "op": "max",
+              "args": [
+                {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "vehicle_cash_price_minor"
+                    },
+                    {
+                      "op": "subtract",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "initial_payment_total_minor"
+                        },
+                        {
+                          "op": "round",
+                          "value": {
+                            "op": "multiply",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "constant",
+                                "value": "0.70"
+                              }
+                            ]
+                          },
+                          "scale": 0,
+                          "mode": "half_up"
+                        }
+                      ]
+                    },
+                    {
+                      "op": "field",
+                      "path": "eligible_trade_in_credit_minor"
+                    }
+                  ]
+                },
+                {
+                  "op": "constant",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "sum_rows",
+              "rows_path": "fees",
+              "value_path": "amount_minor",
+              "where": {
+                "all": [
+                  {
+                    "path": "taxable",
+                    "eq": true
+                  },
+                  {
+                    "path": "financed",
+                    "eq": true
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "currency_code": {
+          "op": "field",
+          "path": "currency_code"
+        },
+        "transaction_date": {
+          "op": "field",
+          "path": "signature_date"
+        }
+      },
+      "output": "qst_minor"
+    },
+    "brokerage_gst_minor": {
+      "op": "tax_pack",
+      "context": "taxable_service_fee",
+      "inputs": {
+        "eligible_taxable_consideration_minor": {
+          "op": "round",
+          "value": {
+            "op": "multiply",
+            "args": [
+              {
+                "op": "field",
+                "path": "initial_payment_total_minor"
+              },
+              {
+                "op": "constant",
+                "value": "0.70"
+              }
+            ]
+          },
+          "scale": 0,
+          "mode": "half_up"
+        },
+        "currency_code": {
+          "op": "field",
+          "path": "currency_code"
+        },
+        "transaction_date": {
+          "op": "field",
+          "path": "signature_date"
+        }
+      },
+      "output": "gst_minor"
+    },
+    "brokerage_qst_minor": {
+      "op": "tax_pack",
+      "context": "taxable_service_fee",
+      "inputs": {
+        "eligible_taxable_consideration_minor": {
+          "op": "round",
+          "value": {
+            "op": "multiply",
+            "args": [
+              {
+                "op": "field",
+                "path": "initial_payment_total_minor"
+              },
+              {
+                "op": "constant",
+                "value": "0.70"
+              }
+            ]
+          },
+          "scale": 0,
+          "mode": "half_up"
+        },
+        "currency_code": {
+          "op": "field",
+          "path": "currency_code"
+        },
+        "transaction_date": {
+          "op": "field",
+          "path": "signature_date"
+        }
+      },
+      "output": "qst_minor"
+    },
+    "net_capital_financed_minor": {
+      "op": "add",
+      "args": [
+        {
+          "op": "max",
+          "args": [
+            {
+              "op": "subtract",
+              "args": [
+                {
+                  "op": "field",
+                  "path": "vehicle_cash_price_minor"
+                },
+                {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "initial_payment_total_minor"
+                    },
+                    {
+                      "op": "round",
+                      "value": {
+                        "op": "multiply",
+                        "args": [
+                          {
+                            "op": "field",
+                            "path": "initial_payment_total_minor"
+                          },
+                          {
+                            "op": "constant",
+                            "value": "0.70"
+                          }
+                        ]
+                      },
+                      "scale": 0,
+                      "mode": "half_up"
+                    }
+                  ]
+                },
+                {
+                  "op": "field",
+                  "path": "eligible_trade_in_credit_minor"
+                }
+              ]
+            },
+            {
+              "op": "constant",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "op": "sum_rows",
+          "rows_path": "fees",
+          "value_path": "amount_minor",
+          "where": {
+            "all": [
+              {
+                "path": "taxable",
+                "eq": true
+              },
+              {
+                "path": "financed",
+                "eq": true
+              }
+            ]
+          }
+        },
+        {
+          "op": "tax_pack",
+          "context": "vehicle_retail_sale",
+          "inputs": {
+            "eligible_taxable_consideration_minor": {
+              "op": "add",
+              "args": [
+                {
+                  "op": "max",
+                  "args": [
+                    {
+                      "op": "subtract",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "vehicle_cash_price_minor"
+                        },
+                        {
+                          "op": "subtract",
+                          "args": [
+                            {
+                              "op": "field",
+                              "path": "initial_payment_total_minor"
+                            },
+                            {
+                              "op": "round",
+                              "value": {
+                                "op": "multiply",
+                                "args": [
+                                  {
+                                    "op": "field",
+                                    "path": "initial_payment_total_minor"
+                                  },
+                                  {
+                                    "op": "constant",
+                                    "value": "0.70"
+                                  }
+                                ]
+                              },
+                              "scale": 0,
+                              "mode": "half_up"
+                            }
+                          ]
+                        },
+                        {
+                          "op": "field",
+                          "path": "eligible_trade_in_credit_minor"
+                        }
+                      ]
+                    },
+                    {
+                      "op": "constant",
+                      "value": 0
+                    }
+                  ]
+                },
+                {
+                  "op": "sum_rows",
+                  "rows_path": "fees",
+                  "value_path": "amount_minor",
+                  "where": {
+                    "all": [
+                      {
+                        "path": "taxable",
+                        "eq": true
+                      },
+                      {
+                        "path": "financed",
+                        "eq": true
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "currency_code": {
+              "op": "field",
+              "path": "currency_code"
+            },
+            "transaction_date": {
+              "op": "field",
+              "path": "signature_date"
+            }
+          },
+          "output": "gst_minor"
+        },
+        {
+          "op": "tax_pack",
+          "context": "vehicle_retail_sale",
+          "inputs": {
+            "eligible_taxable_consideration_minor": {
+              "op": "add",
+              "args": [
+                {
+                  "op": "max",
+                  "args": [
+                    {
+                      "op": "subtract",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "vehicle_cash_price_minor"
+                        },
+                        {
+                          "op": "subtract",
+                          "args": [
+                            {
+                              "op": "field",
+                              "path": "initial_payment_total_minor"
+                            },
+                            {
+                              "op": "round",
+                              "value": {
+                                "op": "multiply",
+                                "args": [
+                                  {
+                                    "op": "field",
+                                    "path": "initial_payment_total_minor"
+                                  },
+                                  {
+                                    "op": "constant",
+                                    "value": "0.70"
+                                  }
+                                ]
+                              },
+                              "scale": 0,
+                              "mode": "half_up"
+                            }
+                          ]
+                        },
+                        {
+                          "op": "field",
+                          "path": "eligible_trade_in_credit_minor"
+                        }
+                      ]
+                    },
+                    {
+                      "op": "constant",
+                      "value": 0
+                    }
+                  ]
+                },
+                {
+                  "op": "sum_rows",
+                  "rows_path": "fees",
+                  "value_path": "amount_minor",
+                  "where": {
+                    "all": [
+                      {
+                        "path": "taxable",
+                        "eq": true
+                      },
+                      {
+                        "path": "financed",
+                        "eq": true
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "currency_code": {
+              "op": "field",
+              "path": "currency_code"
+            },
+            "transaction_date": {
+              "op": "field",
+              "path": "signature_date"
+            }
+          },
+          "output": "qst_minor"
+        },
+        {
+          "op": "sum_rows",
+          "rows_path": "fees",
+          "value_path": "amount_minor",
+          "where": {
+            "all": [
+              {
+                "path": "taxable",
+                "eq": false
+              },
+              {
+                "path": "financed",
+                "eq": true
+              }
+            ]
+          }
+        },
+        {
+          "op": "field",
+          "path": "trade_in_lien_payoff_minor"
+        },
+        {
+          "op": "tax_pack",
+          "context": "taxable_service_fee",
+          "inputs": {
+            "eligible_taxable_consideration_minor": {
+              "op": "round",
+              "value": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "field",
+                    "path": "initial_payment_total_minor"
+                  },
+                  {
+                    "op": "constant",
+                    "value": "0.70"
+                  }
+                ]
+              },
+              "scale": 0,
+              "mode": "half_up"
+            },
+            "currency_code": {
+              "op": "field",
+              "path": "currency_code"
+            },
+            "transaction_date": {
+              "op": "field",
+              "path": "signature_date"
+            }
+          },
+          "output": "gst_minor"
+        },
+        {
+          "op": "tax_pack",
+          "context": "taxable_service_fee",
+          "inputs": {
+            "eligible_taxable_consideration_minor": {
+              "op": "round",
+              "value": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "field",
+                    "path": "initial_payment_total_minor"
+                  },
+                  {
+                    "op": "constant",
+                    "value": "0.70"
+                  }
+                ]
+              },
+              "scale": 0,
+              "mode": "half_up"
+            },
+            "currency_code": {
+              "op": "field",
+              "path": "currency_code"
+            },
+            "transaction_date": {
+              "op": "field",
+              "path": "signature_date"
+            }
+          },
+          "output": "qst_minor"
+        }
+      ]
+    },
+    "periods_per_year": {
+      "op": "if",
+      "condition": {
+        "op": "eq",
+        "left": {
+          "op": "field",
+          "path": "payment_frequency"
+        },
+        "right": {
+          "op": "constant",
+          "value": "weekly"
+        }
+      },
+      "then": {
+        "op": "constant",
+        "value": 52
+      },
+      "else": {
+        "op": "constant",
+        "value": 26
+      }
+    },
+    "number_of_payments": {
+      "op": "divide",
+      "args": [
+        {
+          "op": "multiply",
+          "args": [
+            {
+              "op": "field",
+              "path": "duration_months"
+            },
+            {
+              "op": "if",
+              "condition": {
+                "op": "eq",
+                "left": {
+                  "op": "field",
+                  "path": "payment_frequency"
+                },
+                "right": {
+                  "op": "constant",
+                  "value": "weekly"
+                }
+              },
+              "then": {
+                "op": "constant",
+                "value": 52
+              },
+              "else": {
+                "op": "constant",
+                "value": 26
+              }
+            }
+          ]
+        },
+        {
+          "op": "constant",
+          "value": 12
+        }
+      ]
+    },
+    "first_payment_date": {
+      "op": "date_add_days",
+      "date": {
+        "op": "field",
+        "path": "signature_date"
+      },
+      "days": {
+        "op": "if",
+        "condition": {
+          "op": "eq",
+          "left": {
+            "op": "field",
+            "path": "payment_frequency"
+          },
+          "right": {
+            "op": "constant",
+            "value": "weekly"
+          }
+        },
+        "then": {
+          "op": "constant",
+          "value": 7
+        },
+        "else": {
+          "op": "constant",
+          "value": 14
+        }
+      }
+    },
+    "regular_payment_minor": {
+      "op": "amortized_payment",
+      "principal_minor": {
+        "op": "add",
+        "args": [
+          {
+            "op": "max",
+            "args": [
+              {
+                "op": "subtract",
+                "args": [
+                  {
+                    "op": "field",
+                    "path": "vehicle_cash_price_minor"
+                  },
+                  {
+                    "op": "subtract",
+                    "args": [
+                      {
+                        "op": "field",
+                        "path": "initial_payment_total_minor"
+                      },
+                      {
+                        "op": "round",
+                        "value": {
+                          "op": "multiply",
+                          "args": [
+                            {
+                              "op": "field",
+                              "path": "initial_payment_total_minor"
+                            },
+                            {
+                              "op": "constant",
+                              "value": "0.70"
+                            }
+                          ]
+                        },
+                        "scale": 0,
+                        "mode": "half_up"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "field",
+                    "path": "eligible_trade_in_credit_minor"
+                  }
+                ]
+              },
+              {
+                "op": "constant",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "op": "sum_rows",
+            "rows_path": "fees",
+            "value_path": "amount_minor",
+            "where": {
+              "all": [
+                {
+                  "path": "taxable",
+                  "eq": true
+                },
+                {
+                  "path": "financed",
+                  "eq": true
+                }
+              ]
+            }
+          },
+          {
+            "op": "tax_pack",
+            "context": "vehicle_retail_sale",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "max",
+                    "args": [
+                      {
+                        "op": "subtract",
+                        "args": [
+                          {
+                            "op": "field",
+                            "path": "vehicle_cash_price_minor"
+                          },
+                          {
+                            "op": "subtract",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "round",
+                                "value": {
+                                  "op": "multiply",
+                                  "args": [
+                                    {
+                                      "op": "field",
+                                      "path": "initial_payment_total_minor"
+                                    },
+                                    {
+                                      "op": "constant",
+                                      "value": "0.70"
+                                    }
+                                  ]
+                                },
+                                "scale": 0,
+                                "mode": "half_up"
+                              }
+                            ]
+                          },
+                          {
+                            "op": "field",
+                            "path": "eligible_trade_in_credit_minor"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "constant",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "op": "sum_rows",
+                    "rows_path": "fees",
+                    "value_path": "amount_minor",
+                    "where": {
+                      "all": [
+                        {
+                          "path": "taxable",
+                          "eq": true
+                        },
+                        {
+                          "path": "financed",
+                          "eq": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "gst_minor"
+          },
+          {
+            "op": "tax_pack",
+            "context": "vehicle_retail_sale",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "max",
+                    "args": [
+                      {
+                        "op": "subtract",
+                        "args": [
+                          {
+                            "op": "field",
+                            "path": "vehicle_cash_price_minor"
+                          },
+                          {
+                            "op": "subtract",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "round",
+                                "value": {
+                                  "op": "multiply",
+                                  "args": [
+                                    {
+                                      "op": "field",
+                                      "path": "initial_payment_total_minor"
+                                    },
+                                    {
+                                      "op": "constant",
+                                      "value": "0.70"
+                                    }
+                                  ]
+                                },
+                                "scale": 0,
+                                "mode": "half_up"
+                              }
+                            ]
+                          },
+                          {
+                            "op": "field",
+                            "path": "eligible_trade_in_credit_minor"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "constant",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "op": "sum_rows",
+                    "rows_path": "fees",
+                    "value_path": "amount_minor",
+                    "where": {
+                      "all": [
+                        {
+                          "path": "taxable",
+                          "eq": true
+                        },
+                        {
+                          "path": "financed",
+                          "eq": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "qst_minor"
+          },
+          {
+            "op": "sum_rows",
+            "rows_path": "fees",
+            "value_path": "amount_minor",
+            "where": {
+              "all": [
+                {
+                  "path": "taxable",
+                  "eq": false
+                },
+                {
+                  "path": "financed",
+                  "eq": true
+                }
+              ]
+            }
+          },
+          {
+            "op": "field",
+            "path": "trade_in_lien_payoff_minor"
+          },
+          {
+            "op": "tax_pack",
+            "context": "taxable_service_fee",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "round",
+                "value": {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "initial_payment_total_minor"
+                    },
+                    {
+                      "op": "constant",
+                      "value": "0.70"
+                    }
+                  ]
+                },
+                "scale": 0,
+                "mode": "half_up"
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "gst_minor"
+          },
+          {
+            "op": "tax_pack",
+            "context": "taxable_service_fee",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "round",
+                "value": {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "initial_payment_total_minor"
+                    },
+                    {
+                      "op": "constant",
+                      "value": "0.70"
+                    }
+                  ]
+                },
+                "scale": 0,
+                "mode": "half_up"
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "qst_minor"
+          }
+        ]
+      },
+      "annual_rate_bps": {
+        "op": "field",
+        "path": "annual_rate_bps"
+      },
+      "periods_per_year": {
+        "op": "if",
+        "condition": {
+          "op": "eq",
+          "left": {
+            "op": "field",
+            "path": "payment_frequency"
+          },
+          "right": {
+            "op": "constant",
+            "value": "weekly"
+          }
+        },
+        "then": {
+          "op": "constant",
+          "value": 52
+        },
+        "else": {
+          "op": "constant",
+          "value": 26
+        }
+      },
+      "number_of_periods": {
+        "op": "divide",
+        "args": [
+          {
+            "op": "multiply",
+            "args": [
+              {
+                "op": "field",
+                "path": "duration_months"
+              },
+              {
+                "op": "if",
+                "condition": {
+                  "op": "eq",
+                  "left": {
+                    "op": "field",
+                    "path": "payment_frequency"
+                  },
+                  "right": {
+                    "op": "constant",
+                    "value": "weekly"
+                  }
+                },
+                "then": {
+                  "op": "constant",
+                  "value": 52
+                },
+                "else": {
+                  "op": "constant",
+                  "value": 26
+                }
+              }
+            ]
+          },
+          {
+            "op": "constant",
+            "value": 12
+          }
+        ]
+      },
+      "rounding": {
+        "mode": "half_up",
+        "minor_unit": 2
+      }
+    },
+    "original_schedule": {
+      "op": "amortization_schedule",
+      "principal_minor": {
+        "op": "add",
+        "args": [
+          {
+            "op": "max",
+            "args": [
+              {
+                "op": "subtract",
+                "args": [
+                  {
+                    "op": "field",
+                    "path": "vehicle_cash_price_minor"
+                  },
+                  {
+                    "op": "subtract",
+                    "args": [
+                      {
+                        "op": "field",
+                        "path": "initial_payment_total_minor"
+                      },
+                      {
+                        "op": "round",
+                        "value": {
+                          "op": "multiply",
+                          "args": [
+                            {
+                              "op": "field",
+                              "path": "initial_payment_total_minor"
+                            },
+                            {
+                              "op": "constant",
+                              "value": "0.70"
+                            }
+                          ]
+                        },
+                        "scale": 0,
+                        "mode": "half_up"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "field",
+                    "path": "eligible_trade_in_credit_minor"
+                  }
+                ]
+              },
+              {
+                "op": "constant",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "op": "sum_rows",
+            "rows_path": "fees",
+            "value_path": "amount_minor",
+            "where": {
+              "all": [
+                {
+                  "path": "taxable",
+                  "eq": true
+                },
+                {
+                  "path": "financed",
+                  "eq": true
+                }
+              ]
+            }
+          },
+          {
+            "op": "tax_pack",
+            "context": "vehicle_retail_sale",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "max",
+                    "args": [
+                      {
+                        "op": "subtract",
+                        "args": [
+                          {
+                            "op": "field",
+                            "path": "vehicle_cash_price_minor"
+                          },
+                          {
+                            "op": "subtract",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "round",
+                                "value": {
+                                  "op": "multiply",
+                                  "args": [
+                                    {
+                                      "op": "field",
+                                      "path": "initial_payment_total_minor"
+                                    },
+                                    {
+                                      "op": "constant",
+                                      "value": "0.70"
+                                    }
+                                  ]
+                                },
+                                "scale": 0,
+                                "mode": "half_up"
+                              }
+                            ]
+                          },
+                          {
+                            "op": "field",
+                            "path": "eligible_trade_in_credit_minor"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "constant",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "op": "sum_rows",
+                    "rows_path": "fees",
+                    "value_path": "amount_minor",
+                    "where": {
+                      "all": [
+                        {
+                          "path": "taxable",
+                          "eq": true
+                        },
+                        {
+                          "path": "financed",
+                          "eq": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "gst_minor"
+          },
+          {
+            "op": "tax_pack",
+            "context": "vehicle_retail_sale",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "max",
+                    "args": [
+                      {
+                        "op": "subtract",
+                        "args": [
+                          {
+                            "op": "field",
+                            "path": "vehicle_cash_price_minor"
+                          },
+                          {
+                            "op": "subtract",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "round",
+                                "value": {
+                                  "op": "multiply",
+                                  "args": [
+                                    {
+                                      "op": "field",
+                                      "path": "initial_payment_total_minor"
+                                    },
+                                    {
+                                      "op": "constant",
+                                      "value": "0.70"
+                                    }
+                                  ]
+                                },
+                                "scale": 0,
+                                "mode": "half_up"
+                              }
+                            ]
+                          },
+                          {
+                            "op": "field",
+                            "path": "eligible_trade_in_credit_minor"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "constant",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "op": "sum_rows",
+                    "rows_path": "fees",
+                    "value_path": "amount_minor",
+                    "where": {
+                      "all": [
+                        {
+                          "path": "taxable",
+                          "eq": true
+                        },
+                        {
+                          "path": "financed",
+                          "eq": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "qst_minor"
+          },
+          {
+            "op": "sum_rows",
+            "rows_path": "fees",
+            "value_path": "amount_minor",
+            "where": {
+              "all": [
+                {
+                  "path": "taxable",
+                  "eq": false
+                },
+                {
+                  "path": "financed",
+                  "eq": true
+                }
+              ]
+            }
+          },
+          {
+            "op": "field",
+            "path": "trade_in_lien_payoff_minor"
+          },
+          {
+            "op": "tax_pack",
+            "context": "taxable_service_fee",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "round",
+                "value": {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "initial_payment_total_minor"
+                    },
+                    {
+                      "op": "constant",
+                      "value": "0.70"
+                    }
+                  ]
+                },
+                "scale": 0,
+                "mode": "half_up"
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "gst_minor"
+          },
+          {
+            "op": "tax_pack",
+            "context": "taxable_service_fee",
+            "inputs": {
+              "eligible_taxable_consideration_minor": {
+                "op": "round",
+                "value": {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "initial_payment_total_minor"
+                    },
+                    {
+                      "op": "constant",
+                      "value": "0.70"
+                    }
+                  ]
+                },
+                "scale": 0,
+                "mode": "half_up"
+              },
+              "currency_code": {
+                "op": "field",
+                "path": "currency_code"
+              },
+              "transaction_date": {
+                "op": "field",
+                "path": "signature_date"
+              }
+            },
+            "output": "qst_minor"
+          }
+        ]
+      },
+      "annual_rate_bps": {
+        "op": "field",
+        "path": "annual_rate_bps"
+      },
+      "periods_per_year": {
+        "op": "if",
+        "condition": {
+          "op": "eq",
+          "left": {
+            "op": "field",
+            "path": "payment_frequency"
+          },
+          "right": {
+            "op": "constant",
+            "value": "weekly"
+          }
+        },
+        "then": {
+          "op": "constant",
+          "value": 52
+        },
+        "else": {
+          "op": "constant",
+          "value": 26
+        }
+      },
+      "number_of_periods": {
+        "op": "divide",
+        "args": [
+          {
+            "op": "multiply",
+            "args": [
+              {
+                "op": "field",
+                "path": "duration_months"
+              },
+              {
+                "op": "if",
+                "condition": {
+                  "op": "eq",
+                  "left": {
+                    "op": "field",
+                    "path": "payment_frequency"
+                  },
+                  "right": {
+                    "op": "constant",
+                    "value": "weekly"
+                  }
+                },
+                "then": {
+                  "op": "constant",
+                  "value": 52
+                },
+                "else": {
+                  "op": "constant",
+                  "value": 26
+                }
+              }
+            ]
+          },
+          {
+            "op": "constant",
+            "value": 12
+          }
+        ]
+      },
+      "first_due_date": {
+        "op": "date_add_days",
+        "date": {
+          "op": "field",
+          "path": "signature_date"
+        },
+        "days": {
+          "op": "if",
+          "condition": {
+            "op": "eq",
+            "left": {
+              "op": "field",
+              "path": "payment_frequency"
+            },
+            "right": {
+              "op": "constant",
+              "value": "weekly"
+            }
+          },
+          "then": {
+            "op": "constant",
+            "value": 7
+          },
+          "else": {
+            "op": "constant",
+            "value": 14
+          }
+        }
+      },
+      "period_days": {
+        "op": "if",
+        "condition": {
+          "op": "eq",
+          "left": {
+            "op": "field",
+            "path": "payment_frequency"
+          },
+          "right": {
+            "op": "constant",
+            "value": "weekly"
+          }
+        },
+        "then": {
+          "op": "constant",
+          "value": 7
+        },
+        "else": {
+          "op": "constant",
+          "value": 14
+        }
+      },
+      "payment_minor": {
+        "op": "amortized_payment",
+        "principal_minor": {
+          "op": "add",
+          "args": [
+            {
+              "op": "max",
+              "args": [
+                {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "op": "field",
+                      "path": "vehicle_cash_price_minor"
+                    },
+                    {
+                      "op": "subtract",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "initial_payment_total_minor"
+                        },
+                        {
+                          "op": "round",
+                          "value": {
+                            "op": "multiply",
+                            "args": [
+                              {
+                                "op": "field",
+                                "path": "initial_payment_total_minor"
+                              },
+                              {
+                                "op": "constant",
+                                "value": "0.70"
+                              }
+                            ]
+                          },
+                          "scale": 0,
+                          "mode": "half_up"
+                        }
+                      ]
+                    },
+                    {
+                      "op": "field",
+                      "path": "eligible_trade_in_credit_minor"
+                    }
+                  ]
+                },
+                {
+                  "op": "constant",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "op": "sum_rows",
+              "rows_path": "fees",
+              "value_path": "amount_minor",
+              "where": {
+                "all": [
+                  {
+                    "path": "taxable",
+                    "eq": true
+                  },
+                  {
+                    "path": "financed",
+                    "eq": true
+                  }
+                ]
+              }
+            },
+            {
+              "op": "tax_pack",
+              "context": "vehicle_retail_sale",
+              "inputs": {
+                "eligible_taxable_consideration_minor": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "max",
+                      "args": [
+                        {
+                          "op": "subtract",
+                          "args": [
+                            {
+                              "op": "field",
+                              "path": "vehicle_cash_price_minor"
+                            },
+                            {
+                              "op": "subtract",
+                              "args": [
+                                {
+                                  "op": "field",
+                                  "path": "initial_payment_total_minor"
+                                },
+                                {
+                                  "op": "round",
+                                  "value": {
+                                    "op": "multiply",
+                                    "args": [
+                                      {
+                                        "op": "field",
+                                        "path": "initial_payment_total_minor"
+                                      },
+                                      {
+                                        "op": "constant",
+                                        "value": "0.70"
+                                      }
+                                    ]
+                                  },
+                                  "scale": 0,
+                                  "mode": "half_up"
+                                }
+                              ]
+                            },
+                            {
+                              "op": "field",
+                              "path": "eligible_trade_in_credit_minor"
+                            }
+                          ]
+                        },
+                        {
+                          "op": "constant",
+                          "value": 0
+                        }
+                      ]
+                    },
+                    {
+                      "op": "sum_rows",
+                      "rows_path": "fees",
+                      "value_path": "amount_minor",
+                      "where": {
+                        "all": [
+                          {
+                            "path": "taxable",
+                            "eq": true
+                          },
+                          {
+                            "path": "financed",
+                            "eq": true
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "currency_code": {
+                  "op": "field",
+                  "path": "currency_code"
+                },
+                "transaction_date": {
+                  "op": "field",
+                  "path": "signature_date"
+                }
+              },
+              "output": "gst_minor"
+            },
+            {
+              "op": "tax_pack",
+              "context": "vehicle_retail_sale",
+              "inputs": {
+                "eligible_taxable_consideration_minor": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "max",
+                      "args": [
+                        {
+                          "op": "subtract",
+                          "args": [
+                            {
+                              "op": "field",
+                              "path": "vehicle_cash_price_minor"
+                            },
+                            {
+                              "op": "subtract",
+                              "args": [
+                                {
+                                  "op": "field",
+                                  "path": "initial_payment_total_minor"
+                                },
+                                {
+                                  "op": "round",
+                                  "value": {
+                                    "op": "multiply",
+                                    "args": [
+                                      {
+                                        "op": "field",
+                                        "path": "initial_payment_total_minor"
+                                      },
+                                      {
+                                        "op": "constant",
+                                        "value": "0.70"
+                                      }
+                                    ]
+                                  },
+                                  "scale": 0,
+                                  "mode": "half_up"
+                                }
+                              ]
+                            },
+                            {
+                              "op": "field",
+                              "path": "eligible_trade_in_credit_minor"
+                            }
+                          ]
+                        },
+                        {
+                          "op": "constant",
+                          "value": 0
+                        }
+                      ]
+                    },
+                    {
+                      "op": "sum_rows",
+                      "rows_path": "fees",
+                      "value_path": "amount_minor",
+                      "where": {
+                        "all": [
+                          {
+                            "path": "taxable",
+                            "eq": true
+                          },
+                          {
+                            "path": "financed",
+                            "eq": true
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "currency_code": {
+                  "op": "field",
+                  "path": "currency_code"
+                },
+                "transaction_date": {
+                  "op": "field",
+                  "path": "signature_date"
+                }
+              },
+              "output": "qst_minor"
+            },
+            {
+              "op": "sum_rows",
+              "rows_path": "fees",
+              "value_path": "amount_minor",
+              "where": {
+                "all": [
+                  {
+                    "path": "taxable",
+                    "eq": false
+                  },
+                  {
+                    "path": "financed",
+                    "eq": true
+                  }
+                ]
+              }
+            },
+            {
+              "op": "field",
+              "path": "trade_in_lien_payoff_minor"
+            },
+            {
+              "op": "tax_pack",
+              "context": "taxable_service_fee",
+              "inputs": {
+                "eligible_taxable_consideration_minor": {
+                  "op": "round",
+                  "value": {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "op": "field",
+                        "path": "initial_payment_total_minor"
+                      },
+                      {
+                        "op": "constant",
+                        "value": "0.70"
+                      }
+                    ]
+                  },
+                  "scale": 0,
+                  "mode": "half_up"
+                },
+                "currency_code": {
+                  "op": "field",
+                  "path": "currency_code"
+                },
+                "transaction_date": {
+                  "op": "field",
+                  "path": "signature_date"
+                }
+              },
+              "output": "gst_minor"
+            },
+            {
+              "op": "tax_pack",
+              "context": "taxable_service_fee",
+              "inputs": {
+                "eligible_taxable_consideration_minor": {
+                  "op": "round",
+                  "value": {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "op": "field",
+                        "path": "initial_payment_total_minor"
+                      },
+                      {
+                        "op": "constant",
+                        "value": "0.70"
+                      }
+                    ]
+                  },
+                  "scale": 0,
+                  "mode": "half_up"
+                },
+                "currency_code": {
+                  "op": "field",
+                  "path": "currency_code"
+                },
+                "transaction_date": {
+                  "op": "field",
+                  "path": "signature_date"
+                }
+              },
+              "output": "qst_minor"
+            }
+          ]
+        },
+        "annual_rate_bps": {
+          "op": "field",
+          "path": "annual_rate_bps"
+        },
+        "periods_per_year": {
+          "op": "if",
+          "condition": {
+            "op": "eq",
+            "left": {
+              "op": "field",
+              "path": "payment_frequency"
+            },
+            "right": {
+              "op": "constant",
+              "value": "weekly"
+            }
+          },
+          "then": {
+            "op": "constant",
+            "value": 52
+          },
+          "else": {
+            "op": "constant",
+            "value": 26
+          }
+        },
+        "number_of_periods": {
+          "op": "divide",
+          "args": [
+            {
+              "op": "multiply",
+              "args": [
+                {
+                  "op": "field",
+                  "path": "duration_months"
+                },
+                {
+                  "op": "if",
+                  "condition": {
+                    "op": "eq",
+                    "left": {
+                      "op": "field",
+                      "path": "payment_frequency"
+                    },
+                    "right": {
+                      "op": "constant",
+                      "value": "weekly"
+                    }
+                  },
+                  "then": {
+                    "op": "constant",
+                    "value": 52
+                  },
+                  "else": {
+                    "op": "constant",
+                    "value": 26
+                  }
+                }
+              ]
+            },
+            {
+              "op": "constant",
+              "value": 12
+            }
+          ]
+        },
+        "rounding": {
+          "mode": "half_up",
+          "minor_unit": 2
+        }
+      },
+      "rounding": {
+        "mode": "half_up",
+        "minor_unit": 2,
+        "final_payment_adjustment": true
+      }
+    }
+  },
+  "rounding": {
+    "money_minor_units": 2,
+    "mode": "half_up",
+    "brokerage_split": "round brokerage to nearest cent; capital is exact remainder",
+    "tax": "active tax pack",
+    "regular_payment": "nearest cent",
+    "final_payment": "adjust to reduce principal to exactly zero"
+  },
+  "fixtures": [
+    "tests/weekly-no-trade-in.json",
+    "tests/biweekly-positive-trade-in.json",
+    "tests/zero-interest-odd-cents.json",
+    "tests/fees-and-negative-equity.json",
+    "tests/final-adjustment.json"
+  ],
+  "approval_refs": [],
+  "metadata": {
+    "owner": "Drivven workspace configuration",
+    "production_activation_gate": "rtb_golden_cases_approved",
+    "notes": [
+      "No late fee or servicing event modifies the signed original schedule.",
+      "Tax treatment is delegated to the activated tax pack.",
+      "Trade-in eligibility must be explicitly confirmed when a credit is used."
+    ]
+  }
+}

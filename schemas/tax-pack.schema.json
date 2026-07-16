@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vynlo Tax Pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "key",
+    "version",
+    "jurisdiction",
+    "contexts",
+    "effective_from",
+    "rules",
+    "golden_tests",
+    "activation_status"
+  ],
+  "properties": {
+    "key": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "jurisdiction": {
+      "type": "string"
+    },
+    "contexts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date"
+    },
+    "effective_to": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rules": {
+      "type": "object"
+    },
+    "golden_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "activation_status": {
+      "enum": [
+        "draft",
+        "approved",
+        "active",
+        "retired"
+      ]
+    },
+    "approval_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

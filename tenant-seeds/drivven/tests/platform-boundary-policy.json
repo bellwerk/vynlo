@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reserved_terms": [
+    {
+      "value": "Auto BS",
+      "reason": "tenant-owned legal entity"
+    },
+    {
+      "value": "AutoBS",
+      "reason": "tenant-owned legal entity identifier"
+    },
+    {
+      "value": "Montreal",
+      "reason": "tenant-owned location"
+    },
+    {
+      "value": "Montréal",
+      "reason": "tenant-owned location"
+    },
+    {
+      "value": "Sherbrooke",
+      "reason": "tenant-owned location"
+    },
+    {
+      "value": "RTB",
+      "reason": "tenant-owned formula identifier"
+    },
+    {
+      "value": "rent-to-buy",
+      "reason": "tenant-owned contract workflow"
+    },
+    {
+      "value": "GoCardless",
+      "reason": "tenant-owned integration"
+    },
+    {
+      "value": "P###",
+      "reason": "tenant-owned stock-number convention"
+    }
+  ],
+  "reserved_ratios": [
+    {
+      "parts": [70, 30],
+      "reason": "tenant-owned contract allocation"
+    }
+  ]
+}

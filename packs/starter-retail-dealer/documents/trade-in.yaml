@@ -1,0 +1,14 @@
+schema_version: "1.0"
+key: trade-in
+version: "1.0.0"
+labels:
+  en: "Trade-in record"
+  fr: "Fiche de véhicule d’échange"
+field_schema: "schemas/trade-in.schema.json"
+numbering: "TRD-{{sequence:6}}"
+template: "templates/trade-in.html"
+workflow: null
+tax_pack: "workspace_active_tax_pack"
+calculation: null
+production_enabled: false
+approval_refs: []

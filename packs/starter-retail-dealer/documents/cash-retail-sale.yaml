@@ -1,0 +1,14 @@
+schema_version: "1.0"
+key: cash-retail-sale
+version: "1.0.0"
+labels:
+  en: "Cash retail sale"
+  fr: "Vente au comptant"
+field_schema: "schemas/cash-retail-sale.schema.json"
+numbering: "CRS-{{sequence:6}}"
+template: "templates/cash-retail-sale.html"
+workflow: null
+tax_pack: "workspace_active_tax_pack"
+calculation: null
+production_enabled: false
+approval_refs: []

@@ -1,0 +1,135 @@
+schema_version: "1.0"
+integration:
+  key: drivven-webflow-inventory
+  provider: webflow
+  provider_contract: website_provider_v1
+  api_version: v2
+  authentication:
+    method: oauth_or_site_token
+    secret_reference: DRIVVEN_WEBFLOW_SECRET_REF
+  environments:
+    staging:
+      site_id: "REQUIRED_AT_ACTIVATION"
+      collection_id: "REQUIRED_AT_ACTIVATION"
+    production:
+      site_id: "REQUIRED_AT_ACTIVATION"
+      collection_id: "REQUIRED_AT_ACTIVATION"
+  collection_name_reference: Inventory
+  source_of_truth: vynlo
+  sync:
+    asynchronous: true
+    queue_on_relevant_change: true
+    nominal_completion_target_seconds: 60
+    direct_manual_edits_supported: false
+    external_drift_behavior: flag_for_admin_review
+    delete_remote_items_automatically: false
+  fields:
+    title:
+      remote_label: "Year / Make / Model"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{vehicle.model_year}} {{vehicle.make}} {{vehicle.model}}"
+    available:
+      remote_label: "Available?"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: switch
+      source: "{{inventory.workflow.flags.publishable_and_available}}"
+    publishing_page:
+      remote_label: "Publishing Page"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: option
+      source: "{{drivven.publishing_page}}"
+      allowed_values:
+        montreal: "REQUIRED_EXACT_OPTION_VALUE"
+        sherbrooke: "REQUIRED_EXACT_OPTION_VALUE"
+        under_2000: "REQUIRED_EXACT_OPTION_VALUE"
+    kilometers:
+      remote_label: "Kilometers"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{inventory.odometer_value}}"
+      guard: "{{inventory.odometer_unit == 'km'}}"
+    transmission:
+      remote_label: "Transmission"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: option
+      source: "{{vehicle.transmission}}"
+    engine_liters:
+      remote_label: "Engine Liters"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{vehicle.engine_liters}}"
+    cylinders:
+      remote_label: "Cylinders"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{vehicle.cylinders}}"
+    horsepower:
+      remote_label: "Horse Power"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{vehicle.horsepower}}"
+    fuel_type:
+      remote_label: "Fuel Type"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: option
+      source: "{{vehicle.fuel_type}}"
+    drivetrain:
+      remote_label: "Drivetrain"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: option
+      source: "{{vehicle.drivetrain}}"
+    location:
+      remote_label: "Location"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: option
+      source: "{{inventory.location.key}}"
+      allowed_values:
+        montreal: "REQUIRED_EXACT_OPTION_VALUE"
+        sherbrooke: "REQUIRED_EXACT_OPTION_VALUE"
+    car_price:
+      remote_label: "Car Price"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{inventory.advertised_price | money_without_currency}}"
+    payment:
+      remote_label: "Payment"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: plain_text
+      source: "{{calculation.drivven_webflow_daily_payment.display_value}}"
+    cover_image:
+      remote_label: "Cover Image"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: image
+      source: "{{media.cover.website_1080_webp}}"
+    photos:
+      remote_label: "Photos"
+      remote_field_id: "REQUIRED_AT_ACTIVATION"
+      remote_type: multi_image
+      source: "{{media.ordered.website_1080_webp}}"
+  derived_rules:
+    publishing_page:
+      expression: "advertised_price_minor < 200000 ? 'under_2000' : location_key"
+      currency: CAD
+      threshold_minor: 200000
+      threshold_operator: strictly_less_than
+    description:
+      cms_field: none
+      behavior: existing_webflow_custom_embed_generates_description
+  sold_or_delivered_behavior:
+    set_available_false: true
+    delete_item: false
+    archive_item: false
+    unpublish_item: false
+  image_profile:
+    derivative_role: website_1080_webp
+    max_width_px: 1080
+    format: webp
+  activation_checks:
+    - verify_site_and_collection
+    - verify_exact_field_ids_and_types
+    - verify_exact_option_values
+    - verify_locale_behavior
+    - verify_asset_upload
+    - verify_staging_create_update_publish_unpublish
+    - verify_sold_visibility_behavior

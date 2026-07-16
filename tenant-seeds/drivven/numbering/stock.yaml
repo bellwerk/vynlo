@@ -1,0 +1,31 @@
+schema_version: "1.0"
+numbering:
+  key: drivven-stock
+  version: "1.0.0"
+  scope: workspace
+  allocation_event: inventory_unit_creation_confirmed
+  never_reuse: true
+  regular:
+    prefix: "P"
+    sequence:
+      start_value: "REQUIRED_AT_ACTIVATION"
+      padding: 0
+      increment: 1
+    pattern: "^P[0-9]+$"
+    example: "P166"
+  direct_trade_in:
+    source: source_deal_primary_sold_inventory_unit
+    suffix_sequence: [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z]
+    pattern: "^P[0-9]+[a-z]$"
+    example: "P166a"
+    overflow_behavior: block_and_require_admin_regular_number
+  nested_suffixes_allowed: false
+  later_trade_in_against_suffixed_unit:
+    allocate_regular_sequence: true
+  import:
+    allow_admin_existing_number: true
+    require_unique_check: true
+    advance_sequence_past_imported_max: true
+  concurrency:
+    database_transaction_required: true
+    unique_constraint: [workspace_id, stock_number]

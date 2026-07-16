@@ -1,0 +1,72 @@
+schema_version: 1.0.0
+package:
+  key: drivven-bootstrap
+  name: Drivven workspace bootstrap package
+  version: 1.0.0
+  visibility: private
+  purpose: seed
+  workspace_key: drivven
+  description: Non-secret bootstrap, migration, and test configuration for the Drivven workspace operated by Auto BS Inc.
+compatibility:
+  platform_schema: '>=2.1.0 <3.0.0'
+entitlements:
+- inventory
+- media
+- website_publishing
+- crm
+- deals
+- one_time_payments
+- documents
+- tenant_calculations
+- exports
+dependencies:
+- starter-retail-dealer@1.0.0
+- tax-ca-qc@1.0.0
+artifacts:
+  legal_entities:
+  - legal-entities/auto-bs.yaml
+  locations:
+  - locations/montreal.yaml
+  - locations/sherbrooke.yaml
+  roles:
+  - roles/roles.yaml
+  workflows:
+  - workflows/inventory.yaml
+  - workflows/rtb-deal.yaml
+  numbering:
+  - numbering/stock.yaml
+  - numbering/documents.yaml
+  documents:
+  - documents/rtb/document-type.yaml
+  - documents/cash-private/document-type.yaml
+  - documents/cash-dealer/document-type.yaml
+  - documents/vehicle-purchase/document-type.yaml
+  - documents/service-invoice/document-type.yaml
+  - documents/short-term-rental/document-type.yaml
+  calculations:
+  - formulas/rtb/formula.v1.json
+  - formulas/webflow-daily-payment/formula.v1.json
+  exports:
+  - exports/accounting-v1.yaml
+  integrations:
+  - integrations/google-drive.yaml
+  - integrations/webflow.yaml
+  migration:
+  - migration/DRIVE_WEBFLOW_MIGRATION.md
+  tests:
+  - tests/platform-boundary-policy.json
+  - tests/validate_rtb_fixtures.py
+  - tests/rtb/GOLDEN_CASES_REQUIRED.md
+  fields:
+  - fees/fee-catalog.yaml
+activation_gates:
+- exact_legal_entity_verified
+- provider_credentials_connected
+- webflow_mapping_verified
+- drive_mapping_verified
+- existing_inventory_migration_approved
+- rtb_final_template_approved
+- rtb_legal_approval_recorded
+- rtb_accounting_approval_recorded
+- rtb_golden_cases_approved
+- rtb_number_start_approved

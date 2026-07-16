@@ -1,0 +1,14 @@
+schema_version: "1.0"
+key: generic-invoice
+version: "1.0.0"
+labels:
+  en: "Generic invoice"
+  fr: "Facture générique"
+field_schema: "schemas/generic-invoice.schema.json"
+numbering: "INV-{{sequence:6}}"
+template: "templates/generic-invoice.html"
+workflow: null
+tax_pack: "workspace_active_tax_pack"
+calculation: null
+production_enabled: false
+approval_refs: []

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="{{ locale }}">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      @page { size: Letter; margin: 18mm; }
+      body { font-family: system-ui, sans-serif; color: #111; }
+      .watermark { position: fixed; inset: 45% 0 auto; text-align: center;
+                    transform: rotate(-25deg); opacity: .18; font-size: 46px; font-weight: 700; }
+      dt { font-weight: 700; } dd { margin: 0 0 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="watermark">NON-PRODUCTION / BROUILLON</div>
+    <h1>Cash retail sale / Vente au comptant</h1>
+    <p>This demonstration template proves the rendering pipeline only. It must not be activated for customer use without tenant legal and operational approval.</p>
+    <dl>
+      <dt>Document date</dt><dd>{{ document.document_date }}</dd>
+      <dt>Stock</dt><dd>{{ document.stock_number | default: "—" }}</dd>
+      <dt>VIN</dt><dd>{{ document.vin | default: "—" }}</dd>
+    </dl>
+  </body>
+</html>
