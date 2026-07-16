@@ -17,11 +17,11 @@ Stage 0 establishes the repository and toolchain foundation only. It implements 
 | `VYN-I18N-001`, `T-I18N-001` foundation | Parallel English/French message catalogs with key-alignment and accent-preservation tests |
 | `VYN-UX-001`, `T-PWA-001` foundation | Web manifest route and browser smoke assertion; update/offline behavior remains a later shell increment |
 
-## Database boundary
+## Database boundary at Stage 0
 
-`supabase/seed.sql` creates a disposable `stage0.synthetic_workspaces` table only. It is not the production organization/workspace schema. PR 2 owns production migrations, RLS, authentication, memberships, permissions, and cross-workspace database denial tests.
+Stage 0 originally created only a disposable `stage0.synthetic_workspaces` projection. Milestone 1 now owns the production organization/workspace, membership, permission, invitation, RLS, and audit foundation while retaining that projection temporarily for compatibility. Current evidence and remaining work are recorded in [`MILESTONE_1_TENANCY_FOUNDATION.md`](MILESTONE_1_TENANCY_FOUNDATION.md).
 
-The `quality / database-smoke` GitHub Actions job starts the pinned local Supabase stack, runs `pnpm db:reset`, and queries the running Postgres database. It fails unless the executed seed contains exactly two unique rows and every row is marked as a fixture. The static `pnpm test:db` check remains useful without Docker, but it is not a substitute for this runtime job.
+The `quality / database-smoke` GitHub Actions job starts the pinned local Supabase stack, resets and seeds Postgres, executes the pgTAP RLS/permission negative matrix, and verifies the production fixture counts and forced-RLS state. `pnpm check:supabase` is the Docker-independent structural gate; it is not a substitute for the runtime job.
 
 ## Tenant boundary
 

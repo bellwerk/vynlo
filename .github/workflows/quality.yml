@@ -61,8 +61,8 @@ jobs:
       - name: Package boundaries and secrets
         run: pnpm test:security
 
-      - name: Supabase Stage 0 fixture safety
-        run: pnpm test:db
+      - name: Supabase tenancy foundation structure
+        run: pnpm check:supabase
 
       - name: Dependency audit
         run: pnpm check:deps
@@ -109,7 +109,10 @@ jobs:
       - name: Reset and seed local database
         run: pnpm db:reset
 
-      - name: Query executed Stage 0 fixtures
+      - name: Tenancy, permission, and RLS negative matrix
+        run: pnpm test:db
+
+      - name: Verify executed Milestone 1 fixtures
         run: pnpm check:supabase:runtime
 
       - name: Stop local Supabase

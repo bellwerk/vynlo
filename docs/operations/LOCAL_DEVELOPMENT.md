@@ -47,7 +47,7 @@ pnpm typecheck
 pnpm lint
 pnpm format:check
 pnpm test                unit/invariant suites
-pnpm test:db             migrations, constraints, RLS, concurrency
+pnpm test:db             migrations, constraints, RLS, invariants
 pnpm test:api            OpenAPI and API contract tests
 pnpm test:e2e            Playwright responsive E2E
 pnpm test:security
@@ -61,13 +61,14 @@ pnpm db:migrate
 pnpm seed:synthetic
 ```
 
-At Stage 0, `test:db` validates the safety and two-workspace shape of the disposable synthetic seed. Production tenancy migrations, pgTAP, RLS policies, and cross-workspace database tests begin in PR 2.
+`pnpm check:supabase` validates the migration/RLS/helper structure, permission-catalog parity, and two-workspace synthetic seed without Docker. With the local Supabase stack running, `pnpm test:db` adds the pgTAP tenancy, permission, MFA/step-up, ownership-spoofing, and append-only audit matrix. `pnpm check:supabase:runtime` reapplies the seed to prove idempotency before checking executed fixture counts.
 
 The GitHub-hosted `quality / database-smoke` job additionally starts Supabase, resets and seeds the local Postgres database, and queries the executed rows. Reproduce that runtime assertion on a Docker-capable machine with:
 
 ```bash
 pnpm supabase:start
 pnpm db:reset
+pnpm test:db
 pnpm check:supabase:runtime
 pnpm exec supabase stop --no-backup
 ```

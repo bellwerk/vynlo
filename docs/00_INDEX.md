@@ -17,6 +17,7 @@
 - `implementation/IMPLEMENTATION_PLAN.md`
 - `implementation/EPICS_AND_STORIES.md`
 - `implementation/ENGINEERING_HANDOFF_CHECKLIST.md`
+- `implementation/MILESTONE_1_TENANCY_FOUNDATION.md`
 
 ## Governance
 

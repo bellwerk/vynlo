@@ -96,7 +96,11 @@ importers:
 
   packages/api-contracts: {}
 
-  packages/application: {}
+  packages/application:
+    dependencies:
+      "@vynlo/auth":
+        specifier: workspace:*
+        version: link:../auth
 
   packages/auth: {}
 

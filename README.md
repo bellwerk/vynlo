@@ -8,7 +8,7 @@
 
 Vynlo is a configurable, inventory-first dealership operations and merchandising SaaS for small and medium vehicle dealerships. Drivven is the first configured workspace and has private operating rules, document templates, formulas, workflows, integrations, and exports. Those settings must never become hardcoded Vynlo behavior.
 
-## Stage 0 developer quick start
+## Developer quick start
 
 Requirements: Git, Node.js 24.18.0, pnpm 11.13.0 through Corepack, Python 3 with `scripts/requirements.txt`, Docker, and the pinned Supabase CLI installed by pnpm.
 
@@ -23,12 +23,13 @@ pnpm db:reset
 pnpm dev
 ```
 
-The web shell runs at `http://127.0.0.1:3000`, its health page at `/health`, and the worker health command is `pnpm worker:health`. The local Supabase seed creates two synthetic Stage 0 workspaces only; it is not the production tenancy schema.
+The web shell runs at `http://127.0.0.1:3000`, its health page at `/health`, and the worker health command is `pnpm worker:health`. The local Supabase seed creates deterministic, fictional users and RBAC records across two production-schema workspace boundaries. Fixture credentials are randomized and cannot be used for interactive sign-in.
 
 Run the complete available scaffold checks with:
 
 ```bash
 pnpm validate
+pnpm test:db
 pnpm test:e2e
 ```
 
@@ -46,7 +47,7 @@ vynlo/
 ├── tenant-seeds/drivven/     # first-workspace bootstrap, migration, and test data
 ├── contracts/                # OpenAPI
 ├── schemas/                  # portable configuration schemas
-├── supabase/                 # migrations, seeds, and database tests when development begins
+├── supabase/                 # production migrations, synthetic seeds, and database/RLS tests
 └── docs/                     # normative product and engineering specifications
 ```
 
