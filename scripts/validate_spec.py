@@ -3,8 +3,8 @@
 
 This script validates syntax, JSON Schemas, configuration artifacts, OpenAPI
 internal references, Markdown file links, workflow references, manifest file
-paths, and Drivven candidate calculation invariants. It intentionally does not
-approve legal, accounting, tax, or business rules.
+paths, repository boundaries, and tenant-owned validation hooks. It
+intentionally does not approve legal, accounting, tax, or business rules.
 """
 from __future__ import annotations
 
@@ -13,17 +13,14 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, asdict
-from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP, getcontext
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
 from jsonschema import Draft202012Validator
-
-getcontext().prec = 60
 
 EXCLUDED_DIRECTORIES = {
     ".git",
@@ -82,113 +79,6 @@ def walk(obj: Any) -> Iterable[Any]:
             yield from walk(value)
 
 
-def round_minor(value: Decimal) -> int:
-    return int(value.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-
-
-def calculate_rtb(inputs: dict[str, Any]) -> dict[str, Any]:
-    initial = inputs["initial_payment_total_minor"]
-    brokerage = round_minor(Decimal(initial) * Decimal("0.70"))
-    down = initial - brokerage
-    taxable_fees = sum(
-        row["amount_minor"] for row in inputs.get("fees", [])
-        if row.get("taxable") and row.get("financed")
-    )
-    non_taxable_fees = sum(
-        row["amount_minor"] for row in inputs.get("fees", [])
-        if not row.get("taxable") and row.get("financed")
-    )
-    vehicle_after = max(
-        inputs["vehicle_cash_price_minor"]
-        - down
-        - inputs.get("eligible_trade_in_credit_minor", 0),
-        0,
-    )
-    consideration = vehicle_after + taxable_fees
-    vehicle_gst = round_minor(Decimal(consideration) * Decimal("0.05"))
-    vehicle_qst = round_minor(Decimal(consideration) * Decimal("0.09975"))
-    brokerage_gst = round_minor(Decimal(brokerage) * Decimal("0.05"))
-    brokerage_qst = round_minor(Decimal(brokerage) * Decimal("0.09975"))
-    principal = (
-        vehicle_after
-        + taxable_fees
-        + vehicle_gst
-        + vehicle_qst
-        + non_taxable_fees
-        + inputs.get("trade_in_lien_payoff_minor", 0)
-        + brokerage_gst
-        + brokerage_qst
-    )
-
-    frequency = inputs["payment_frequency"]
-    periods = 52 if frequency == "weekly" else 26
-    period_days = 7 if frequency == "weekly" else 14
-    count = inputs["duration_months"] * periods // 12
-    periodic_rate = Decimal(inputs["annual_rate_bps"]) / Decimal(10000) / Decimal(periods)
-    if periodic_rate == 0:
-        regular = round_minor(Decimal(principal) / Decimal(count))
-    else:
-        regular = round_minor(
-            Decimal(principal)
-            * periodic_rate
-            / (Decimal(1) - (Decimal(1) + periodic_rate) ** (-count))
-        )
-
-    opening = principal
-    schedule: list[dict[str, Any]] = []
-    signature = date.fromisoformat(inputs["signature_date"])
-    total_interest = 0
-    total_payments = 0
-    for number in range(1, count + 1):
-        interest = round_minor(Decimal(opening) * periodic_rate)
-        if number == count:
-            principal_part = opening
-            payment = principal_part + interest
-        else:
-            payment = regular
-            principal_part = payment - interest
-            if principal_part > opening:
-                principal_part = opening
-                payment = principal_part + interest
-        opening -= principal_part
-        total_interest += interest
-        total_payments += payment
-        schedule.append(
-            {
-                "payment_number": number,
-                "due_date": (signature + timedelta(days=period_days * number)).isoformat(),
-                "payment_minor": payment,
-                "principal_minor": principal_part,
-                "interest_minor": interest,
-                "remaining_balance_minor": opening,
-            }
-        )
-
-    return {
-        "brokerage_fee_base_minor": brokerage,
-        "capital_down_payment_minor": down,
-        "taxable_financed_fees_minor": taxable_fees,
-        "non_taxable_financed_fees_minor": non_taxable_fees,
-        "vehicle_price_after_capital_and_trade_in_minor": vehicle_after,
-        "vehicle_taxable_consideration_minor": consideration,
-        "vehicle_gst_minor": vehicle_gst,
-        "vehicle_qst_minor": vehicle_qst,
-        "brokerage_gst_minor": brokerage_gst,
-        "brokerage_qst_minor": brokerage_qst,
-        "net_capital_financed_minor": principal,
-        "periods_per_year": periods,
-        "number_of_payments": count,
-        "first_payment_date": schedule[0]["due_date"],
-        "regular_payment_minor": regular,
-        "total_schedule_payments_minor": total_payments,
-        "total_interest_minor": total_interest,
-        "first_three_schedule_rows": schedule[:3],
-        "final_schedule_row": schedule[-1],
-        "final_payment_adjustment_minor": schedule[-1]["payment_minor"] - regular,
-        "ending_balance_minor": opening,
-    }
-
-
 def check_parse(root: Path) -> Result:
     errors: list[str] = []
     for path in repository_files(root):
@@ -222,14 +112,14 @@ def check_artifact_schemas(root: Path) -> Result:
 
     groups = [
         ((root / "packs/starter-retail-dealer/workflows").glob("*.yaml"), "workflow.schema.json"),
-        ((root / "tenant-seeds/drivven/workflows").glob("*.yaml"), "workflow.schema.json"),
         ((root / "packs/starter-retail-dealer/documents").glob("*.yaml"), "document-type.schema.json"),
-        ((root / "tenant-seeds/drivven/documents").glob("*/document-type.yaml"), "document-type.schema.json"),
-        ((root / "tenant-seeds/drivven/formulas").glob("*/formula.v1.json"), "calculation.schema.json"),
         (iter([root / "packs/starter-retail-dealer/exports/inventory-summary.yaml"]), "export-definition.schema.json"),
-        (iter([root / "tenant-seeds/drivven/exports/accounting-v1.yaml"]), "export-definition.schema.json"),
-        (iter([root / "packs/tax/ca-qc/manifest.yaml"]), "tax-pack.schema.json"),
-        (iter([root / "tenant-seeds/drivven/manifest.yaml"]), "workspace-config-package.schema.json"),
+        ((root / "packs/tax").glob("*/manifest.yaml"), "tax-pack.schema.json"),
+        ((root / "tenant-seeds").glob("*/workflows/*.yaml"), "workflow.schema.json"),
+        ((root / "tenant-seeds").glob("*/documents/*/document-type.yaml"), "document-type.schema.json"),
+        ((root / "tenant-seeds").glob("*/formulas/*/formula.v1.json"), "calculation.schema.json"),
+        ((root / "tenant-seeds").glob("*/exports/*.yaml"), "export-definition.schema.json"),
+        ((root / "tenant-seeds").glob("*/manifest.yaml"), "workspace-config-package.schema.json"),
     ]
     for paths, schema_name in groups:
         for path in paths:
@@ -248,19 +138,19 @@ def check_manifest_paths(root: Path) -> Result:
             if not (starter_root / item).exists():
                 errors.append(f"missing starter artifact: {item}")
 
-    seed_root = root / "tenant-seeds/drivven"
-    seed = load(seed_root / "manifest.yaml")
-    for values in seed.get("artifacts", {}).values():
-        for item in values:
-            if not (seed_root / item).exists():
-                errors.append(f"missing Drivven artifact: {item}")
+    for seed_root in sorted(path.parent for path in (root / "tenant-seeds").glob("*/manifest.yaml")):
+        seed = load(seed_root / "manifest.yaml")
+        for values in seed.get("artifacts", {}).values():
+            for item in values:
+                if not (seed_root / item).exists():
+                    errors.append(f"{seed_root.relative_to(root)}: missing tenant artifact: {item}")
     return Result("manifest_artifact_paths", "pass" if not errors else "fail", errors)
 
 
 def check_workflows(root: Path) -> Result:
     errors: list[str] = []
     paths = list((root / "packs/starter-retail-dealer/workflows").glob("*.yaml")) + list(
-        (root / "tenant-seeds/drivven/workflows").glob("*.yaml")
+        (root / "tenant-seeds").glob("*/workflows/*.yaml")
     )
     for path in paths:
         data = load(path)
@@ -354,36 +244,34 @@ def check_markdown_links(root: Path) -> Result:
     return Result("markdown_file_links", "pass" if not errors else "fail", errors)
 
 
-def check_rtb_fixtures(root: Path) -> Result:
+def check_tenant_validators(root: Path) -> Result:
     errors: list[str] = []
-    for path in sorted((root / "tenant-seeds/drivven/formulas/rtb/tests").glob("*.json")):
-        data = load(path)
-        actual = calculate_rtb(data["input"])
-        for key, expected in data["expected"].items():
-            if actual.get(key) != expected:
-                errors.append(
-                    f"{path.relative_to(root)}: {key} expected {expected!r}, calculated {actual.get(key)!r}"
-                )
-        if actual["brokerage_fee_base_minor"] + actual["capital_down_payment_minor"] != data["input"]["initial_payment_total_minor"]:
-            errors.append(f"{path.relative_to(root)}: initial payment split invariant failed")
-        if actual["ending_balance_minor"] != 0:
-            errors.append(f"{path.relative_to(root)}: ending balance is not zero")
-    return Result("drivven_candidate_formula_invariants", "pass" if not errors else "fail", errors)
-
-
-def check_repository_boundaries(root: Path) -> Result:
-    errors: list[str] = []
-    forbidden = re.compile(r"\b(drivven|auto bs|sherbrooke|montreal|gocardless|rent[- ]?to[- ]?buy|\brtb\b|70/30|p###)\b", re.I)
-    for sub in ["apps", "packages"]:
-        base = root / sub
-        if not base.exists():
+    validators = sorted((root / "tenant-seeds").glob("*/tests/validate_*.py"))
+    for path in validators:
+        try:
+            completed = subprocess.run(
+                [sys.executable, str(path), str(root)],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired:
+            errors.append(f"{path.relative_to(root)}: validator exceeded 60 seconds")
             continue
-        for path in base.rglob("*"):
-            if path.is_file() and path.suffix in {".ts", ".tsx", ".js", ".jsx", ".json", ".yaml", ".yml", ".md"}:
-                match = forbidden.search(path.read_text(encoding="utf-8", errors="ignore"))
-                if match:
-                    errors.append(f"{path.relative_to(root)}: platform source contains workspace-specific term {match.group(0)!r}")
-    return Result("platform_workspace_boundary", "pass" if not errors else "fail", errors)
+        if completed.returncode != 0:
+            output = completed.stdout.strip() or completed.stderr.strip() or "validator failed without output"
+            errors.append(f"{path.relative_to(root)}: {output}")
+            continue
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            errors.append(f"{path.relative_to(root)}: validator returned invalid JSON: {exc}")
+            continue
+        if not isinstance(payload, dict) or payload.get("status") != "pass":
+            errors.append(f"{path.relative_to(root)}: validator did not report pass")
+    return Result("tenant_owned_validators", "pass" if not errors else "fail", errors)
 
 
 def check_no_secret_like_values(root: Path) -> Result:
@@ -429,14 +317,13 @@ def main() -> int:
         check_workflows(root),
         check_openapi(root),
         check_markdown_links(root),
-        check_rtb_fixtures(root),
-        check_repository_boundaries(root),
+        check_tenant_validators(root),
         check_no_secret_like_values(root),
     ]
     overall = "pass" if all(check.status == "pass" for check in checks) else "fail"
     payload = {
         "specification_version": "2.1.0",
-        "validation_scope": "development specification structure and candidate mathematical invariants; not legal/accounting approval",
+        "validation_scope": "development specification structure and tenant-owned validation hooks; not legal/accounting approval",
         "overall": overall,
         "checks": [asdict(check) for check in checks],
     }

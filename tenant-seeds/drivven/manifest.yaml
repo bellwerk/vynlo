@@ -54,6 +54,8 @@ artifacts:
   migration:
   - migration/DRIVE_WEBFLOW_MIGRATION.md
   tests:
+  - tests/platform-boundary-policy.json
+  - tests/validate_rtb_fixtures.py
   - tests/rtb/GOLDEN_CASES_REQUIRED.md
   fields:
   - fees/fee-catalog.yaml

@@ -1,4 +1,4 @@
-import { Button } from "@vynlo/ui-web";
+import { Button } from "@vynlo/ui-web/components/button";
 import { ArrowUpRight, CircleDot, ShieldCheck } from "lucide-react";
 import { defaultLocale, messages } from "../i18n/messages";
 

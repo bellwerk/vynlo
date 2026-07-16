@@ -14,6 +14,7 @@
     "check:boundaries": "node scripts/check-package-boundaries.mjs",
     "check:deps": "pnpm audit --audit-level high",
     "check:supabase": "node scripts/check-stage0-db-foundation.mjs",
+    "check:supabase:runtime": "node scripts/check-stage0-db-runtime.mjs",
     "check:markdown": "python scripts/check_markdown_links.py",
     "check:openapi": "redocly lint contracts/openapi.v1.yaml",
     "check:secrets": "secretlint \"**/*\"",

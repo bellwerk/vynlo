@@ -1,6 +1,6 @@
 {
   "specification_version": "2.1.0",
-  "validation_scope": "development specification structure and candidate mathematical invariants; not legal/accounting approval",
+  "validation_scope": "development specification structure and tenant-owned validation hooks; not legal/accounting approval",
   "overall": "pass",
   "checks": [
     {
@@ -39,12 +39,7 @@
       "details": []
     },
     {
-      "name": "drivven_candidate_formula_invariants",
-      "status": "pass",
-      "details": []
-    },
-    {
-      "name": "platform_workspace_boundary",
+      "name": "tenant_owned_validators",
       "status": "pass",
       "details": []
     },
