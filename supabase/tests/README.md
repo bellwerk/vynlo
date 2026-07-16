@@ -26,3 +26,10 @@ generated from a random unknown value. Tests authenticate them by setting
 transaction-local Supabase JWT claims; they cannot be used for interactive login
 with a known credential. The runtime checker reapplies the seed once to prove
 idempotent fixture setup before validating counts.
+
+`006_invite_only_auth.test.sql` adds 55 assertions for `T-AUTH-001`,
+`T-AUTH-002`, `T-AUTH-004`, `T-TEN-001`, `T-RBAC-001`, `T-AUD-001`, and
+`T-JOB-001`. It covers recent-AAL2 invitation authorization, role scope,
+workspace isolation, exact non-PII delivery payloads, leased worker reads,
+provider endpoint selection state, matching-email activation, failure/terminal
+states, idempotency, atomic audit evidence, and append-only command history.

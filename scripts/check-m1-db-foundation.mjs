@@ -18,10 +18,17 @@ const migrations = await Promise.all(
 );
 const migrationSql = migrations.join("\n");
 const seedSql = await readFile(path.join(root, "supabase", "seed.sql"), "utf8");
-const databaseTests = await readFile(
-  path.join(root, "supabase", "tests", "001_tenancy_identity_rls.test.sql"),
-  "utf8",
+const databaseTestsDirectory = path.join(root, "supabase", "tests");
+const databaseTestNames = (await readdir(databaseTestsDirectory))
+  .filter((name) => /^\d{3}_[a-z0-9_]+\.test\.sql$/u.test(name))
+  .sort();
+const databaseTestSuites = await Promise.all(
+  databaseTestNames.map(async (name) => ({
+    name,
+    sql: await readFile(path.join(databaseTestsDirectory, name), "utf8"),
+  })),
 );
+const databaseTests = databaseTestSuites.map(({ sql }) => sql).join("\n");
 const permissionCatalog = await readFile(
   path.join(root, "docs", "data", "PERMISSION_CATALOG.md"),
   "utf8",
@@ -30,8 +37,24 @@ const permissionContracts = await readFile(
   path.join(root, "packages", "auth", "src", "permissions.ts"),
   "utf8",
 );
+const supabaseConfig = await readFile(
+  path.join(root, "supabase", "config.toml"),
+  "utf8",
+);
+const authenticatedRpcAdapter = await readFile(
+  path.join(root, "apps", "web", "lib", "api", "postgrest.ts"),
+  "utf8",
+);
+const workerJobStore = await readFile(
+  path.join(root, "apps", "worker", "src", "job-store.ts"),
+  "utf8",
+);
+const previewRepository = await readFile(
+  path.join(root, "apps", "worker", "src", "preview-document-repository.ts"),
+  "utf8",
+);
 
-const exposedTables = [
+const foundationTables = [
   "organizations",
   "workspaces",
   "user_profiles",
@@ -44,6 +67,22 @@ const exposedTables = [
   "workspace_invitation_roles",
   "audit_events",
 ];
+
+const exposedTables = [
+  ...new Set(
+    [
+      ...migrationSql.matchAll(/create\s+table\s+public\.([a-z][a-z0-9_]*)/giu),
+    ].map(([, table]) => table),
+  ),
+].sort();
+
+for (const table of foundationTables) {
+  if (!exposedTables.includes(table)) {
+    throw new Error(
+      `Production migration is missing foundation table ${table}.`,
+    );
+  }
+}
 
 for (const table of exposedTables) {
   for (const requiredPattern of [
@@ -86,6 +125,87 @@ for (const helper of [
   if (!declaration.test(migrationSql)) {
     throw new Error(`Missing trusted database helper: app.${helper}.`);
   }
+}
+
+for (const command of [
+  "create_inventory_unit",
+  "create_party",
+  "create_deal_draft",
+  "request_document_preview_job",
+  "complete_document_preview_artifact",
+  "claim_jobs",
+  "complete_job",
+  "fail_job",
+  "heartbeat_job",
+  "create_workspace_invitation_job",
+  "accept_workspace_invitation",
+  "read_invitation_delivery_job",
+]) {
+  if (
+    !new RegExp(`create\\s+function\\s+app\\.${command}\\s*\\(`, "iu").test(
+      migrationSql,
+    )
+  ) {
+    throw new Error(`Missing Milestone 1 command contract: app.${command}.`);
+  }
+}
+
+if (
+  !/p_job_type\s*=>\s*'auth\.invitation\.deliver'[\s\S]*?p_payload\s*=>\s*pg_catalog\.jsonb_build_object\(\s*'invitation_id'\s*,\s*new_invitation_id\s*\)/iu.test(
+    migrationSql,
+  ) ||
+  /p_job_type\s*=>\s*'auth\.invitation\.deliver'[\s\S]{0,800}\b(?:token|email)\b\s*,/iu.test(
+    migrationSql,
+  )
+) {
+  throw new Error(
+    "Invitation delivery jobs must contain only the authoritative invitation identifier.",
+  );
+}
+
+if (!/^schemas\s*=\s*\[[^\]]*"app"[^\]]*\]/imu.test(supabaseConfig)) {
+  throw new Error(
+    "Supabase Data API must expose the app schema used by authenticated RPC commands.",
+  );
+}
+
+for (const [label, source] of [
+  ["Authenticated web RPC adapter", authenticatedRpcAdapter],
+  ["Worker job RPC adapter", workerJobStore],
+]) {
+  if (!/["']Content-Profile["']\s*:\s*["']app["']/u.test(source)) {
+    throw new Error(`${label} must select the app PostgREST schema.`);
+  }
+}
+if (
+  !/["']Content-Profile["']\s*:\s*contentProfile/u.test(previewRepository) ||
+  !/complete_document_preview_artifact[\s\S]*?["']app["']/u.test(
+    previewRepository,
+  )
+) {
+  throw new Error(
+    "Preview completion RPC adapter must select the app PostgREST schema.",
+  );
+}
+
+const previewCompletionContract =
+  /create\s+function\s+app\.complete_document_preview_artifact\s*\([\s\S]*?\$\$;/iu.exec(
+    migrationSql,
+  )?.[0] ?? "";
+if (
+  !/p_job_id\s+uuid\s*,\s*p_worker_id\s+text\s*,\s*p_lease_token\s+uuid/iu.test(
+    previewCompletionContract,
+  ) ||
+  !/render_job\.lease_owner\s+is\s+distinct\s+from\s+p_worker_id/iu.test(
+    previewCompletionContract,
+  ) ||
+  !/render_job\.lease_token\s+is\s+distinct\s+from\s+p_lease_token/iu.test(
+    previewCompletionContract,
+  )
+) {
+  throw new Error(
+    "Preview artifact completion must match the current worker ID and lease token.",
+  );
 }
 
 if (
@@ -249,10 +369,10 @@ for (const block of securityDefinerBlocks.filter((candidate) =>
 }
 
 if (
-  !/grant\s+execute\s+on\s+function\s+app\.write_audit_event\([\s\S]*?\)\s+to\s+service_role\s*;/iu.test(
+  !/grant\s+execute\s+on\s+function\s+app\.write_audit_event\([^;]*\)\s+to\s+service_role\s*;/iu.test(
     migrationSql,
   ) ||
-  /grant\s+execute\s+on\s+function\s+app\.write_audit_event\([\s\S]*?\)\s+to\s+(?:anon|authenticated)\s*;/iu.test(
+  /grant\s+execute\s+on\s+function\s+app\.write_audit_event\([^;]*\)\s+to\s+(?:anon|authenticated)\s*;/iu.test(
     migrationSql,
   )
 ) {
@@ -317,6 +437,36 @@ if (
   );
 }
 
+if (
+  !/insert\s+into\s+public\.stock_number_definitions[\s\S]*?'10000000-0000-4000-8000-000000000001'[\s\S]*?'active'[\s\S]*?'20000000-0000-4000-8000-000000000002'[\s\S]*?'active'/iu.test(
+    seedSql,
+  )
+) {
+  throw new Error(
+    "Both synthetic workspaces need active stock-number definitions for the first vertical slice.",
+  );
+}
+
+if (
+  !/insert\s+into\s+public\.document_template_versions[\s\S]*?false[\s\S]*?true[\s\S]*?'active'/iu.test(
+    seedSql,
+  )
+) {
+  throw new Error(
+    "Synthetic document templates must remain watermarked, non-production, and active.",
+  );
+}
+
+if (
+  !/insert\s+into\s+storage\.buckets[\s\S]*?values\s*\(\s*'document-previews'\s*,\s*'document-previews'\s*,\s*false\b/iu.test(
+    seedSql,
+  )
+) {
+  throw new Error(
+    "The local preview artifact bucket must be present and private.",
+  );
+}
+
 for (const testId of [
   "T-AUTH-002",
   "T-AUTH-003",
@@ -330,26 +480,30 @@ for (const testId of [
   }
 }
 
-if (!/extensions\.finish\(\)/u.test(databaseTests)) {
-  throw new Error("pgTAP suite must finish its declared assertion plan.");
-}
+let databaseAssertionCount = 0;
+for (const suite of databaseTestSuites) {
+  if (!/extensions\.finish\(\)/u.test(suite.sql)) {
+    throw new Error(`${suite.name} must finish its declared pgTAP plan.`);
+  }
 
-const declaredDatabaseAssertions = Number(
-  /select\s+extensions\.plan\((\d+)\)/iu.exec(databaseTests)?.[1],
-);
-const databaseAssertionCount = [
-  ...databaseTests.matchAll(
-    /^\s*select\s+extensions\.(?:has_[a-z_]+|ok|results_eq|is|throws_ok|lives_ok)\s*\(/gimu,
-  ),
-].length;
-
-if (
-  !Number.isSafeInteger(declaredDatabaseAssertions) ||
-  declaredDatabaseAssertions !== databaseAssertionCount
-) {
-  throw new Error(
-    `pgTAP plan mismatch: declared=${declaredDatabaseAssertions || "missing"}, assertions=${databaseAssertionCount}.`,
+  const declaredAssertions = Number(
+    /select\s+extensions\.plan\((\d+)\)/iu.exec(suite.sql)?.[1],
   );
+  const assertionCount = [
+    ...suite.sql.matchAll(
+      /^\s*select\s+extensions\.(?:has_[a-z_]+|ok|results_eq|is|throws_ok|lives_ok)\s*\(/gimu,
+    ),
+  ].length;
+
+  if (
+    !Number.isSafeInteger(declaredAssertions) ||
+    declaredAssertions !== assertionCount
+  ) {
+    throw new Error(
+      `${suite.name} pgTAP plan mismatch: declared=${declaredAssertions || "missing"}, assertions=${assertionCount}.`,
+    );
+  }
+  databaseAssertionCount += assertionCount;
 }
 
 console.log(

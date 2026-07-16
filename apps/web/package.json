@@ -5,17 +5,21 @@
   "scripts": {
     "build": "next build",
     "clean": "node -e \"require('node:fs').rmSync('.next',{recursive:true,force:true})\"",
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "node ../../scripts/run-with-local-env.mjs node node_modules/next/dist/bin/next dev --hostname 127.0.0.1",
     "lint": "eslint .",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vynlo/application": "workspace:*",
+    "@vynlo/auth": "workspace:*",
     "@vynlo/ui-web": "workspace:*",
+    "@supabase/supabase-js": "2.110.1",
     "lucide-react": "1.24.0",
     "next": "16.2.10",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.2",

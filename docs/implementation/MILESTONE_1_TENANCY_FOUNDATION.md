@@ -11,8 +11,10 @@
 This document records the first foundation slice of
 [Milestone 1](./IMPLEMENTATION_PLAN.md). It does not claim that Milestone 1 is
 complete. Feature entitlements and full immutable configuration-version
-records, the PWA and localization shell, outbox/jobs, inventory, parties/deals,
-and document preview remain separate Milestone 1 deliveries.
+records, the PWA/localization shell, outbox/jobs, inventory, parties/deals,
+document preview, and invite delivery were implemented as separate Milestone 1
+source deliveries and are joined in
+[the end-to-end record](MILESTONE_1_END_TO_END.md).
 
 The normative requirement and test IDs come from
 [requirements traceability](../03_REQUIREMENTS_TRACEABILITY.md) and the
@@ -126,28 +128,28 @@ been executed in this local environment.
 | Acceptance ID | Criterion | Current evidence | Result |
 |---|---|---|---|
 | `M1-TEN-AC-001` | Organization and workspace identity records preserve the organization boundary, and every workspace-owned identity/RBAC relationship is constrained to one `workspace_id`. | Additive migration, composite foreign keys, immutable ownership triggers, and two-workspace seed. | Implemented; runtime pending. |
-| `M1-TEN-AC-002` | Authoritative workspace context is derived from authenticated identity plus one active server-loaded membership and active user profile; body/header spoofing, inactive state, and ambiguous membership fail closed. | Application resolver and unit tests for `T-TEN-001`/`T-TEN-002`; RLS helpers and pgTAP cases. | Implemented; route/API integration and database runtime pending. |
+| `M1-TEN-AC-002` | Authoritative workspace context is derived from authenticated identity plus one active server-loaded membership and active user profile; body/header spoofing, inactive state, and ambiguous membership fail closed. | Application resolver, strict API command routes, body/header spoof tests, RLS helpers, and pgTAP cases. | Source integrated; database runtime pending. |
 | `M1-TEN-AC-003` | Every exposed foundation table has forced RLS; effective permissions use immutable keys and active role grants; missing, shadowed, or cross-workspace grants never authorize. | Eleven forced-RLS tables, platform-key shadow guard, locking invariant guards, explicit grants, auth unit tests, and pgTAP cases. | Implemented; runtime pending. |
 | `M1-TEN-AC-004` | Public signup is disabled, normal sessions cannot exceed 14 days, administrator/workspace MFA rules are enforced, and sensitive changes require strong authentication no older than 15 minutes. | Supabase local config, TypeScript policy contracts/tests, MFA role invariants, RLS assurance helpers, and pgTAP cases. | Partial: provider adapters, deployed settings, enrollment, revocation, and E2E proof remain. |
-| `M1-TEN-AC-005` | A time-limited invitation can be created for workspace role assignments, accepted only by its matching identity/membership, and activated with an audit event; non-invited registration is rejected. | Trusted-write-only invitation tables, hidden/immutable token hashes, guarded pending/expiry/identity lifecycle, public-signup-off local config, and mutation audit trigger. | Partial: secure token redemption, delivery, identity activation command, and `T-AUTH-001` E2E remain. |
+| `M1-TEN-AC-005` | A time-limited invitation can be created for workspace role assignments, accepted only by its matching identity/membership, and activated with an audit event; non-invited registration is rejected. | Trusted invitation create/accept RPCs and API, GoTrue-managed delivery job/worker, matching-email provisioning, invitation login context, public-signup-off local config, and [invite-only auth traceability](MILESTONE_1_INVITE_ONLY_AUTH.md). | Source integrated; live Auth/SMTP/callback/database acceptance pending. |
 | `M1-TEN-AC-006` | Authorized privileged mutations and policy rejections produce workspace-scoped, append-only audit events that browser callers cannot forge or mutate. | Audit schema, mutation triggers, pooled-role attribution guard, trusted append function, RLS, grants, and pgTAP event-shape/immutability cases. | Partial: durable audit of application/policy rejections and assertions for each sensitive command remain. |
 | `M1-TEN-AC-007` | A clean database reset applies the migration and seed, then all tenancy/RLS pgTAP assertions pass against the exact revision under review. | Migration, compatible seed, 83-assertion pgTAP suite, and GitHub database job definition. | Runtime pending; no local Docker execution. |
-| `M1-TEN-AC-008` | `/api/v1`, Server Actions, and responsive English/French UI flows call the same application/auth policies and expose localized, accessible denial and recovery states. | No API or UI changes in this slice. | Deferred. |
+| `M1-TEN-AC-008` | `/api/v1`, Server Actions, and responsive English/French UI flows call the same application/auth policies and expose localized, accessible denial and recovery states. | Strict invitation/vertical-slice routes and application services; invitation/login/MFA/operations UI; catalog, route, and mocked Playwright tests. | Source integrated; live end-to-end runtime pending. |
 
 ## Requirement and test traceability
 
 | Requirement or test | Current implementation evidence | Completion statement |
 |---|---|---|
-| `VYN-AUTH-001` | Public signup is disabled locally; invitation, invitation-role, membership, and audit persistence exists. | Partial through `M1-TEN-AC-005`; invite delivery/redemption/activation is not implemented. |
-| `T-AUTH-001` | No invited-user API/UI/E2E flow exists. | Deferred; no pass claim. |
+| `VYN-AUTH-001` | Public signup is disabled locally; atomic invitation/delivery persistence, authenticated create/accept APIs, matching-email membership activation, audit evidence, and invitation/login UI source exist. | Traced in [Milestone 1 invite-only authentication](MILESTONE_1_INVITE_ONLY_AUTH.md); deployed provider verification and a live journey remain. |
+| `T-AUTH-001` | Database/application/worker tests cover invite creation, delivery state, mismatch/expiry/terminal denial, and matching-user activation; mocked browser tests cover invitation routing and commands. | Partial; provider staging and live invite callback/public-signup E2E are still required before closing the test. |
 | `VYN-AUTH-002` | The auth package, local 336-hour session timebox, SQL AAL/recent-auth helpers, MFA role invariants, and sensitive RLS policies implement the policy foundation. | Partial through `M1-TEN-AC-004`; deployed provider enforcement and end-to-end assurance remain. |
 | `T-AUTH-002` | Auth unit tests cover administrator/workspace-wide MFA; pgTAP covers AAL1 denial for an administrator and non-MFA admin-role rejection. | Unit evidence passes; database runtime pending. |
 | `T-AUTH-003` | Auth unit tests cover the exact 14-day boundary, overlong windows, revocation, not-yet-valid sessions, and inactive user profiles; pgTAP denies a deactivated profile despite an active membership. | Unit evidence passes; provider/runtime session revocation remains. |
 | `T-AUTH-004` | Auth unit tests cover missing, stale, exact-boundary, future-dated, and fresh step-up; pgTAP applies the same boundary to role management. | Unit evidence passes; database runtime and E2E re-authentication remain. |
 | `VYN-TEN-001` | Workspace-composite constraints, forced RLS, two-workspace seed, SQL helpers, and authoritative application context exist. | Partial through `M1-TEN-AC-001` to `M1-TEN-AC-003`; this slice covers identity/RBAC rows only. |
 | `T-TEN-001` | Application tests deny inactive/other-user memberships; pgTAP covers cross-workspace reads, inserts, links, audit reads, and ownership spoofing. | Unit evidence passes; database runtime pending. |
-| `T-TEN-002` | Application tests reject a mismatched body workspace and reject a body-only workspace selection. | Unit evidence passes; actual `/api/v1` route/header spoof tests remain. |
-| `T-TEN-003` | No job, file, export, search, cache, or structured-log ownership path is added in this slice. | Deferred; no pass claim. |
+| `T-TEN-002` | Application and route tests reject body workspace authority, missing/invalid workspace headers, and extra identity/provider fields. | Source evidence passes; database runtime remains. |
+| `T-TEN-003` | Later outbox/job and preview-artifact rows preserve workspace context; Storage reads require an exact visible artifact bucket/path match; worker logs preserve validated workspace IDs without payloads. | Source integrated for jobs and preview files; live RLS/Storage/log proof remains. |
 | `VYN-SEC-001` | Stable permission keys, active membership/role/grant evaluation, fixed-search-path SQL helpers, forced RLS, and explicit grants exist. | Partial through `M1-TEN-AC-003`; runtime RLS proof remains. |
 | `T-RBAC-001` | Auth unit tests reject labels/client claims and cross-workspace grants; pgTAP covers explicit/missing grants, private-key shadow denial, key immutability, and permission-reactivation MFA enforcement. | Unit evidence passes; database runtime pending. |
 | `VYN-AUD-001` | Workspace-scoped audit rows, mutation triggers, service-only append, RLS reads, and update/delete prevention exist. | Partial through `M1-TEN-AC-006`; approvals and comprehensive rejection events remain. |
@@ -258,29 +260,26 @@ local database. If it is found after deployment:
 
 ## API and UI applicability
 
-This slice changes no route handler, Server Action, OpenAPI operation, worker,
-or web screen. Therefore mobile/desktop visual tests, WCAG checks, and
-English/French message tests are not applicable evidence for the source added
-here; they are required when invitation, MFA enrollment, workspace selection,
-session management, and authorization-error flows are integrated.
+This foundation migration changed no route or screen, but later source
+increments now integrate it through strict `/api/v1` commands and the
+English/French invitation, login, MFA, workspace, operations, denial, and retry
+states. Identity comes from the bearer session, workspace selection comes from
+the validated header, and strict bodies reject workspace/user/provider-token
+authority. Route/application tests cover safe error mapping and spoofing;
+Playwright covers mobile/desktop/accessibility behavior and a mocked invitation
+operations flow.
 
-The next API/UI increment must:
-
-- derive authenticated identity from the session and selected workspace from a
-  validated route/header, then call the shared application resolver;
-- ensure Server Actions and `/api/v1` call the same use cases and policies;
-- map policy denial codes to stable API errors and translated English/French UI
-  keys without leaking cross-workspace existence;
-- provide phone-usable invitation, activation, MFA, step-up, session-revocation,
-  and retry/recovery flows; and
-- add mobile, desktop, accessibility, localization, and workspace-spoof E2E
-  tests.
+This is source evidence only. A real invited-user callback, provider assurance,
+membership/RLS evaluation, MFA enrollment, session revocation, and complete
+cross-workspace browser run remain in
+[runtime acceptance](MILESTONE_1_END_TO_END.md#runtime-acceptance-pending).
 
 ## Telemetry and operations
 
-No durable job or provider call is introduced, so retry, idempotency, outbox,
-and dead-letter telemetry are not applicable to this slice. Database audit rows
-are compliance evidence, not a substitute for operational telemetry.
+This foundation migration introduced no durable job or provider call. Later
+invitation and preview increments now use the outbox/worker lifecycle and its
+safe retry/dead-letter telemetry. Database audit rows remain compliance
+evidence, not a substitute for operational telemetry.
 
 Adapters must add structured, secret-safe telemetry for workspace-context
 denials, inactive membership, missing permission, MFA/step-up requirements,
@@ -351,22 +350,19 @@ GitHub source validation.
 
 1. Obtain a green exact-head `quality / database-smoke` run and capture the
    83-assertion pgTAP result in the PR evidence.
-2. Implement invite creation/delivery/redemption/activation and rejection of
-   non-invited identities, then complete `T-AUTH-001`.
-3. Add Supabase session/AAL adapters, MFA enrollment, password/deactivation
-   revocation, recent-step-up integration, and session management.
-4. Integrate the authoritative workspace context and immutable permission checks
-   into `/api/v1`, Server Actions, and future worker commands; add real spoofing
-   tests for `T-TEN-002`.
-5. Define and test durable rejection-audit behavior and exact event shapes for
+2. Complete provider-staging and browser E2E for invite/OTP callback,
+   matching-user activation, and public-signup rejection, then close
+   `T-AUTH-001`.
+3. Verify the implemented Supabase session/AAL and MFA enrollment/challenge UI
+   against the deployed provider; add password/deactivation revocation, recent
+   re-authentication UX, and session management.
+4. Define and test durable rejection-audit behavior and exact event shapes for
    every sensitive command so `T-AUD-001` is complete.
-6. Add aggregate row-version columns and expected-version/`If-Match` command
+5. Add aggregate row-version columns and expected-version/`If-Match` command
    paths before exposing mutable identity/RBAC APIs; `settings_version` covers
    only workspace setting changes in this slice.
-7. Extend workspace ownership and isolation to jobs, files, exports, search,
-   caches, and logs when those resources are introduced, then complete
-   `T-TEN-003`.
-8. Build accessible, mobile-first English/French invitation, MFA, workspace,
-   session, and error/recovery UI flows with desktop coverage.
-9. Add structured telemetry, alerts, operational runbooks, and deployed
+6. Extend the workspace ownership/isolation already implemented for jobs and
+   preview files to exports, search, caches, and future external mappings, then
+   complete `T-TEN-003` with live evidence.
+7. Add structured telemetry, alerts, operational runbooks, and deployed
    Supabase configuration checks before production activation.

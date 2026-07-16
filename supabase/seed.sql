@@ -355,3 +355,187 @@ on conflict (workspace_id, membership_id, role_id) do update
 set status = 'active',
     revoked_by = null,
     revoked_at = null;
+
+-- M1-VSL-AC-001: tenant-neutral, fictional stock definitions prove that each
+-- workspace owns its own immutable numbering state. These are synthetic local
+-- fixtures, not a contract formula or a tenant production convention.
+insert into public.stock_number_definitions (
+  id,
+  workspace_id,
+  key,
+  version,
+  prefix,
+  numeric_width,
+  starting_value,
+  increment_by,
+  status,
+  checksum
+)
+values
+  (
+    '71000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    'synthetic.default',
+    1,
+    'N-',
+    5,
+    1,
+    1,
+    'active',
+    pg_catalog.encode(
+      extensions.digest('synthetic.default|1|N-|5|1|1', 'sha256'),
+      'hex'
+    )
+  ),
+  (
+    '72000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000002',
+    'synthetic.default',
+    1,
+    'H-',
+    5,
+    1,
+    1,
+    'active',
+    pg_catalog.encode(
+      extensions.digest('synthetic.default|1|H-|5|1|1', 'sha256'),
+      'hex'
+    )
+  )
+on conflict (id) do nothing;
+
+-- Local synthetic artifact bucket. Production buckets are provisioned and
+-- verified per environment; this bucket is private and browser writes remain
+-- prohibited.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('document-previews', 'document-previews', false, 10000000)
+on conflict (id) do nothing;
+
+insert into public.stock_number_counters (
+  workspace_id,
+  definition_id,
+  next_sequence_value
+)
+values
+  (
+    '10000000-0000-4000-8000-000000000001',
+    '71000000-0000-4000-8000-000000000001',
+    1
+  ),
+  (
+    '20000000-0000-4000-8000-000000000002',
+    '72000000-0000-4000-8000-000000000001',
+    1
+  )
+on conflict (workspace_id, definition_id) do nothing;
+
+-- M1-DOC-AC-001: the only seeded renderer input is explicitly synthetic,
+-- watermarked, unnumbered, and incapable of official generation.
+insert into public.document_types (
+  id,
+  workspace_id,
+  key,
+  version,
+  display_name,
+  field_schema,
+  official_generation_enabled,
+  status
+)
+values
+  (
+    '81000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000001',
+    'synthetic.preview',
+    1,
+    'Synthetic transaction preview',
+    '{"type":"object","additionalProperties":false,"synthetic":true}'::jsonb,
+    false,
+    'active'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000002',
+    'synthetic.preview',
+    1,
+    'Aperçu synthétique de transaction',
+    '{"type":"object","additionalProperties":false,"synthetic":true}'::jsonb,
+    false,
+    'active'
+  )
+on conflict (id) do nothing;
+
+with synthetic_template(source_html) as (
+  values ($template$
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Vynlo synthetic preview</title>
+    <style>
+      body { color: #17251f; font: 16px/1.5 system-ui, sans-serif; margin: 48px; }
+      .watermark { border: 3px solid #9a432c; color: #9a432c; font-weight: 800; padding: 12px; }
+      dl { display: grid; grid-template-columns: 12rem 1fr; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="watermark">{{ watermark }}</div>
+    <h1>Synthetic transaction preview</h1>
+    <dl>
+      <dt>Deal</dt><dd>{{ deal.id }}</dd>
+      <dt>Deal type</dt><dd>{{ deal.deal_type_key }}</dd>
+      <dt>Currency</dt><dd>{{ deal.currency_code }}</dd>
+      <dt>Party</dt><dd>{{ participants[0].display_name }}</dd>
+      <dt>Stock</dt><dd>{{ inventory_units[0].stock_number }}</dd>
+      <dt>VIN</dt><dd>{{ inventory_units[0].vin }}</dd>
+    </dl>
+  </body>
+</html>
+$template$)
+insert into public.document_template_versions (
+  id,
+  workspace_id,
+  document_type_id,
+  version,
+  locale,
+  template_class,
+  source_html,
+  source_checksum,
+  renderer_version,
+  field_schema,
+  production_approved,
+  watermark,
+  status
+)
+select
+  fixture.id,
+  fixture.workspace_id,
+  fixture.document_type_id,
+  1,
+  fixture.locale,
+  'synthetic_non_production',
+  synthetic_template.source_html,
+  pg_catalog.encode(
+    extensions.digest(synthetic_template.source_html, 'sha256'),
+    'hex'
+  ),
+  'synthetic-html-v1',
+  '{"type":"object","additionalProperties":false,"synthetic":true}'::jsonb,
+  false,
+  'DRAFT / NON-PRODUCTION',
+  'active'
+from synthetic_template
+cross join (values
+  (
+    '91000000-0000-4000-8000-000000000001'::uuid,
+    '10000000-0000-4000-8000-000000000001'::uuid,
+    '81000000-0000-4000-8000-000000000001'::uuid,
+    'en-CA'::text
+  ),
+  (
+    '92000000-0000-4000-8000-000000000001'::uuid,
+    '20000000-0000-4000-8000-000000000002'::uuid,
+    '82000000-0000-4000-8000-000000000001'::uuid,
+    'fr-CA'::text
+  )
+) as fixture(id, workspace_id, document_type_id, locale)
+on conflict (id) do nothing;

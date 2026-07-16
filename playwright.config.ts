@@ -23,6 +23,12 @@ export default defineConfig({
   ],
   webServer: {
     command: "pnpm --filter @vynlo/web dev",
+    env: {
+      ...process.env,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+        "sb_publishable_e2e_project_key_material_0001",
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:3000/health",

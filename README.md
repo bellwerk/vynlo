@@ -19,9 +19,18 @@ pnpm install --frozen-lockfile
 python -m pip install -r scripts/requirements.txt
 cp .env.example .env.local
 pnpm supabase:start
+pnpm exec supabase status -o env
 pnpm db:reset
 pnpm dev
 ```
+
+After `supabase:start`, copy the printed local `API_URL`, `PUBLISHABLE_KEY` (or
+`ANON_KEY`), and `SERVICE_ROLE_KEY` into the corresponding
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`), `VYNLO_SUPABASE_URL`, and
+`VYNLO_SUPABASE_SERVICE_ROLE_KEY` entries in the root `.env.local`. Both the web
+and worker development processes load that same ignored root file. Local keys
+must never be reused in staging or production.
 
 The web shell runs at `http://127.0.0.1:3000`, its health page at `/health`, and the worker health command is `pnpm worker:health`. The local Supabase seed creates deterministic, fictional users and RBAC records across two production-schema workspace boundaries. Fixture credentials are randomized and cannot be used for interactive sign-in.
 

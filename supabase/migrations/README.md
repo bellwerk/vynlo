@@ -17,3 +17,11 @@ This is an additive migration from Stage 0. It does not consume or transform the
 disposable `stage0.synthetic_workspaces` projection. Rollback is application
 rollback plus a reviewed forward corrective migration; do not drop identity or
 audit history in a down migration.
+
+`20260716150000_invite_only_auth.sql` completes the invitation persistence/API
+command path: recent-AAL2 `users.manage` creation, immutable role snapshots,
+atomic `auth.invitation.deliver` enqueue, matching confirmed-email acceptance,
+active profile/membership/role provisioning, append-only idempotency history,
+and a lease-bound service delivery read. GoTrue remains the only owner of invite
+tokens; new invitation rows store no token hash and job payloads contain only the
+invitation UUID.

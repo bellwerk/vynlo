@@ -19,6 +19,19 @@
 - `implementation/ENGINEERING_HANDOFF_CHECKLIST.md`
 - `implementation/MILESTONE_1_TENANCY_FOUNDATION.md`
 
+## Milestone 1 delivery records
+
+- [End-to-end source integration](implementation/MILESTONE_1_END_TO_END.md)
+- [Tenancy and identity foundation](implementation/MILESTONE_1_TENANCY_FOUNDATION.md)
+- [Configuration and entitlement foundation](implementation/MILESTONE_1_CONFIGURATION_ENTITLEMENTS.md)
+- [Transactional outbox and durable jobs](implementation/MILESTONE_1_OUTBOX_JOBS.md)
+- [First vertical slice](implementation/MILESTONE_1_FIRST_VERTICAL_SLICE.md)
+- [Invite-only authentication](implementation/MILESTONE_1_INVITE_ONLY_AUTH.md)
+- [Document-preview pipeline](implementation/MILESTONE_1_DOCUMENT_PREVIEW_PIPELINE.md)
+- [Document-preview worker](implementation/MILESTONE_1_PREVIEW_WORKER.md)
+- [Invitation-delivery worker](implementation/MILESTONE_1_INVITATION_DELIVERY_WORKER.md)
+- [PWA and localization shell](implementation/MILESTONE_1_PWA_SHELL.md)
+
 ## Governance
 
 - `01_GLOSSARY.md`
