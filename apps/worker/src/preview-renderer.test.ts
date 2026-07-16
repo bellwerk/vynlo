@@ -1,3 +1,4 @@
+// Stable test IDs: T-DOC-001, T-DOC-006.
 import { describe, expect, it } from "vitest";
 
 import { JobExecutionError } from "./job-runner";

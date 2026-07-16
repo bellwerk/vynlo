@@ -140,13 +140,102 @@ for (const command of [
   "create_workspace_invitation_job",
   "accept_workspace_invitation",
   "read_invitation_delivery_job",
+  "update_inventory_unit_details",
+  "transfer_inventory_unit_location",
+  "transition_inventory_workflow",
+  "post_inventory_cost_entry",
+  "reverse_inventory_cost_entry",
+  "save_inventory_view",
+  "search_inventory_units",
 ]) {
   if (
     !new RegExp(`create\\s+function\\s+app\\.${command}\\s*\\(`, "iu").test(
       migrationSql,
     )
   ) {
-    throw new Error(`Missing Milestone 1 command contract: app.${command}.`);
+    throw new Error(`Missing required command contract: app.${command}.`);
+  }
+}
+
+const workflowProtectionContract =
+  /create\s+function\s+app\.protect_activated_workflow_configuration\(\)[\s\S]*?\$\$;/iu.exec(
+    migrationSql,
+  )?.[0] ?? "";
+if (
+  !/for\s+update/iu.test(workflowProtectionContract) ||
+  !/old\.status\s*=\s*'active'[\s\S]*?new\.status\s*=\s*'retired'/iu.test(
+    workflowProtectionContract,
+  )
+) {
+  throw new Error(
+    "Workflow child writes must serialize with activation, and active versions need a content-immutable retirement path.",
+  );
+}
+
+const workflowLifecycleContract =
+  /create\s+function\s+app\.validate_workflow_version_lifecycle\(\)[\s\S]*?\$\$;/iu.exec(
+    migrationSql,
+  )?.[0] ?? "";
+if (
+  !/workflow version must start as a draft/iu.test(workflowLifecycleContract) ||
+  !/workflow initial state must exist before version activation/iu.test(
+    workflowLifecycleContract,
+  )
+) {
+  throw new Error(
+    "Workflow versions must pass draft and initial-state activation validation.",
+  );
+}
+
+const inventoryWorkflowLinkContract =
+  /create\s+function\s+app\.assert_inventory_workflow_link\(\)[\s\S]*?\$\$;/iu.exec(
+    migrationSql,
+  )?.[0] ?? "";
+if (
+  !/linked_instance\.version\s*<>\s*new\.version/iu.test(
+    inventoryWorkflowLinkContract,
+  ) ||
+  !/create\s+trigger\s+inventory_units_validate_workflow_link[\s\S]*?update\s+of[\s\S]*?\bversion\b[\s\S]*?execute\s+function\s+app\.assert_inventory_workflow_link\(\)/iu.test(
+    migrationSql,
+  ) ||
+  /create\s+constraint\s+trigger\s+inventory_units_validate_workflow_link/iu.test(
+    migrationSql,
+  )
+) {
+  throw new Error(
+    "Inventory/workflow projections need an immediate aggregate-version invariant.",
+  );
+}
+
+const inventoryDetailsContract =
+  /create\s+function\s+app\.update_inventory_unit_details\s*\([\s\S]*?\$\$;/iu.exec(
+    migrationSql,
+  )?.[0] ?? "";
+if (
+  !/p_update_internal_notes\s+boolean/iu.test(inventoryDetailsContract) ||
+  !/internal notes require the explicit update presence flag/iu.test(
+    inventoryDetailsContract,
+  ) ||
+  /select\s+details\.internal_notes/iu.test(inventoryDetailsContract)
+) {
+  throw new Error(
+    "Internal inventory notes need an explicit presence flag and must not be compared by the public update path.",
+  );
+}
+
+for (const invariant of [
+  "assert_sensitive_inventory_permission_mfa",
+  "assert_sensitive_inventory_role_mfa",
+  "assert_sensitive_inventory_permission_activation",
+]) {
+  if (
+    !new RegExp(`create\\s+function\\s+app\\.${invariant}\\s*\\(`, "iu").test(
+      migrationSql,
+    )
+  ) {
+    throw new Error(
+      `Missing sensitive-inventory MFA invariant: app.${invariant}.`,
+    );
   }
 }
 
@@ -389,7 +478,7 @@ const catalogKeys = new Set(
 const migrationKeys = new Set(
   [
     ...migrationSql.matchAll(
-      /\('([a-z][a-z0-9_]*\.[a-z0-9_.]+)',\s*'platform'\)/gu,
+      /\(\s*'([a-z][a-z0-9_]*\.[a-z0-9_.]+)'\s*,\s*(?:'(?:''|[^'])*'\s*,\s*)?'platform'\s*\)/gu,
     ),
   ].map(([, key]) => key),
 );
@@ -411,9 +500,9 @@ function assertSameKeys(label, actual) {
   }
 }
 
-if (catalogKeys.size !== 75) {
+if (catalogKeys.size !== 79) {
   throw new Error(
-    `Expected 75 stable platform permission keys, found ${catalogKeys.size}.`,
+    `Expected 79 stable platform permission keys, found ${catalogKeys.size}.`,
   );
 }
 assertSameKeys("Migration", migrationKeys);

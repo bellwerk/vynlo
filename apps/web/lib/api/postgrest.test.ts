@@ -1,3 +1,4 @@
+// Stable test IDs: T-API-001, T-TEN-002.
 import { describe, expect, it, vi } from "vitest";
 import {
   parsePostgrestConfig,
@@ -93,7 +94,9 @@ describe("PostgrestAuthenticatedRpcGateway", () => {
   it.each([
     [401, "PGRST301", 401, "authentication_required"],
     [400, "42501", 403, "permission_denied"],
+    [400, "P0002", 404, "not_found"],
     [400, "23505", 409, "conflict"],
+    [400, "55000", 409, "conflict"],
     [400, "22023", 400, "invalid_request"],
     [400, "23514", 422, "unprocessable_command"],
     [429, "PGRST003", 429, "rate_limited"],

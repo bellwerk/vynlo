@@ -1,3 +1,5 @@
+import { legalOriginalMessages } from "./legal-original-messages";
+
 export const messages = {
   en: {
     brandHome: "Vynlo home",
@@ -100,7 +102,9 @@ export const messages = {
       dealTypeLabel: "Deal type key",
       displayNameLabel: "Display name",
       emptyRows: "No preview requests have been created in this workspace.",
-      inventoryAction: "Create inventory",
+      inventoryAction: "Start inventory intake",
+      inventoryIntakeDescription:
+        "Use the canonical VIN intake to decode or manually confirm facts, review duplicates, and allocate stock safely.",
       inventoryEmpty:
         "No inventory records have been created in this workspace.",
       inventoryHeading: "Inventory intake",
@@ -119,6 +123,7 @@ export const messages = {
       inviteQueued: "The workspace invitation was queued for secure delivery.",
       inviteRolesLabel: "Initial roles",
       localeLabel: "Locale",
+      legalOriginal: legalOriginalMessages.en,
       makeLabel: "Make",
       mfaCodeLabel: "Authenticator code",
       mfaEnrollAction: "Set up authenticator",
@@ -264,7 +269,9 @@ export const messages = {
       dealTypeLabel: "Clé du type de dossier",
       displayNameLabel: "Nom affiché",
       emptyRows: "Aucune demande d’aperçu dans cet espace.",
-      inventoryAction: "Créer l’inventaire",
+      inventoryAction: "Commencer l’entrée d’inventaire",
+      inventoryIntakeDescription:
+        "Utilisez l’entrée VIN canonique pour décoder ou confirmer les données manuellement, examiner les doublons et attribuer le stock en toute sécurité.",
       inventoryEmpty:
         "Aucun dossier d’inventaire n’a été créé dans cet espace.",
       inventoryHeading: "Entrée d’inventaire",
@@ -284,6 +291,7 @@ export const messages = {
         "L’invitation à l’espace a été mise en file pour un envoi sécurisé.",
       inviteRolesLabel: "Rôles initiaux",
       localeLabel: "Langue",
+      legalOriginal: legalOriginalMessages.fr,
       makeLabel: "Marque",
       mfaCodeLabel: "Code d’authentification",
       mfaEnrollAction: "Configurer l’authentificateur",

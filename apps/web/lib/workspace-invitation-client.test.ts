@@ -1,3 +1,4 @@
+// Stable test IDs: T-AUTH-001, T-API-001.
 import { describe, expect, it, vi } from "vitest";
 import {
   acceptWorkspaceInvitationSession,

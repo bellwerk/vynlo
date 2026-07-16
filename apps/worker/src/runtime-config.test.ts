@@ -1,3 +1,4 @@
+// Stable test IDs: T-JOB-003, T-OPS-001.
 import { describe, expect, it } from "vitest";
 
 import { readWorkerRuntimeConfig } from "./runtime-config";
@@ -20,10 +21,48 @@ describe("worker runtime configuration", () => {
       errorBackoffMaximumMs: 30_000,
       heartbeatIntervalMs: 20_000,
       leaseSeconds: 60,
+      mediaProcessing: { enabled: false },
       pollIntervalMs: 1_000,
       previewBucket: "preview-artifacts",
       workerId: "preview-worker-1",
     });
+  });
+
+  it("requires a private ClamD target only when media processing is enabled", () => {
+    expect(() =>
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        VYNLO_MEDIA_PROCESSING_ENABLED: "true",
+      }),
+    ).toThrow(/VYNLO_CLAMD_HOST/u);
+    expect(
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        VYNLO_CLAMD_HOST: "clamd.internal",
+        VYNLO_MEDIA_PROCESSING_ENABLED: "true",
+      }).mediaProcessing,
+    ).toEqual({
+      clamdConnectTimeoutMs: 3_000,
+      clamdHost: "clamd.internal",
+      clamdPort: 3_310,
+      clamdScanTimeoutMs: 30_000,
+      enabled: true,
+      maximumConcurrentMediaJobs: 1,
+    });
+    expect(() =>
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        VYNLO_MEDIA_PROCESSING_ENABLED: "yes",
+      }),
+    ).toThrow(/true or false/u);
+    expect(() =>
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        VYNLO_CLAMD_HOST: "clamd.internal",
+        VYNLO_MEDIA_JOB_CONCURRENCY: "3",
+        VYNLO_MEDIA_PROCESSING_ENABLED: "true",
+      }),
+    ).toThrow(/MEDIA_JOB_CONCURRENCY/u);
   });
 
   it("rejects missing service credentials and insecure remote transport", () => {

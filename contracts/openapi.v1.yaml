@@ -199,26 +199,126 @@ paths:
       - Inventory
       responses:
         '200':
-          description: Paginated inventory
+          description: Permission-aware bounded inventory results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventorySearchEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Search validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Search service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - &id001
         $ref: '#/components/parameters/WorkspaceId'
-      - name: cursor
+      - &id004
+        $ref: '#/components/parameters/RequestId'
+      - &id005
+        $ref: '#/components/parameters/CorrelationId'
+      - name: q
         in: query
         schema:
           type: string
-      - name: state
+          maxLength: 200
+      - name: status
         in: query
         schema:
-          type: string
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            enum:
+            - draft
+            - active
+            - pending
+            - closed
+            - archived
       - name: location_id
+        in: query
+        schema:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+      - name: minimum_price_minor
+        in: query
+        schema:
+          type: string
+          pattern: ^(?:0|[1-9][0-9]{0,18})$
+      - name: maximum_price_minor
+        in: query
+        schema:
+          type: string
+          pattern: ^(?:0|[1-9][0-9]{0,18})$
+      - name: minimum_days_in_stock
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: maximum_days_in_stock
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      - name: cursor_rank
+        in: query
+        schema:
+          type: number
+          minimum: 0
+      - name: cursor_updated_at
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: cursor_id
         in: query
         schema:
           type: string
           format: uuid
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
       operationId: getInventoryUnits
     post:
-      summary: Create inventory unit and allocate stock
+      summary: Create or safely link inventory from a confirmed durable VIN decode
       tags:
       - Inventory
       responses:
@@ -229,11 +329,102 @@ paths:
               schema:
                 $ref: '#/components/schemas/InventoryUnitCreatedEnvelope'
         '201':
-          description: Created
+          description: Inventory created or safely linked to the existing open holding
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InventoryUnitCreatedEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Decode request unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Business validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryUnitCreateCommand'
+      parameters:
+      - *id001
+      - &id003
+        $ref: '#/components/parameters/IdempotencyKey'
+      - *id004
+      - *id005
+      operationId: postInventoryUnits
+  /inventory-units/{id}:
+    get:
+      summary: Get inventory unit
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Permission-aware inventory operations projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryUnitOperationsEnvelope'
+        '404':
+          description: Not found
+      parameters:
+      - *id001
+      - &id002
+        $ref: '#/components/parameters/Id'
+      operationId: getInventoryUnitsId
+    patch:
+      summary: Update inventory unit
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Updated or idempotently replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryDetailsUpdatedEnvelope'
         '400':
           description: Malformed request
           content:
@@ -281,93 +472,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InventoryUnitCreateCommand'
-      parameters:
-      - *id001
-      - &id003
-        $ref: '#/components/parameters/IdempotencyKey'
-      - &id004
-        $ref: '#/components/parameters/RequestId'
-      - &id005
-        $ref: '#/components/parameters/CorrelationId'
-      operationId: postInventoryUnits
-  /inventory-units/{id}:
-    get:
-      summary: Get inventory unit
-      tags:
-      - Inventory
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InventoryUnit'
-        '404':
-          description: Not found
-      parameters:
-      - *id001
-      - &id002
-        $ref: '#/components/parameters/Id'
-      operationId: getInventoryUnitsId
-    patch:
-      summary: Update inventory unit
-      tags:
-      - Inventory
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InventoryUnit'
-        '400':
-          description: Malformed request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '429':
-          description: Rate limited
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InventoryUnitUpdate'
+              $ref: '#/components/schemas/InventoryDetailsUpdateCommand'
       parameters:
       - *id001
       - *id002
-      - $ref: '#/components/parameters/IfMatch'
       - *id003
+      - *id004
+      - *id005
       operationId: patchInventoryUnitsId
   /inventory-units/{id}/transition:
     post:
@@ -380,102 +491,189 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InventoryUnit'
+                $ref: '#/components/schemas/InventoryWorkflowTransitionedEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TransitionCommand'
+              $ref: '#/components/schemas/InventoryWorkflowTransitionCommand'
       parameters:
       - *id001
       - *id002
       - *id003
+      - *id004
+      - *id005
       operationId: postInventoryUnitsIdTransition
-  /vin/decode:
+  /inventory-units/{id}/location-transfers:
     post:
-      summary: Decode VIN suggestions and duplicates
+      summary: Transfer an inventory unit to another location
       tags:
       - Inventory
       responses:
         '200':
-          description: Success
+          description: Transferred or idempotently replayed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VinDecodeResponse'
+                $ref: '#/components/schemas/InventoryLocationTransferredEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventoryLocationTransferCommand'
+      parameters:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+      - *id005
+      operationId: postInventoryUnitsIdLocationTransfers
+  /vin/decode:
+    post:
+      summary: Queue durable VIN decoding and duplicate discovery
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Idempotent replay of the original request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDecodeRequestedEnvelope'
+        '202':
+          description: Decode request accepted for durable processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDecodeRequestedEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: VIN validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       requestBody:
         required: true
         content:
@@ -485,15 +683,342 @@ paths:
       parameters:
       - *id001
       - *id003
+      - *id004
+      - *id005
       operationId: postVinDecode
+  /vin/decode/{requestId}:
+    get:
+      summary: Read safe VIN decode, retry, and duplicate-review status
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Current durable decode status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDecodeStatusEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Decode request unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Identifier validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Query service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id004
+      - *id005
+      operationId: getVinDecodeRequest
+  /vin/decode/{requestId}/retry:
+    post:
+      summary: Retry a visible failed VIN decode job
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Idempotent replay of the original retry command
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDecodeRetryEnvelope'
+        '202':
+          description: Retry accepted for durable processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDecodeRetryEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Decode request unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Job state or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Retry validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VinDecodeRetryCommand'
+      operationId: postVinDecodeRequestRetry
+  /vin/decode/{requestId}/duplicate-review:
+    post:
+      summary: Record a reasoned VIN duplicate or reacquisition decision
+      description: Open-inventory override additionally requires recent strong authentication.
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Idempotent replay of the original review command
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDuplicateReviewEnvelope'
+        '201':
+          description: Duplicate decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinDuplicateReviewEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden or recent strong authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Decode request unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Review state or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Duplicate decision validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VinDuplicateReviewCommand'
+      operationId: postVinDecodeRequestDuplicateReview
+  /vin/decode/{requestId}/manual-intake:
+    post:
+      summary: Create inventory from confirmed manual facts after terminal VIN decode failure
+      description: The authoritative latest inventory.vin_decode job must be dead-lettered and unconsumed. Open-duplicate linkage additionally requires duplicate-override permission and recent strong authentication.
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Idempotent replay of the original manual intake
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinManualInventoryIntakeEnvelope'
+        '201':
+          description: Manual facts consumed and inventory created or safely linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VinManualInventoryIntakeEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden or recent strong authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Decode request unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Decode job, request version, duplicate state, or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Manual facts, location, condition, money, or stock configuration invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VinManualInventoryIntakeCommand'
+      operationId: postVinDecodeRequestManualIntake
   /inventory-units/{id}/media/upload-intents:
     post:
       summary: Create media upload intent
       tags:
       - Media
       responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadIntent'
         '201':
-          description: Success
+          description: Exact authenticated upload intent created
           content:
             application/json:
               schema:
@@ -503,37 +1028,43 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       requestBody:
         required: true
         content:
@@ -544,6 +1075,8 @@ paths:
       - *id001
       - *id002
       - *id003
+      - *id004
+      - *id005
       operationId: postInventoryUnitsIdMediaUploadIntents
   /inventory-units/{id}/listings/{connectionId}/publish:
     post:
@@ -1240,6 +1773,381 @@ paths:
       - *id001
       - *id002
       operationId: getDocumentsId
+  /documents/{id}/original-upload-intents:
+    post:
+      operationId: postDocumentsIdOriginalUploadIntents
+      summary: Create an exact private legal or signed original upload intent
+      description: Signed originals require recent strong authentication. The returned target is usable only with the current authenticated session and exact unexpired Storage INSERT policy.
+      tags:
+      - Documents
+      responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalUploadIntentEnvelope'
+        '201':
+          description: Exact authenticated upload intent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalUploadIntentEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden or recent strong authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Document unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency or current-state conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Original metadata validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegalOriginalUploadIntentCommand'
+  /documents/{id}/original-upload-completions:
+    post:
+      operationId: postDocumentsIdOriginalUploadCompletions
+      summary: Queue durable server verification of an uploaded original
+      description: The browser supplies only the opaque upload-session reference. A lease-bound worker derives actual bytes, MIME signature, checksum, generation and malware receipt before preservation.
+      tags:
+      - Documents
+      responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalVerificationEnvelope'
+        '202':
+          description: Durable legal original verification queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalVerificationEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden, not intent owner, or recent strong authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Upload intent unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Intent expired, unavailable, or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Completion request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegalOriginalVerificationCommand'
+  /documents/{id}/original-upload-sessions/{uploadSessionId}:
+    get:
+      operationId: getDocumentsIdOriginalUploadSessionsUploadSessionId
+      summary: Get owner-safe legal-original verification status
+      description: Returns translated-client-safe lifecycle fields and bounded safe failure identifiers only. Provider coordinates, checksums, scan receipts, worker details, and direct upload-session table access remain unavailable. Signed originals require recent strong authentication.
+      tags:
+      - Documents
+      responses:
+        '200':
+          description: Current owner-scoped verification projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalStatusEnvelope'
+        '400':
+          description: Malformed request headers or identifiers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden, not intent owner, or recent strong authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Upload intent unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Verification lineage is temporarily inconsistent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Status service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - *id002
+      - name: uploadSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id004
+      - *id005
+  /documents/{id}/original-upload-sessions/{uploadSessionId}/retry:
+    post:
+      operationId: postDocumentsIdOriginalUploadSessionsUploadSessionIdRetry
+      summary: Retry an owner-scoped dead-letter legal-original verification
+      description: Requires an explicit reason and retries only the active dead-letter verification job. The new durable job copies the source scheduling bounds and preserves causation and replay lineage. Signed originals require recent strong authentication.
+      tags:
+      - Documents
+      responses:
+        '200':
+          description: Idempotent replay of the original actor-scoped retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalVerificationRetryEnvelope'
+        '202':
+          description: Fresh bounded verification job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalOriginalVerificationRetryEnvelope'
+        '400':
+          description: Malformed request or command headers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden, not intent owner, or recent strong authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Upload intent unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Job is not dead-letter, upload is terminal, or idempotency conflicts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Retry reason or identifier validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - *id002
+      - name: uploadSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegalOriginalVerificationRetryCommand'
+  /document-preview-artifacts/{id}/download-grants:
+    post:
+      operationId: postDocumentPreviewArtifactsIdDownloadGrants
+      summary: Audit and issue a verified short-lived preview download grant
+      description: The authenticated command returns no provider coordinates. The server resolves the exact immutable artifact through a service-only authorization, verifies size, checksum, and MIME, and only then signs it.
+      tags:
+      - Documents
+      responses:
+        '200':
+          description: Exact provider-verified preview grant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPreviewDownloadGrantEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Preview artifact unavailable in this workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Authorization expired or immutable provider provenance differs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Download request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Authorization or managed-storage service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+      - *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPreviewDownloadGrantCommand'
   /documents/{id}/signed-files:
     post:
       summary: Register signed document upload
@@ -2518,16 +3426,16 @@ paths:
   /locations:
     get:
       operationId: getLocations
-      summary: List locations
+      summary: List active inventory locations
       tags:
       - Settings
       responses:
         '200':
-          description: Success
+          description: Active versioned locations available to the workspace
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericList'
+                $ref: '#/components/schemas/InventoryLocationListEnvelope'
         '400':
           description: Malformed request
           content:
@@ -2953,11 +3861,11 @@ paths:
       - Inventory
       responses:
         '200':
-          description: Success
+          description: Permission-aware cost ledger, active categories, and metrics
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericList'
+                $ref: '#/components/schemas/InventoryCostLedgerEnvelope'
         '400':
           description: Malformed request
           content:
@@ -3009,130 +3917,339 @@ paths:
       tags:
       - Inventory
       responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCostPostedEnvelope'
         '201':
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/InventoryCostPostedEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      - name: beforeCreatedAt
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: beforeId
+        in: query
+        schema:
+          type: string
+          format: uuid
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
-  /costs/{id}/reverse:
+              $ref: '#/components/schemas/InventoryCostPostCommand'
+  /inventory-costs/{id}/reversal:
     post:
-      operationId: postCostsIdReverse
+      operationId: postInventoryCostsIdReversal
       summary: Reverse posted inventory cost
       tags:
       - Inventory
       responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCostReversedEnvelope'
         '201':
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/InventoryCostReversedEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
+              $ref: '#/components/schemas/InventoryCostReverseCommand'
       description: Requires recent step-up authentication in addition to the documented permission.
+  /inventory-saved-views:
+    get:
+      operationId: getInventorySavedViews
+      summary: List owned and workspace-shared inventory views
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Full saved-view configurations visible to the current member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventorySavedViewListEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: includeArchived
+        in: query
+        schema:
+          type: boolean
+          default: false
+    post:
+      operationId: postInventorySavedViews
+      summary: Create or update a versioned inventory saved view
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventorySavedViewSavedEnvelope'
+        '201':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventorySavedViewSavedEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Version or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Saved-view validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventorySavedViewSaveCommand'
+  /inventory-saved-views/{id}/archive:
+    post:
+      operationId: postInventorySavedViewsIdArchive
+      summary: Archive an owned inventory saved view
+      tags:
+      - Inventory
+      responses:
+        '200':
+          description: Archived or idempotently replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventorySavedViewSavedEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Forbidden or not the saved-view owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Version or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Saved-view lifecycle validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventorySavedViewArchiveCommand'
   /vehicles/{id}:
     get:
       operationId: getVehiclesId
@@ -3141,11 +4258,17 @@ paths:
       - Inventory
       responses:
         '200':
-          description: Success
+          description: Idempotent replay
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/VehicleFactsOverriddenEnvelope'
+        '201':
+          description: Full vehicle-fact snapshot replaced and history preserved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleFactsOverriddenEnvelope'
         '400':
           description: Malformed request
           content:
@@ -3191,70 +4314,6 @@ paths:
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
-  /vin/duplicate-review:
-    post:
-      operationId: postVinDuplicateReview
-      summary: Review VIN duplicate and reacquisition candidates
-      tags:
-      - Inventory
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GenericList'
-        '400':
-          description: Malformed request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '429':
-          description: Rate limited
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      parameters:
-      - $ref: '#/components/parameters/WorkspaceId'
-      - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CommandRequest'
   /vehicles/{id}/facts-override:
     post:
       operationId: postVehiclesIdFactsOverride
@@ -3327,186 +4386,288 @@ paths:
       tags:
       - Media
       responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadVerificationEnvelope'
         '202':
-          description: Accepted
+          description: Durable verification queued
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobAccepted'
+                $ref: '#/components/schemas/MediaUploadVerificationEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
-  /media/{id}:
+              $ref: '#/components/schemas/MediaUploadVerificationCommand'
+  /media/{id}/upload-sessions/{uploadSessionId}:
     get:
-      operationId: getMediaId
-      summary: Get media and derivative states
+      operationId: getMediaIdUploadSessionsUploadSessionId
+      summary: Get owner-safe vehicle upload verification status
+      description: Returns lifecycle fields and bounded safe failure identifiers for the exact owner upload only. Storage coordinates, checksums, scan receipts, provider details, and worker errors remain unavailable.
       tags:
       - Media
       responses:
         '200':
-          description: Success
+          description: Current owner-scoped vehicle verification projection
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/MediaUploadStatusEnvelope'
         '400':
-          description: Malformed request
+          description: Malformed request headers or identifiers
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
-          description: Forbidden
+          description: Missing active workspace membership or media.create
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
-          description: Not found
+          description: Upload intent unavailable to this actor in this workspace
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
-          description: Conflict
+          description: Verification lineage is temporarily inconsistent
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Business validation failed
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Status service unavailable
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '429':
-          description: Rate limited
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
-    patch:
-      operationId: patchMediaId
-      summary: Update media metadata
+      - name: uploadSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+  /media/{id}/upload-sessions/{uploadSessionId}/retry:
+    post:
+      operationId: postMediaIdUploadSessionsUploadSessionIdRetry
+      summary: Retry an owner-scoped dead-letter vehicle verification
+      description: Requires an explicit operator reason and retries only the exact active dead-letter verification job. The fresh durable job copies bounded scheduling policy and preserves actor, causation, replay, audit, and outbox lineage. Rejected bytes require a new upload.
       tags:
       - Media
       responses:
         '200':
-          description: Success
+          description: Idempotent replay of the original actor-scoped retry
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/MediaUploadVerificationRetryEnvelope'
+        '202':
+          description: Fresh bounded vehicle verification job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadVerificationRetryEnvelope'
         '400':
-          description: Malformed request
+          description: Malformed request or command headers
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
-          description: Forbidden
+          description: Missing active workspace membership or media.create
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
-          description: Not found
+          description: Upload intent unavailable to this actor in this workspace
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
-          description: Conflict
+          description: Job is not dead-letter, upload is terminal, or idempotency conflicts
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
-          description: Business validation failed
+          description: Retry reason or identifier validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '429':
-          description: Rate limited
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
+      - name: uploadSessionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
+              $ref: '#/components/schemas/MediaUploadVerificationRetryCommand'
+  /inventory-units/{id}/media:
+    get:
+      operationId: getInventoryUnitsIdMedia
+      summary: List the ordered active vehicle-photo collection
+      description: Returns only vehicle-photo aggregate and immutable file provenance. Storage provider coordinates and legal originals are never included.
+      tags:
+      - Media
+      responses:
+        '200':
+          description: Exact ordered vehicle-photo collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleMediaCollectionEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing active workspace membership or media.read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Inventory unit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Media collection state is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid inventory identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Query service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
   /inventory-units/{id}/media/reorder:
     post:
       operationId: postInventoryUnitsIdMediaReorder
@@ -3519,59 +4680,67 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/MediaReorderEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
+              $ref: '#/components/schemas/MediaReorderCommand'
   /inventory-units/{id}/media/{mediaId}/set-cover:
     post:
       operationId: postInventoryUnitsIdMediaMediaIdSetCover
@@ -3584,49 +4753,55 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/MediaSetCoverEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
@@ -3637,12 +4812,227 @@ paths:
           type: string
           format: uuid
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
+              $ref: '#/components/schemas/MediaSetCoverCommand'
+  /media/{id}:
+    get:
+      operationId: getMediaId
+      summary: Get one exact vehicle-photo aggregate
+      description: Returns active or archived vehicle-photo history with immutable file provenance and no storage provider coordinates.
+      tags:
+      - Media
+      responses:
+        '200':
+          description: Exact vehicle-photo aggregate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleMediaAssetEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing active workspace membership or media.read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Vehicle media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Media collection state is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid media identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Query service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+    patch:
+      operationId: patchMediaId
+      summary: Update a vehicle-photo caption with optimistic concurrency
+      tags:
+      - Media
+      responses:
+        '200':
+          description: Caption updated or idempotently replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleMediaCaptionEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing active workspace membership or media.update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Active vehicle media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Stale media version or conflicting idempotency replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Caption validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleMediaCaptionCommand'
+  /media/{id}/archive:
+    post:
+      operationId: postMediaIdArchive
+      summary: Archive a vehicle photo and compact the active collection
+      description: Requires media.archive. The command atomically promotes a cover when needed, compacts order, and preserves immutable files and retention history.
+      tags:
+      - Media
+      responses:
+        '200':
+          description: Photo archived or idempotently replayed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleMediaArchiveEnvelope'
+        '400':
+          description: Malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing active workspace membership or media.archive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Active vehicle media not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Stale media or collection version, or conflicting idempotency replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Archive validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleMediaArchiveCommand'
   /media/{id}/reprocess:
     post:
       operationId: postMediaIdReprocess
@@ -3650,129 +5040,139 @@ paths:
       tags:
       - Media
       responses:
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaReprocessEnvelope'
         '202':
           description: Accepted
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobAccepted'
+                $ref: '#/components/schemas/MediaReprocessEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
           description: Forbidden
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
           description: Conflict
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '429':
           description: Rate limited
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Command service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
-  /media/{id}/archive:
+              $ref: '#/components/schemas/MediaReprocessCommand'
+  /media-files/{id}/download-grants:
     post:
-      operationId: postMediaIdArchive
-      summary: Archive media
+      operationId: postMediaFilesIdDownloadGrants
+      summary: Audit access, verify immutable provider provenance, and issue a short-lived download grant
       tags:
       - Media
       responses:
         '200':
-          description: Success
+          description: Exact provider-verified grant
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GenericResource'
+                $ref: '#/components/schemas/MediaDownloadGrantEnvelope'
         '400':
           description: Malformed request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '401':
           description: Unauthenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '403':
-          description: Forbidden
+          description: Forbidden or recent strong authentication required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '409':
-          description: Conflict
+          description: Immutable database provenance differs from provider bytes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           description: Business validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '429':
-          description: Rate limited
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Authorization or storage service unavailable
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ErrorEnvelope'
       parameters:
       - $ref: '#/components/parameters/WorkspaceId'
       - $ref: '#/components/parameters/Id'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/CorrelationId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
+              $ref: '#/components/schemas/MediaDownloadGrantCommand'
   /inventory-units/{id}/listings:
     get:
       operationId: getInventoryUnitsIdListings
@@ -3901,7 +5301,8 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommandRequest'
+              $ref: '#/components/schemas/VehicleFactsOverrideCommand'
+      description: Requires inventory.facts_override and recent strong authentication.
   /inventory-units/{id}/listings/{connectionId}/unpublish:
     post:
       operationId: postInventoryUnitsIdListingsConnectionIdUnpublish
@@ -10722,75 +12123,166 @@ components:
       type: object
       additionalProperties: false
       required:
-      - acquisitionDate
-      - advertisedPriceMinor
-      - currencyCode
-      - make
-      - model
-      - modelYear
-      - odometer
-      - publicNotes
-      - stockNumberDefinitionId
-      - vin
+      - conditionKey
+      - confirmation
+      - inventory
+      - locationId
+      - stockDefinitionId
+      - vehicleFacts
+      - vinDecodeRequestId
       properties:
-        acquisitionDate:
-          type:
-          - string
-          - 'null'
-          format: date
-        advertisedPriceMinor:
-          type:
-          - integer
-          - 'null'
-          minimum: 0
-          maximum: 9007199254740991
-        currencyCode:
+        conditionKey:
           type: string
-          pattern: ^[A-Za-z]{3}$
-        make:
-          type:
-          - string
-          - 'null'
+          minLength: 1
           maxLength: 100
-        model:
-          type:
-          - string
-          - 'null'
-          maxLength: 100
-        modelYear:
-          type:
-          - integer
-          - 'null'
-          minimum: 1886
-          maximum: 2200
-        odometer:
-          oneOf:
-          - type: 'null'
-          - type: object
-            additionalProperties: false
-            required:
-            - unit
-            - value
-            properties:
-              unit:
-                enum:
-                - km
-                - mi
-              value:
-                type: integer
-                minimum: 0
-                maximum: 9007199254740991
-        publicNotes:
-          type:
-          - string
-          - 'null'
-          maxLength: 4000
-        stockNumberDefinitionId:
+          pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+        confirmation:
+          type: object
+          additionalProperties: false
+          required:
+          - accepted
+          - expectedRequestVersion
+          - vinDecodeResultId
+          properties:
+            accepted:
+              const: true
+            expectedRequestVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            vinDecodeResultId:
+              type: string
+              format: uuid
+        inventory:
+          type: object
+          description: Mutable holding details for a new allocation. If duplicate review resolves to an already-open holding, acquisitionDate, advertisedPriceMinor, odometer, and publicNotes must all be null because the link does not modify that holding.
+          additionalProperties: false
+          required:
+          - acquisitionDate
+          - advertisedPriceMinor
+          - currencyCode
+          - odometer
+          - publicNotes
+          properties:
+            acquisitionDate:
+              type:
+              - string
+              - 'null'
+              format: date
+            advertisedPriceMinor:
+              type:
+              - string
+              - 'null'
+              pattern: ^(?:0|[1-9][0-9]{0,18})$
+              x-maximum: '9223372036854775807'
+            currencyCode:
+              type: string
+              pattern: ^[A-Z]{3}$
+            odometer:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - unit
+                - value
+                properties:
+                  unit:
+                    enum:
+                    - km
+                    - mi
+                  value:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+            publicNotes:
+              type:
+              - string
+              - 'null'
+              maxLength: 4000
+        locationId:
           type: string
           format: uuid
-        vin:
+        stockDefinitionId:
           type: string
-          pattern: ^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$
+          format: uuid
+        vehicleFacts:
+          type: object
+          additionalProperties: false
+          required:
+          - bodyType
+          - cylinders
+          - drivetrain
+          - engineLiters
+          - fuelType
+          - horsepower
+          - make
+          - model
+          - modelYear
+          - transmission
+          - trimName
+          properties:
+            bodyType:
+              type:
+              - string
+              - 'null'
+              maxLength: 200
+            cylinders:
+              type:
+              - integer
+              - 'null'
+              minimum: 1
+              maximum: 64
+            drivetrain:
+              type:
+              - string
+              - 'null'
+              maxLength: 100
+            engineLiters:
+              type:
+              - string
+              - 'null'
+              pattern: ^\d{1,2}(?:\.\d{1,3})?$
+            fuelType:
+              type:
+              - string
+              - 'null'
+              maxLength: 100
+            horsepower:
+              type:
+              - integer
+              - 'null'
+              minimum: 1
+              maximum: 10000
+            make:
+              type:
+              - string
+              - 'null'
+              maxLength: 100
+            model:
+              type:
+              - string
+              - 'null'
+              maxLength: 100
+            modelYear:
+              type:
+              - integer
+              - 'null'
+              minimum: 1886
+              maximum: 2200
+            transmission:
+              type:
+              - string
+              - 'null'
+              maxLength: 200
+            trimName:
+              type:
+              - string
+              - 'null'
+              maxLength: 200
+        vinDecodeRequestId:
+          type: string
+          format: uuid
     InventoryUnitCreatedEnvelope:
       type: object
       additionalProperties: false
@@ -10801,12 +12293,27 @@ components:
           type: object
           additionalProperties: false
           required:
+          - auditEventId
           - inventoryUnitId
+          - linkedExistingOpenUnit
+          - outboxEventId
           - replayed
           - stockNumber
           - vehicleId
+          - vinDecodeRequestId
+          - vinDecodeRequestVersion
+          - vinInventoryIntakeId
           properties:
+            auditEventId:
+              type: string
+              format: uuid
             inventoryUnitId:
+              type: string
+              format: uuid
+            linkedExistingOpenUnit:
+              type: boolean
+              description: True when this request linked the already-open holding instead of allocating a new one.
+            outboxEventId:
               type: string
               format: uuid
             replayed:
@@ -10816,6 +12323,248 @@ components:
               minLength: 1
               maxLength: 200
             vehicleId:
+              type: string
+              format: uuid
+            vinDecodeRequestId:
+              type: string
+              format: uuid
+            vinDecodeRequestVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            vinInventoryIntakeId:
+              type: string
+              format: uuid
+    VinManualInventoryIntakeCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - conditionKey
+      - confirmation
+      - duplicateDecision
+      - inventory
+      - locationId
+      - manualReason
+      - stockDefinitionId
+      - vehicleFacts
+      properties:
+        conditionKey:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+        confirmation:
+          type: object
+          additionalProperties: false
+          required:
+          - accepted
+          - expectedRequestVersion
+          properties:
+            accepted:
+              const: true
+            expectedRequestVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+        duplicateDecision:
+          oneOf:
+          - type: 'null'
+          - type: object
+            additionalProperties: false
+            required:
+            - decision
+            - reason
+            properties:
+              decision:
+                enum:
+                - reuse_existing_vehicle
+                - reacquire_existing_vehicle
+                - override_open_duplicate
+              reason:
+                type: string
+                minLength: 1
+                maxLength: 2000
+        inventory:
+          type: object
+          description: Mutable holding details for a new allocation. If duplicate review resolves to an already-open holding, acquisitionDate, advertisedPriceMinor, odometer, and publicNotes must all be null because the link does not modify that holding.
+          additionalProperties: false
+          required:
+          - acquisitionDate
+          - advertisedPriceMinor
+          - currencyCode
+          - odometer
+          - publicNotes
+          properties:
+            acquisitionDate:
+              type:
+              - string
+              - 'null'
+              format: date
+            advertisedPriceMinor:
+              type:
+              - string
+              - 'null'
+              pattern: ^(?:0|[1-9][0-9]{0,18})$
+              x-maximum: '9223372036854775807'
+            currencyCode:
+              type: string
+              pattern: ^[A-Z]{3}$
+            odometer:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - unit
+                - value
+                properties:
+                  unit:
+                    enum:
+                    - km
+                    - mi
+                  value:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+            publicNotes:
+              type:
+              - string
+              - 'null'
+              maxLength: 4000
+        locationId:
+          type: string
+          format: uuid
+        manualReason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        stockDefinitionId:
+          type: string
+          format: uuid
+        vehicleFacts:
+          type: object
+          additionalProperties: false
+          required:
+          - bodyType
+          - cylinders
+          - drivetrain
+          - engineLiters
+          - fuelType
+          - horsepower
+          - make
+          - model
+          - modelYear
+          - transmission
+          - trimName
+          properties:
+            bodyType:
+              type:
+              - string
+              - 'null'
+              maxLength: 200
+            cylinders:
+              type:
+              - integer
+              - 'null'
+              minimum: 1
+              maximum: 64
+            drivetrain:
+              type:
+              - string
+              - 'null'
+              maxLength: 100
+            engineLiters:
+              type:
+              - string
+              - 'null'
+              pattern: ^\d{1,2}(?:\.\d{1,3})?$
+            fuelType:
+              type:
+              - string
+              - 'null'
+              maxLength: 100
+            horsepower:
+              type:
+              - integer
+              - 'null'
+              minimum: 1
+              maximum: 10000
+            make:
+              type: string
+              minLength: 1
+              maxLength: 100
+            model:
+              type: string
+              minLength: 1
+              maxLength: 100
+            modelYear:
+              type: integer
+              minimum: 1886
+              maximum: 2200
+            transmission:
+              type:
+              - string
+              - 'null'
+              maxLength: 200
+            trimName:
+              type:
+              - string
+              - 'null'
+              maxLength: 200
+    VinManualInventoryIntakeEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - inventoryUnitId
+          - linkedExistingOpenUnit
+          - outboxEventId
+          - replayed
+          - stockNumber
+          - terminalJobId
+          - vehicleId
+          - vinDecodeRequestId
+          - vinDecodeRequestVersion
+          - vinManualInventoryIntakeId
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            inventoryUnitId:
+              type: string
+              format: uuid
+            linkedExistingOpenUnit:
+              type: boolean
+              description: True when this manual request linked the already-open holding instead of allocating a new one.
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            stockNumber:
+              type: string
+              minLength: 1
+              maxLength: 200
+            terminalJobId:
+              type: string
+              format: uuid
+            vehicleId:
+              type: string
+              format: uuid
+            vinDecodeRequestId:
+              type: string
+              format: uuid
+            vinDecodeRequestVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            vinManualInventoryIntakeId:
               type: string
               format: uuid
     PartyCreateCommand:
@@ -11127,42 +12876,1451 @@ components:
           type:
           - string
           - 'null'
-    InventoryUnitUpdate:
+    InventoryDetailsUpdateCommand:
       type: object
       additionalProperties: false
+      required:
+      - acquisitionDate
+      - acquiredAt
+      - advertisedPriceMinor
+      - availableAt
+      - conditionKey
+      - expectedSalePrice
+      - expectedVersion
+      - odometer
+      - publicNotes
       properties:
-        location_id:
+        acquisitionDate:
+          type:
+          - string
+          - 'null'
+          format: date
+        acquiredAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        advertisedPriceMinor:
+          type:
+          - string
+          - 'null'
+          pattern: ^(?:0|[1-9][0-9]{0,18})$
+          x-maximum: '9223372036854775807'
+        availableAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        conditionKey:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+          pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+        expectedSalePrice:
+          oneOf:
+          - type: 'null'
+          - type: object
+            additionalProperties: false
+            required:
+            - amountMinor
+            - currencyCode
+            properties:
+              amountMinor:
+                type: string
+                pattern: ^(?:0|[1-9][0-9]{0,18})$
+                x-maximum: '9223372036854775807'
+              currencyCode:
+                type: string
+                pattern: ^[A-Za-z]{3}$
+        expectedVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        internalNotes:
+          type:
+          - string
+          - 'null'
+          maxLength: 8000
+          description: Omit to preserve restricted internal notes unchanged.
+        odometer:
+          oneOf:
+          - type: 'null'
+          - type: object
+            additionalProperties: false
+            required:
+            - unit
+            - value
+            properties:
+              unit:
+                enum:
+                - km
+                - mi
+              value:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+        publicNotes:
+          type:
+          - string
+          - 'null'
+          maxLength: 4000
+    InventoryDetailsUpdatedEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - canonicalStatus
+          - inventoryUnitId
+          - outboxEventId
+          - replayed
+          - stateKey
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            auditEventId:
+              type: string
+              format: uuid
+            canonicalStatus:
+              enum:
+              - draft
+              - active
+              - pending
+              - closed
+              - archived
+            inventoryUnitId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            stateKey:
+              type: string
+              minLength: 1
+              maxLength: 128
+              pattern: ^[a-z][a-z0-9_]*$
+    InventorySearchEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - items
+          - nextCursor
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/InventorySearchItem'
+            nextCursor:
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/InventorySearchCursor'
+    InventorySearchCursor:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - rank
+      - updatedAt
+      properties:
+        id:
           type: string
           format: uuid
-        odometer_value:
+        rank:
+          type: number
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+    InventorySearchItem:
+      type: object
+      additionalProperties: false
+      required:
+      - advertisedPriceMinor
+      - aggregateVersion
+      - canonicalStatus
+      - currencyCode
+      - daysInStock
+      - estimatedGrossMinor
+      - inventoryUnitId
+      - locationId
+      - locationName
+      - make
+      - model
+      - modelYear
+      - postedCostMinor
+      - searchRank
+      - stockNumber
+      - trim
+      - updatedAt
+      - vin
+      - workflowStateKey
+      properties:
+        advertisedPriceMinor:
+          type:
+          - string
+          - 'null'
+          pattern: ^(?:0|[1-9][0-9]{0,18})$
+        aggregateVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        canonicalStatus:
+          enum:
+          - draft
+          - active
+          - pending
+          - closed
+          - archived
+        currencyCode:
+          type: string
+          pattern: ^[A-Z]{3}$
+        daysInStock:
           type: integer
           minimum: 0
-        odometer_unit:
+        estimatedGrossMinor:
+          type:
+          - string
+          - 'null'
+          pattern: ^-?(?:0|[1-9][0-9]{0,18})$
+          description: Null when the caller lacks costs.read or no price basis exists.
+        inventoryUnitId:
+          type: string
+          format: uuid
+        locationId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        locationName:
+          type:
+          - string
+          - 'null'
+        make:
+          type:
+          - string
+          - 'null'
+        model:
+          type:
+          - string
+          - 'null'
+        modelYear:
+          type:
+          - integer
+          - 'null'
+          minimum: 1886
+          maximum: 2200
+        postedCostMinor:
+          type:
+          - string
+          - 'null'
+          pattern: ^(?:0|[1-9][0-9]{0,18})$
+          description: Null when the caller lacks costs.read.
+        searchRank:
+          type: number
+          minimum: 0
+        stockNumber:
+          type: string
+          minLength: 1
+          maxLength: 200
+        trim:
+          type:
+          - string
+          - 'null'
+        updatedAt:
+          type: string
+          format: date-time
+        vin:
+          type: string
+          pattern: ^[A-HJ-NPR-Z0-9]{17}$
+        workflowStateKey:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*$
+    InventoryCostPostCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - amountMinor
+      - categoryDefinitionId
+      - currencyCode
+      - description
+      - expectedVersion
+      - incurredOn
+      - supportingFileId
+      - vendorPartyId
+      properties:
+        amountMinor:
+          type: string
+          pattern: ^[1-9][0-9]{0,18}$
+        categoryDefinitionId:
+          type: string
+          format: uuid
+        currencyCode:
+          type: string
+          pattern: ^[A-Za-z]{3}$
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        expectedVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        incurredOn:
+          type: string
+          format: date
+        supportingFileId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        vendorPartyId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    InventoryCostPostedEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - costEntryId
+          - inventoryUnitId
+          - outboxEventId
+          - replayed
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            auditEventId:
+              type: string
+              format: uuid
+            costEntryId:
+              type: string
+              format: uuid
+            inventoryUnitId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+    InventoryCostReverseCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      - reason
+      - reversedOn
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        reversedOn:
+          type: string
+          format: date
+    InventoryCostReversedEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - inventoryUnitId
+          - originalCostEntryId
+          - outboxEventId
+          - replayed
+          - reversalEntryId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            auditEventId:
+              type: string
+              format: uuid
+            inventoryUnitId:
+              type: string
+              format: uuid
+            originalCostEntryId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            reversalEntryId:
+              type: string
+              format: uuid
+    InventorySavedViewSaveCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - density
+      - expectedVersion
+      - filters
+      - layout
+      - name
+      - savedViewId
+      - shareScope
+      - sort
+      - visibleColumns
+      properties:
+        density:
           enum:
-          - km
-          - mi
-        advertised_price_minor:
+          - comfortable
+          - compact
+        expectedVersion:
           type:
           - integer
           - 'null'
-          format: int64
-        expected_sale_price_minor:
+          minimum: 1
+          maximum: 2147483647
+        filters:
+          type: object
+          additionalProperties: false
+          properties:
+            locationIds:
+              type: array
+              maxItems: 20
+              uniqueItems: true
+              items:
+                type: string
+                format: uuid
+            make:
+              type: string
+              minLength: 1
+              maxLength: 100
+            maximumDaysInStock:
+              type: integer
+              minimum: 0
+            maximumPriceMinor:
+              type: string
+              pattern: ^(?:0|[1-9][0-9]{0,18})$
+            minimumDaysInStock:
+              type: integer
+              minimum: 0
+            minimumPriceMinor:
+              type: string
+              pattern: ^(?:0|[1-9][0-9]{0,18})$
+            missingFields:
+              type: array
+              maxItems: 7
+              uniqueItems: true
+              items:
+                enum:
+                - vin
+                - model_year
+                - make
+                - model
+                - location
+                - price
+                - media
+            model:
+              type: string
+              minLength: 1
+              maxLength: 100
+            status:
+              type: array
+              maxItems: 5
+              uniqueItems: true
+              items:
+                enum:
+                - draft
+                - active
+                - pending
+                - closed
+                - archived
+        layout:
+          enum:
+          - responsive
+          - cards
+          - table
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        savedViewId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        shareScope:
+          enum:
+          - private
+          - workspace
+        sort:
+          type: object
+          additionalProperties: false
+          required:
+          - direction
+          - key
+          properties:
+            direction:
+              enum:
+              - asc
+              - desc
+            key:
+              enum:
+              - updated_at
+              - stock_number
+              - advertised_price
+              - days_in_stock
+              - estimated_gross
+        visibleColumns:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            enum:
+            - cover
+            - stock
+            - vehicle
+            - vin
+            - price
+            - location
+            - state
+            - days_in_stock
+            - media_readiness
+            - listing_status
+            - warnings
+            - posted_cost
+            - estimated_gross
+    InventorySavedViewSavedEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - created
+          - replayed
+          - savedViewId
+          - savedViewVersion
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            created:
+              type: boolean
+            replayed:
+              type: boolean
+            savedViewId:
+              type: string
+              format: uuid
+            savedViewVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+    UnsignedMinorString:
+      type: string
+      pattern: ^(?:0|[1-9][0-9]{0,18})$
+      description: Exact integer minor-unit amount serialized as decimal text.
+    SignedMinorString:
+      type: string
+      pattern: ^-?(?:0|[1-9][0-9]{0,18})$
+      description: Exact signed integer minor-unit amount serialized as decimal text.
+    InventoryVehicleFactsSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - bodyType
+      - cylinders
+      - drivetrain
+      - engineLiters
+      - factsVersion
+      - fuelType
+      - horsepower
+      - make
+      - model
+      - modelYear
+      - transmission
+      - trimName
+      - vin
+      properties:
+        bodyType:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        cylinders:
           type:
           - integer
           - 'null'
-          format: int64
-        condition_key:
+          minimum: 1
+          maximum: 64
+        drivetrain:
           type:
           - string
           - 'null'
-        public_notes:
+          maxLength: 100
+        engineLiters:
           type:
           - string
           - 'null'
-        internal_notes:
+          pattern: ^[0-9]{1,2}(?:\.[0-9]{1,3})?$
+        factsVersion:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        fuelType:
           type:
           - string
           - 'null'
+          maxLength: 100
+        horsepower:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 10000
+        make:
+          type:
+          - string
+          - 'null'
+          maxLength: 100
+        model:
+          type:
+          - string
+          - 'null'
+          maxLength: 100
+        modelYear:
+          type:
+          - integer
+          - 'null'
+          minimum: 1886
+          maximum: 2200
+        transmission:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        trimName:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        vin:
+          type: string
+          pattern: ^[A-HJ-NPR-Z0-9]{17}$
+    InventoryAllowedTransition:
+      type: object
+      additionalProperties: false
+      required:
+      - canonicalStatus
+      - key
+      - labels
+      - reasonRequired
+      - toStateKey
+      properties:
+        canonicalStatus:
+          enum:
+          - draft
+          - active
+          - pending
+          - closed
+          - archived
+        key:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*$
+          maxLength: 128
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        reasonRequired:
+          type: boolean
+        toStateKey:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*$
+          maxLength: 128
+    InventoryOperationsCapabilities:
+      type: object
+      additionalProperties: false
+      required:
+      - canCreateCosts
+      - canOverrideFacts
+      - canReadCosts
+      - canReadInternal
+      - canReverseCosts
+      - canTransferLocation
+      - canTransitionWorkflow
+      - canUpdateDetails
+      - canUpdateInternal
+      - hasRecentStrongAuthentication
+      properties:
+        canCreateCosts:
+          type: boolean
+        canOverrideFacts:
+          type: boolean
+        canReadCosts:
+          type: boolean
+        canReadInternal:
+          type: boolean
+        canReverseCosts:
+          type: boolean
+        canTransferLocation:
+          type: boolean
+        canTransitionWorkflow:
+          type: boolean
+        canUpdateDetails:
+          type: boolean
+        canUpdateInternal:
+          type: boolean
+        hasRecentStrongAuthentication:
+          type: boolean
+    InventoryUnitOperationsEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - acquisitionDate
+          - acquiredAt
+          - advertisedPriceMinor
+          - aggregateVersion
+          - allowedTransitions
+          - availableAt
+          - capabilities
+          - canonicalStatus
+          - closedAt
+          - conditionKey
+          - currencyCode
+          - estimatedGrossMinor
+          - expectedSalePriceMinor
+          - internalNotes
+          - inventoryUnitId
+          - location
+          - odometer
+          - postedCostMinor
+          - publicNotes
+          - soldAt
+          - stockNumber
+          - updatedAt
+          - vehicleFacts
+          - vehicleId
+          - workflowConfigurationVersion
+          - workflowInstanceVersion
+          - workflowStateKey
+          properties:
+            acquisitionDate:
+              type:
+              - string
+              - 'null'
+              format: date
+            acquiredAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            advertisedPriceMinor:
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/UnsignedMinorString'
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            allowedTransitions:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/InventoryAllowedTransition'
+            availableAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            capabilities:
+              $ref: '#/components/schemas/InventoryOperationsCapabilities'
+            canonicalStatus:
+              enum:
+              - draft
+              - active
+              - pending
+              - closed
+              - archived
+            closedAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            conditionKey:
+              type:
+              - string
+              - 'null'
+              pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+              maxLength: 100
+            currencyCode:
+              type: string
+              pattern: ^[A-Z]{3}$
+            estimatedGrossMinor:
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/SignedMinorString'
+            expectedSalePriceMinor:
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/UnsignedMinorString'
+            internalNotes:
+              type:
+              - string
+              - 'null'
+              maxLength: 8000
+              description: Null when the member lacks inventory.read_internal.
+            inventoryUnitId:
+              type: string
+              format: uuid
+            location:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - id
+                - name
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                    maxLength: 200
+            odometer:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - unit
+                - value
+                properties:
+                  unit:
+                    enum:
+                    - km
+                    - mi
+                  value:
+                    $ref: '#/components/schemas/UnsignedMinorString'
+            postedCostMinor:
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/UnsignedMinorString'
+              description: Null when the member lacks costs.read.
+            publicNotes:
+              type:
+              - string
+              - 'null'
+              maxLength: 4000
+            soldAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            stockNumber:
+              type: string
+              minLength: 1
+              maxLength: 200
+            updatedAt:
+              type: string
+              format: date-time
+            vehicleFacts:
+              $ref: '#/components/schemas/InventoryVehicleFactsSnapshot'
+            vehicleId:
+              type: string
+              format: uuid
+            workflowConfigurationVersion:
+              type: string
+              pattern: ^[0-9]+\.[0-9]+\.[0-9]+$
+            workflowInstanceVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            workflowStateKey:
+              type: string
+              pattern: ^[a-z][a-z0-9_]*$
+              maxLength: 128
+    InventoryLocationListEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              maxItems: 200
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                - id
+                - key
+                - locale
+                - name
+                - timezone
+                - version
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  key:
+                    type: string
+                    pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+                  locale:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 64
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  timezone:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 100
+                  version:
+                    type: integer
+                    minimum: 1
+                    maximum: 9007199254740991
+    InventoryCostCategory:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - key
+      - labels
+      - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        version:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+    InventoryCostLedgerEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - aggregateVersion
+      - amountMinor
+      - categoryDefinitionId
+      - categoryKey
+      - categoryLabels
+      - createdAt
+      - currencyCode
+      - description
+      - effectiveStatus
+      - entryKind
+      - id
+      - incurredOn
+      - reversalOfId
+      - supportingFileId
+      - vendorPartyId
+      properties:
+        aggregateVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        amountMinor:
+          $ref: '#/components/schemas/UnsignedMinorString'
+        categoryDefinitionId:
+          type: string
+          format: uuid
+        categoryKey:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$
+        categoryLabels:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        currencyCode:
+          type: string
+          pattern: ^[A-Z]{3}$
+        description:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        effectiveStatus:
+          enum:
+          - posted
+          - reversed
+          - reversal
+        entryKind:
+          enum:
+          - cost
+          - reversal
+        id:
+          type: string
+          format: uuid
+        incurredOn:
+          type: string
+          format: date
+        reversalOfId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        supportingFileId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        vendorPartyId:
+          type:
+          - string
+          - 'null'
+          format: uuid
+    InventoryCostLedgerEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - canCreate
+          - canReverse
+          - categories
+          - currencyCode
+          - entries
+          - estimatedGrossMinor
+          - hasRecentStrongAuthentication
+          - inventoryUnitId
+          - lastCostAt
+          - nextCursor
+          - postedCostMinor
+          - postedEntryCount
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            canCreate:
+              type: boolean
+            canReverse:
+              type: boolean
+            categories:
+              type: array
+              maxItems: 500
+              items:
+                $ref: '#/components/schemas/InventoryCostCategory'
+            currencyCode:
+              type: string
+              pattern: ^[A-Z]{3}$
+            entries:
+              type: array
+              maxItems: 200
+              items:
+                $ref: '#/components/schemas/InventoryCostLedgerEntry'
+            estimatedGrossMinor:
+              oneOf:
+              - type: 'null'
+              - $ref: '#/components/schemas/SignedMinorString'
+            hasRecentStrongAuthentication:
+              type: boolean
+            inventoryUnitId:
+              type: string
+              format: uuid
+            lastCostAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            nextCursor:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - createdAt
+                - id
+                properties:
+                  createdAt:
+                    type: string
+                    format: date-time
+                  id:
+                    type: string
+                    format: uuid
+            postedCostMinor:
+              $ref: '#/components/schemas/UnsignedMinorString'
+            postedEntryCount:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+    InventorySavedView:
+      type: object
+      additionalProperties: false
+      required:
+      - density
+      - filters
+      - isOwner
+      - layout
+      - name
+      - savedViewId
+      - shareScope
+      - sort
+      - status
+      - updatedAt
+      - version
+      - visibleColumns
+      properties:
+        density:
+          enum:
+          - comfortable
+          - compact
+        filters:
+          type: object
+          additionalProperties: false
+          properties:
+            locationIds:
+              type: array
+              maxItems: 20
+              uniqueItems: true
+              items:
+                type: string
+                format: uuid
+            make:
+              type: string
+              minLength: 1
+              maxLength: 100
+            maximumDaysInStock:
+              type: integer
+              minimum: 0
+              maximum: 100000
+            maximumPriceMinor:
+              $ref: '#/components/schemas/UnsignedMinorString'
+            minimumDaysInStock:
+              type: integer
+              minimum: 0
+              maximum: 100000
+            minimumPriceMinor:
+              $ref: '#/components/schemas/UnsignedMinorString'
+            missingFields:
+              type: array
+              maxItems: 7
+              uniqueItems: true
+              items:
+                enum:
+                - vin
+                - model_year
+                - make
+                - model
+                - location
+                - price
+                - media
+            model:
+              type: string
+              minLength: 1
+              maxLength: 100
+            status:
+              type: array
+              maxItems: 5
+              uniqueItems: true
+              items:
+                enum:
+                - draft
+                - active
+                - pending
+                - closed
+                - archived
+        isOwner:
+          type: boolean
+        layout:
+          enum:
+          - responsive
+          - cards
+          - table
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        savedViewId:
+          type: string
+          format: uuid
+        shareScope:
+          enum:
+          - private
+          - workspace
+        sort:
+          type: object
+          additionalProperties: false
+          required:
+          - direction
+          - key
+          properties:
+            direction:
+              enum:
+              - asc
+              - desc
+            key:
+              enum:
+              - updated_at
+              - stock_number
+              - advertised_price
+              - days_in_stock
+              - estimated_gross
+        status:
+          enum:
+          - active
+          - archived
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        visibleColumns:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            enum:
+            - cover
+            - stock
+            - vehicle
+            - vin
+            - price
+            - location
+            - state
+            - days_in_stock
+            - media_readiness
+            - listing_status
+            - warnings
+            - posted_cost
+            - estimated_gross
+    InventorySavedViewListEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - items
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/InventorySavedView'
+    InventorySavedViewArchiveCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+    VehicleFactsOverrideSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - bodyType
+      - cylinders
+      - drivetrain
+      - engineLiters
+      - fuelType
+      - horsepower
+      - make
+      - model
+      - modelYear
+      - transmission
+      - trimName
+      properties:
+        bodyType:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 200
+        cylinders:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 64
+        drivetrain:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+        engineLiters:
+          type:
+          - string
+          - 'null'
+          pattern: ^[0-9]{1,2}(?:\.[0-9]{1,3})?$
+        fuelType:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+        horsepower:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+          maximum: 10000
+        make:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+        model:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 100
+        modelYear:
+          type:
+          - integer
+          - 'null'
+          minimum: 1886
+          maximum: 2200
+        transmission:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 200
+        trimName:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 200
+    VehicleFactsOverrideCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedFactsVersion
+      - facts
+      - reason
+      properties:
+        expectedFactsVersion:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        facts:
+          $ref: '#/components/schemas/VehicleFactsOverrideSnapshot'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    VehicleFactsOverriddenEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - factsVersion
+          - historyId
+          - outboxEventId
+          - replayed
+          - vehicleId
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            factsVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            historyId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            vehicleId:
+              type: string
+              format: uuid
     InventoryUnit:
       type: object
       required:
@@ -11212,120 +14370,1790 @@ components:
         updated_at:
           type: string
           format: date-time
-    TransitionCommand:
+    InventoryLocationTransferCommand:
       type: object
       additionalProperties: false
       required:
-      - transition_key
-      - expected_version
+      - expectedVersion
+      - reason
+      - toLocationId
       properties:
-        transition_key:
-          type: string
-        expected_version:
+        expectedVersion:
           type: integer
-          format: int64
+          minimum: 1
+          maximum: 2147483647
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        toLocationId:
+          type: string
+          format: uuid
+    InventoryLocationTransferredEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - canonicalStatus
+          - inventoryUnitId
+          - locationEventId
+          - locationId
+          - outboxEventId
+          - replayed
+          - stateKey
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            auditEventId:
+              type: string
+              format: uuid
+            canonicalStatus:
+              enum:
+              - draft
+              - active
+              - pending
+              - closed
+              - archived
+            inventoryUnitId:
+              type: string
+              format: uuid
+            locationEventId:
+              type: string
+              format: uuid
+            locationId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            stateKey:
+              type: string
+              minLength: 1
+              maxLength: 128
+              pattern: ^[a-z][a-z0-9_]*$
+    InventoryWorkflowTransitionCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      - reason
+      - transitionKey
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
         reason:
           type:
           - string
           - 'null'
-        input:
+          minLength: 1
+          maxLength: 1000
+        transitionKey:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: ^[a-z][a-z0-9_]*$
+    InventoryWorkflowTransitionedEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
           type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - canonicalStatus
+          - inventoryUnitId
+          - outboxEventId
+          - replayed
+          - stateKey
+          - workflowEventId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 2147483647
+            auditEventId:
+              type: string
+              format: uuid
+            canonicalStatus:
+              enum:
+              - draft
+              - active
+              - pending
+              - closed
+              - archived
+            inventoryUnitId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            stateKey:
+              type: string
+              minLength: 1
+              maxLength: 128
+              pattern: ^[a-z][a-z0-9_]*$
+            workflowEventId:
+              type: string
+              format: uuid
+    VinDecodeJobStatus:
+      enum:
+      - queued
+      - running
+      - retry_wait
+      - succeeded
+      - dead_letter
+      - cancelled
+    VinDecodeRequestStatus:
+      enum:
+      - queued
+      - running
+      - retry_wait
+      - succeeded
+      - dead_letter
+      - cancelled
+      - consumed
     VinDecodeRequest:
       type: object
       additionalProperties: false
       required:
       - vin
       properties:
+        modelYear:
+          type:
+          - integer
+          - 'null'
+          minimum: 1886
+          maximum: 2200
         vin:
           type: string
-          minLength: 11
-          maxLength: 17
-    VinDecodeResponse:
+          pattern: ^[A-HJ-NPR-Z0-9]{17}$
+    VinDecodeRequestedEnvelope:
       type: object
+      additionalProperties: false
       required:
-      - vin
-      - suggestions
-      - duplicate_candidates
+      - data
       properties:
-        vin:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - duplicateCandidateCount
+          - jobId
+          - jobStatus
+          - outboxEventId
+          - replayed
+          - vinDecodeRequestId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            auditEventId:
+              type: string
+              format: uuid
+            duplicateCandidateCount:
+              type: integer
+              minimum: 0
+            jobId:
+              type: string
+              format: uuid
+            jobStatus:
+              $ref: '#/components/schemas/VinDecodeJobStatus'
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            vinDecodeRequestId:
+              type: string
+              format: uuid
+    VinDecodeRetryCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
           type: string
-        suggestions:
-          $ref: '#/components/schemas/VehicleFacts'
-        provider:
-          type:
-          - string
-          - 'null'
-        raw_result_reference:
-          type:
-          - string
-          - 'null'
-        duplicate_candidates:
-          type: array
-          items:
-            type: object
-            properties:
-              vehicle_id:
-                type: string
-                format: uuid
-              inventory_unit_id:
-                type:
-                - string
-                - 'null'
-                format: uuid
-              stock_number:
-                type:
-                - string
-                - 'null'
-              state:
-                type:
-                - string
-                - 'null'
+          minLength: 1
+          maxLength: 2000
+    VinDecodeRetryEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - jobId
+          - jobStatus
+          - outboxEventId
+          - replayed
+          - vinDecodeRequestId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            auditEventId:
+              type: string
+              format: uuid
+            jobId:
+              type: string
+              format: uuid
+            jobStatus:
+              $ref: '#/components/schemas/VinDecodeJobStatus'
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            vinDecodeRequestId:
+              type: string
+              format: uuid
+    VinDuplicateReviewCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      - reason
+      properties:
+        decision:
+          enum:
+          - reuse_existing_vehicle
+          - reacquire_existing_vehicle
+          - override_open_duplicate
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    VinDuplicateReviewEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - approvedForIntake
+          - auditEventId
+          - decision
+          - outboxEventId
+          - replayed
+          - vehicleId
+          - vinDecodeRequestId
+          - vinDuplicateReviewId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            approvedForIntake:
+              type: boolean
+            auditEventId:
+              type: string
+              format: uuid
+            decision:
+              enum:
+              - reuse_existing_vehicle
+              - reacquire_existing_vehicle
+              - override_open_duplicate
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            vehicleId:
+              type: string
+              format: uuid
+            vinDecodeRequestId:
+              type: string
+              format: uuid
+            vinDuplicateReviewId:
+              type: string
+              format: uuid
+    VinDecodeStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - completedAt
+          - duplicateCandidates
+          - duplicateReview
+          - job
+          - modelYearHint
+          - provider
+          - requestedAt
+          - status
+          - suggestions
+          - vin
+          - vinDecodeRequestId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            completedAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            duplicateCandidates:
+              type: array
+              maxItems: 100
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                - id
+                - inventoryStatus
+                - inventoryUnitId
+                - kind
+                - observedAt
+                - stockNumber
+                - vehicleId
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  inventoryStatus:
+                    oneOf:
+                    - type: 'null'
+                    - enum:
+                      - draft
+                      - active
+                      - pending
+                      - closed
+                      - archived
+                  inventoryUnitId:
+                    type:
+                    - string
+                    - 'null'
+                    format: uuid
+                  kind:
+                    enum:
+                    - open_inventory
+                    - historical_inventory
+                    - vehicle_only
+                  observedAt:
+                    type: string
+                    format: date-time
+                  stockNumber:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 200
+                  vehicleId:
+                    type: string
+                    format: uuid
+            duplicateReview:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - decision
+                - id
+                - reason
+                - reviewedAt
+                - vehicleId
+                properties:
+                  decision:
+                    enum:
+                    - reuse_existing_vehicle
+                    - reacquire_existing_vehicle
+                    - override_open_duplicate
+                  id:
+                    type: string
+                    format: uuid
+                  reason:
+                    type: string
+                    minLength: 1
+                    maxLength: 2000
+                  reviewedAt:
+                    type: string
+                    format: date-time
+                  vehicleId:
+                    type: string
+                    format: uuid
+            job:
+              type: object
+              additionalProperties: false
+              required:
+              - attemptCount
+              - id
+              - lastErrorClassification
+              - lastErrorCode
+              - maximumAttempts
+              - retryAt
+              - retryable
+              - reviewRequired
+              - status
+              properties:
+                attemptCount:
+                  type: integer
+                  minimum: 0
+                id:
+                  type: string
+                  format: uuid
+                lastErrorClassification:
+                  oneOf:
+                  - type: 'null'
+                  - enum:
+                    - transient
+                    - rate_limited
+                    - permanent
+                    - validation
+                    - permission
+                    - provider_auth
+                    - unknown
+                    - lease_expired
+                lastErrorCode:
+                  type:
+                  - string
+                  - 'null'
+                  maxLength: 120
+                maximumAttempts:
+                  type: integer
+                  minimum: 1
+                  maximum: 32
+                retryAt:
+                  type:
+                  - string
+                  - 'null'
+                  format: date-time
+                retryable:
+                  type: boolean
+                reviewRequired:
+                  type: boolean
+                status:
+                  $ref: '#/components/schemas/VinDecodeJobStatus'
+            modelYearHint:
+              type:
+              - integer
+              - 'null'
+              minimum: 1886
+              maximum: 2200
+            provider:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - decodedAt
+                - key
+                - rawResultReference
+                - version
+                - warnings
+                properties:
+                  decodedAt:
+                    type: string
+                    format: date-time
+                  key:
+                    const: nhtsa_vpic
+                  rawResultReference:
+                    type: string
+                    format: uuid
+                    description: Opaque reference only; the raw provider response is not exposed.
+                  version:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                  warnings:
+                    type: array
+                    maxItems: 100
+                    items:
+                      type: string
+                      maxLength: 1000
+            requestedAt:
+              type: string
+              format: date-time
+            status:
+              $ref: '#/components/schemas/VinDecodeRequestStatus'
+            suggestions:
+              oneOf:
+              - type: 'null'
+              - type: object
+                additionalProperties: false
+                required:
+                - bodyType
+                - cylinders
+                - drivetrain
+                - engineLiters
+                - fuelType
+                - horsepower
+                - make
+                - model
+                - modelYear
+                - transmission
+                - trimName
+                properties:
+                  bodyType:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 200
+                  cylinders:
+                    type:
+                    - integer
+                    - 'null'
+                    minimum: 1
+                    maximum: 64
+                  drivetrain:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 100
+                  engineLiters:
+                    type:
+                    - string
+                    - 'null'
+                    pattern: ^\d{1,2}(?:\.\d{1,3})?$
+                  fuelType:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 100
+                  horsepower:
+                    type:
+                    - integer
+                    - 'null'
+                    minimum: 1
+                    maximum: 10000
+                  make:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 100
+                  model:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 100
+                  modelYear:
+                    type:
+                    - integer
+                    - 'null'
+                    minimum: 1886
+                    maximum: 2200
+                  transmission:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 200
+                  trimName:
+                    type:
+                    - string
+                    - 'null'
+                    maxLength: 200
+            vin:
+              type: string
+              pattern: ^[A-HJ-NPR-Z0-9]{17}$
+            vinDecodeRequestId:
+              type: string
+              format: uuid
+    LegalOriginalUploadIntentCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - byteSize
+      - checksumSha256
+      - filename
+      - mediaKind
+      - mimeType
+      properties:
+        byteSize:
+          type: integer
+          minimum: 1
+          maximum: 50000000
+        checksumSha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 255
+        mediaKind:
+          enum:
+          - legal_document
+          - signed_document
+        mimeType:
+          enum:
+          - application/pdf
+          - image/jpeg
+          - image/png
+          - image/webp
+          - image/heic
+          - image/heif
+    LegalOriginalUploadIntentEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - documentId
+          - expiresAt
+          - mediaKind
+          - replayed
+          - upload
+          - uploadSessionId
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            documentId:
+              type: string
+              format: uuid
+            expiresAt:
+              type: string
+              format: date-time
+            mediaKind:
+              enum:
+              - legal_document
+              - signed_document
+            replayed:
+              type: boolean
+            upload:
+              type: object
+              additionalProperties: false
+              required:
+              - bucket
+              - objectKey
+              properties:
+                bucket:
+                  const: media-private
+                objectKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+            uploadSessionId:
+              type: string
+              format: uuid
+    LegalOriginalVerificationCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - uploadSessionId
+      properties:
+        uploadSessionId:
+          type: string
+          format: uuid
+    LegalOriginalVerificationEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - documentId
+          - job
+          - outboxEventId
+          - replayed
+          - uploadSessionId
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            documentId:
+              type: string
+              format: uuid
+            job:
+              type: object
+              additionalProperties: false
+              required:
+              - id
+              - status
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                status:
+                  $ref: '#/components/schemas/VinDecodeJobStatus'
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            uploadSessionId:
+              type: string
+              format: uuid
+    LegalOriginalStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - completedAt
+          - documentId
+          - failure
+          - job
+          - mediaKind
+          - retryable
+          - status
+          - uploadSessionId
+          properties:
+            completedAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            documentId:
+              type: string
+              format: uuid
+            failure:
+              oneOf:
+              - type: object
+                additionalProperties: false
+                required:
+                - classification
+                - code
+                properties:
+                  classification:
+                    type:
+                    - string
+                    - 'null'
+                    enum:
+                    - transient
+                    - rate_limited
+                    - permanent
+                    - validation
+                    - permission
+                    - provider_auth
+                    - unknown
+                    - lease_expired
+                    - null
+                  code:
+                    type:
+                    - string
+                    - 'null'
+                    minLength: 1
+                    maxLength: 120
+                    pattern: ^[a-z][a-z0-9_.-]{0,119}$
+              - type: 'null'
+            job:
+              description: Null only before verification is queued or for an expired unqueued intent.
+              oneOf:
+              - type: object
+                additionalProperties: false
+                required:
+                - attemptCount
+                - id
+                - maximumAttempts
+                - retryAt
+                properties:
+                  attemptCount:
+                    type: integer
+                    minimum: 0
+                  id:
+                    type: string
+                    format: uuid
+                  maximumAttempts:
+                    type: integer
+                    minimum: 1
+                    maximum: 32
+                  retryAt:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+              - type: 'null'
+            mediaKind:
+              enum:
+              - legal_document
+              - signed_document
+            retryable:
+              description: True only for a non-rejected upload whose active verification job is dead-letter.
+              type: boolean
+            status:
+              enum:
+              - awaiting_upload
+              - queued
+              - running
+              - retry_wait
+              - dead_letter
+              - rejected
+              - completed
+            uploadSessionId:
+              type: string
+              format: uuid
+    LegalOriginalVerificationRetryCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    LegalOriginalVerificationRetryEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - documentId
+          - job
+          - outboxEventId
+          - replayed
+          - sourceJobId
+          - uploadSessionId
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            documentId:
+              type: string
+              format: uuid
+            job:
+              type: object
+              additionalProperties: false
+              required:
+              - id
+              - status
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                status:
+                  $ref: '#/components/schemas/VinDecodeJobStatus'
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            sourceJobId:
+              type: string
+              format: uuid
+            uploadSessionId:
+              type: string
+              format: uuid
     MediaUploadIntentRequest:
       type: object
       additionalProperties: false
       required:
+      - byteSize
+      - checksumSha256
       - filename
-      - mime_type
-      - size_bytes
-      - media_type
+      - mimeType
       properties:
-        filename:
-          type: string
-        mime_type:
-          type: string
-        size_bytes:
+        byteSize:
           type: integer
           minimum: 1
-        media_type:
+          maximum: 20000000
+        checksumSha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        filename:
+          type: string
+          minimum: 1
+          maxLength: 255
+        mimeType:
           enum:
-          - vehicle_photo
-          - document
-          - signed_document
-          - attachment
-        checksum_sha256:
+          - image/jpeg
+          - image/png
+          - image/webp
+          - image/heic
+          - image/heif
+    MediaUploadIntent:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - collectionVersion
+          - mediaId
+          - outboxEventId
+          - replayed
+          - upload
+          - uploadSessionId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+            auditEventId:
+              type: string
+              format: uuid
+            collectionVersion:
+              type: integer
+              minimum: 1
+            mediaId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            upload:
+              type: object
+              additionalProperties: false
+              required:
+              - bucket
+              - expiresAt
+              - objectKey
+              - requiresAuthenticatedSession
+              properties:
+                bucket:
+                  const: media-private
+                expiresAt:
+                  type: string
+                  format: date-time
+                objectKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                requiresAuthenticatedSession:
+                  const: true
+            uploadSessionId:
+              type: string
+              format: uuid
+    MediaUploadVerificationCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - uploadSessionId
+      properties:
+        uploadSessionId:
+          type: string
+          format: uuid
+    MediaUploadVerificationEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - jobId
+          - jobStatus
+          - mediaId
+          - outboxEventId
+          - replayed
+          - uploadSessionId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+            auditEventId:
+              type: string
+              format: uuid
+            jobId:
+              type: string
+              format: uuid
+            jobStatus:
+              $ref: '#/components/schemas/VinDecodeJobStatus'
+            mediaId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            uploadSessionId:
+              type: string
+              format: uuid
+    MediaUploadStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - completedAt
+          - failure
+          - job
+          - mediaId
+          - retryable
+          - status
+          - uploadSessionId
+          properties:
+            completedAt:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            failure:
+              oneOf:
+              - type: object
+                additionalProperties: false
+                required:
+                - classification
+                - code
+                properties:
+                  classification:
+                    type:
+                    - string
+                    - 'null'
+                    enum:
+                    - transient
+                    - rate_limited
+                    - permanent
+                    - validation
+                    - permission
+                    - provider_auth
+                    - unknown
+                    - lease_expired
+                    - null
+                  code:
+                    type:
+                    - string
+                    - 'null'
+                    minLength: 1
+                    maxLength: 120
+                    pattern: ^[a-z][a-z0-9_.-]{0,119}$
+              - type: 'null'
+            job:
+              description: Null only before the first verification request.
+              oneOf:
+              - type: object
+                additionalProperties: false
+                required:
+                - attemptCount
+                - id
+                - maximumAttempts
+                - retryAt
+                properties:
+                  attemptCount:
+                    type: integer
+                    minimum: 0
+                  id:
+                    type: string
+                    format: uuid
+                  maximumAttempts:
+                    type: integer
+                    minimum: 1
+                    maximum: 32
+                  retryAt:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+              - type: 'null'
+            mediaId:
+              type: string
+              format: uuid
+            retryable:
+              description: True only while the exact active verification job is dead-letter and both the upload and media remain active.
+              type: boolean
+            status:
+              enum:
+              - awaiting_upload
+              - queued
+              - running
+              - retry_wait
+              - dead_letter
+              - rejected
+              - completed
+            uploadSessionId:
+              type: string
+              format: uuid
+    MediaUploadVerificationRetryCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    MediaUploadVerificationRetryEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - jobId
+          - jobStatus
+          - mediaId
+          - outboxEventId
+          - replayed
+          - sourceJobId
+          - uploadSessionId
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+            auditEventId:
+              type: string
+              format: uuid
+            jobId:
+              type: string
+              format: uuid
+            jobStatus:
+              $ref: '#/components/schemas/VinDecodeJobStatus'
+            mediaId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+            sourceJobId:
+              type: string
+              format: uuid
+            uploadSessionId:
+              type: string
+              format: uuid
+    VehicleMediaFile:
+      type: object
+      additionalProperties: false
+      required:
+      - byteSize
+      - checksumSha256
+      - createdAt
+      - fileClass
+      - height
+      - id
+      - metadataStripped
+      - mimeType
+      - processingRunId
+      - status
+      - variant
+      - width
+      properties:
+        byteSize:
+          type: integer
+          minimum: 1
+          maximum: 50000000
+        checksumSha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        createdAt:
+          type: string
+          format: date-time
+        fileClass:
+          enum:
+          - vehicle_photo_raw
+          - vehicle_photo_derivative
+        height:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+        id:
+          type: string
+          format: uuid
+        metadataStripped:
+          type: boolean
+        mimeType:
+          type: string
+          minLength: 3
+          maxLength: 120
+        processingRunId:
           type:
           - string
           - 'null'
-    MediaUploadIntent:
-      type: object
-      required:
-      - media_id
-      - upload_url
-      - expires_at
-      properties:
-        media_id:
-          type: string
           format: uuid
-        upload_url:
-          type: string
-          format: uri
-        headers:
-          type: object
-          additionalProperties:
-            type: string
-        expires_at:
+        status:
+          enum:
+          - available
+          - retired
+        variant:
+          enum:
+          - raw_original
+          - normalized_master
+          - website_1080
+          - thumbnail_640
+          - thumbnail_320
+        width:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+    VehicleMediaAsset:
+      type: object
+      additionalProperties: false
+      required:
+      - archivedAt
+      - caption
+      - collectionVersion
+      - createdAt
+      - files
+      - id
+      - inventoryUnitId
+      - isCover
+      - mediaVersion
+      - processingProfile
+      - sortOrder
+      - status
+      - updatedAt
+      properties:
+        archivedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        caption:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 500
+        collectionVersion:
+          type: integer
+          minimum: 1
+        createdAt:
           type: string
           format: date-time
+        files:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/VehicleMediaFile'
+        id:
+          type: string
+          format: uuid
+        inventoryUnitId:
+          type: string
+          format: uuid
+        isCover:
+          type: boolean
+        mediaVersion:
+          type: integer
+          minimum: 1
+        processingProfile:
+          type: object
+          additionalProperties: false
+          required:
+          - checksumSha256
+          - id
+          - version
+          properties:
+            checksumSha256:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            id:
+              type: string
+              format: uuid
+            version:
+              type: integer
+              minimum: 1
+        sortOrder:
+          type: integer
+          minimum: 0
+          maximum: 49
+        status:
+          enum:
+          - awaiting_upload
+          - quarantined
+          - processing
+          - ready
+          - failed
+          - archived
+        updatedAt:
+          type: string
+          format: date-time
+    VehicleMediaCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - collectionVersion
+          - inventoryUnitId
+          - items
+          properties:
+            collectionVersion:
+              type: integer
+              minimum: 1
+            inventoryUnitId:
+              type: string
+              format: uuid
+            items:
+              type: array
+              maxItems: 50
+              items:
+                $ref: '#/components/schemas/VehicleMediaAsset'
+    VehicleMediaAssetEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          $ref: '#/components/schemas/VehicleMediaAsset'
+    VehicleMediaCaptionCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - caption
+      - expectedVersion
+      properties:
+        caption:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 500
+        expectedVersion:
+          type: integer
+          minimum: 1
+    VehicleMediaCaptionEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - caption
+          - mediaId
+          - mediaVersion
+          - outboxEventId
+          - replayed
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            caption:
+              type:
+              - string
+              - 'null'
+              minLength: 1
+              maxLength: 500
+            mediaId:
+              type: string
+              format: uuid
+            mediaVersion:
+              type: integer
+              minimum: 1
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+    VehicleMediaArchiveCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedCollectionVersion
+      - expectedMediaVersion
+      - reason
+      properties:
+        expectedCollectionVersion:
+          type: integer
+          minimum: 1
+        expectedMediaVersion:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    VehicleMediaArchiveEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - collectionVersion
+          - inventoryUnitId
+          - mediaId
+          - mediaStatus
+          - mediaVersion
+          - outboxEventId
+          - promotedCoverMediaId
+          - replayed
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            collectionVersion:
+              type: integer
+              minimum: 1
+            inventoryUnitId:
+              type: string
+              format: uuid
+            mediaId:
+              type: string
+              format: uuid
+            mediaStatus:
+              const: archived
+            mediaVersion:
+              type: integer
+              minimum: 1
+            outboxEventId:
+              type: string
+              format: uuid
+            promotedCoverMediaId:
+              type:
+              - string
+              - 'null'
+              format: uuid
+            replayed:
+              type: boolean
+    MediaReprocessCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedVersion
+      - reason
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    MediaReorderCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedCollectionVersion
+      - orderedMediaIds
+      properties:
+        expectedCollectionVersion:
+          type: integer
+          minimum: 1
+        orderedMediaIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    MediaSetCoverCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expectedCollectionVersion
+      properties:
+        expectedCollectionVersion:
+          type: integer
+          minimum: 1
+    MediaReprocessEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - aggregateVersion
+          - auditEventId
+          - generation
+          - jobId
+          - mediaId
+          - mediaStatus
+          - outboxEventId
+          - processingRunId
+          - replayed
+          properties:
+            aggregateVersion:
+              type: integer
+              minimum: 1
+            auditEventId:
+              type: string
+              format: uuid
+            generation:
+              type: integer
+              minimum: 1
+            jobId:
+              type: string
+              format: uuid
+            mediaId:
+              type: string
+              format: uuid
+            mediaStatus:
+              const: quarantined
+            outboxEventId:
+              type: string
+              format: uuid
+            processingRunId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+    MediaReorderEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - collectionVersion
+          - inventoryUnitId
+          - outboxEventId
+          - replayed
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            collectionVersion:
+              type: integer
+              minimum: 1
+            inventoryUnitId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+    MediaSetCoverEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - collectionVersion
+          - coverMediaId
+          - inventoryUnitId
+          - outboxEventId
+          - replayed
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            collectionVersion:
+              type: integer
+              minimum: 1
+            coverMediaId:
+              type: string
+              format: uuid
+            inventoryUnitId:
+              type: string
+              format: uuid
+            outboxEventId:
+              type: string
+              format: uuid
+            replayed:
+              type: boolean
+    MediaDownloadGrantCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expiresInSeconds
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 30
+          maximum: 300
+    DocumentPreviewDownloadGrantCommand:
+      type: object
+      additionalProperties: false
+      required:
+      - expiresInSeconds
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 30
+          maximum: 300
+    DocumentPreviewDownloadGrantEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - artifactId
+          - auditEventId
+          - byteSize
+          - checksumSha256
+          - documentId
+          - download
+          - filename
+          - mimeType
+          - replayed
+          properties:
+            artifactId:
+              type: string
+              format: uuid
+            auditEventId:
+              type: string
+              format: uuid
+            byteSize:
+              type: integer
+              minimum: 1
+              maximum: 10000000
+            checksumSha256:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            documentId:
+              type: string
+              format: uuid
+            download:
+              type: object
+              additionalProperties: false
+              required:
+              - expiresAt
+              - url
+              properties:
+                expiresAt:
+                  type: string
+                  format: date-time
+                url:
+                  type: string
+                  format: uri
+            filename:
+              type: string
+              const: preview.html
+            mimeType:
+              type: string
+              const: text/html; charset=utf-8
+            replayed:
+              type: boolean
+    MediaDownloadGrantEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required:
+          - auditEventId
+          - byteSize
+          - checksumSha256
+          - download
+          - mediaFileId
+          - mediaKind
+          - mimeType
+          - replayed
+          properties:
+            auditEventId:
+              type: string
+              format: uuid
+            byteSize:
+              type: integer
+              minimum: 1
+              maximum: 50000000
+            checksumSha256:
+              type: string
+              pattern: ^[a-f0-9]{64}$
+            download:
+              type: object
+              additionalProperties: false
+              required:
+              - expiresAt
+              - url
+              properties:
+                expiresAt:
+                  type: string
+                  format: date-time
+                url:
+                  type: string
+                  format: uri
+            mediaFileId:
+              type: string
+              format: uuid
+            mediaKind:
+              enum:
+              - attachment
+              - legal_document
+              - signed_document
+              - vehicle_photo
+            mimeType:
+              type: string
+              minLength: 3
+              maxLength: 200
+            replayed:
+              type: boolean
     LeadCreate:
       type: object
       required:

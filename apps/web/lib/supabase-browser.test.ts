@@ -1,3 +1,4 @@
+// Stable test IDs: T-TEN-002, T-API-001.
 import { describe, expect, it } from "vitest";
 import { parsePublicSupabaseConfig } from "./supabase-browser";
 

@@ -11,6 +11,15 @@ Numbers never reused; official snapshots immutable; cross-workspace access denie
 ### Database/RLS
 Migrations, constraints, concurrent allocation, RLS per table, audit immutability, job locking, starter/tax pack installation, workspace-configuration import/activation.
 
+`pnpm test:stock-concurrency` is the `T-NUM-001` runtime gate. Against a
+disposable, migrated, synthetically seeded database it opens at least 100 real
+connections, commits simultaneous allocations, verifies unique contiguous
+persisted numbers, and proves a rolled-back transaction burns no number. It
+requires `SUPABASE_TEST_DATABASE_URL`; the workspace, actor, definition,
+currency, and connection count can be overridden with the documented
+`VYNLO_TEST_*` variables in the script. This destructive-to-test-data gate is
+never pointed at production.
+
 ### API
 OpenAPI request/response/error/idempotency and compatibility.
 
@@ -33,4 +42,4 @@ Platform tests contain no Drivven-specific terms or fixtures. Starter packs, tax
 
 ## Stable test IDs
 
-The required Release 1 test IDs and requirement mappings are in [`TEST_CASE_CATALOG.md`](TEST_CASE_CATALOG.md). CI reports these IDs so traceability survives test-file reorganization.
+The required Release 1 test IDs and requirement mappings are in [`TEST_CASE_CATALOG.md`](TEST_CASE_CATALOG.md). CI reports these IDs so traceability survives test-file reorganization. `scripts/validate_spec.py` rejects an automated test suite that omits stable test-ID metadata or cites an ID absent from the catalogue.

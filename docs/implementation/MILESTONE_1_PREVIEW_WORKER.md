@@ -46,7 +46,7 @@ The implementation adds:
 | Acceptance ID | Criterion | Evidence | Status |
 |---|---|---|---|
 | `M1-WORKER-AC-001` | Claims preserve workspace, correlation, attempt, lease, payload version, and stable idempotency context. | `PostgrestJobStore` mapping and contract tests. | Implemented. |
-| `M1-WORKER-AC-002` | Long handlers renew their lease without handler cooperation; renewals never overlap and stop before terminal job mutation. | Managed heartbeat plus long-handler, heartbeat-failure, in-flight-drain, and no-overlap tests. | Implemented. |
+| `M1-WORKER-AC-002` | Long handlers renew their lease without handler cooperation; each renewal has an abortable deadline before lease expiry, renewals never overlap, and they stop before terminal job mutation. | Managed heartbeat plus long-handler, stalled-heartbeat timeout, heartbeat-failure, in-flight-drain, and no-overlap tests. | Implemented. |
 | `M1-WORKER-AC-003` | Lost heartbeat aborts new handler I/O and becomes a classified transient failure without persisting transport details. | Handler `AbortSignal`, safe `worker.heartbeat_failed`, negative leakage test. | Implemented. |
 | `M1-WORKER-AC-004` | Preview jobs accept only payload schema 1 for the matching document entity and four minimized routing fields. | Exact-key parser and malformed/extra/mismatched payload tests. | Implemented. |
 | `M1-WORKER-AC-005` | Rendering is deterministic, escaped, watermarked, unnumbered, non-production, and free of executable/remote template content. | Renderer invariants, source checksum check, explicit placeholder allowlist, deterministic-output tests. | Implemented. |

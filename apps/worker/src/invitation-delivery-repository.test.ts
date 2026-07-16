@@ -1,3 +1,4 @@
+// Stable test IDs: T-AUTH-001, T-JOB-001, T-JOB-003.
 import { describe, expect, it, vi } from "vitest";
 
 import { PostgrestInvitationDeliveryRepository } from "./invitation-delivery-repository";

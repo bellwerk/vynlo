@@ -1,3 +1,4 @@
+// Stable test IDs: T-INV-001, T-DEAL-001, T-DOC-001, T-API-001.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { POST as createDeal } from "./deals/route";
@@ -8,6 +9,7 @@ import { POST as createParty } from "./parties/route";
 const workspaceId = "00000000-0000-4000-8000-000000000001";
 const correlationId = "00000000-0000-4000-8000-000000000002";
 const stockDefinitionId = "00000000-0000-4000-8000-000000000003";
+const locationId = "00000000-0000-4000-8000-000000000018";
 const inventoryUnitId = "00000000-0000-4000-8000-000000000004";
 const vehicleId = "00000000-0000-4000-8000-000000000005";
 const partyId = "00000000-0000-4000-8000-000000000006";
@@ -18,21 +20,44 @@ const templateVersionId = "00000000-0000-4000-8000-000000000010";
 const documentId = "00000000-0000-4000-8000-000000000011";
 const outboxEventId = "00000000-0000-4000-8000-000000000012";
 const jobId = "00000000-0000-4000-8000-000000000013";
+const vinDecodeRequestId = "00000000-0000-4000-8000-000000000014";
+const vinDecodeResultId = "00000000-0000-4000-8000-000000000015";
+const vinInventoryIntakeId = "00000000-0000-4000-8000-000000000016";
+const auditEventId = "00000000-0000-4000-8000-000000000017";
 const userAccessToken = "user-header.user-payload.user-signature";
 const publicProjectKey = "sb_publishable_public_project_key_material_0001";
 const serviceRoleSecret = "server-service-role-must-never-be-used";
 
 const inventoryBody = Object.freeze({
-  acquisitionDate: null,
-  advertisedPriceMinor: 1_250_000,
-  currencyCode: "CAD",
-  make: "Toyota",
-  model: "Corolla",
-  modelYear: 2025,
-  odometer: { unit: "km", value: 150 },
-  publicNotes: null,
-  stockNumberDefinitionId: stockDefinitionId,
-  vin: "1HGCM82633A004352",
+  conditionKey: "used.ready",
+  confirmation: {
+    accepted: true,
+    expectedRequestVersion: 4,
+    vinDecodeResultId,
+  },
+  inventory: {
+    acquisitionDate: null,
+    advertisedPriceMinor: "1250000",
+    currencyCode: "CAD",
+    odometer: { unit: "km", value: 150 },
+    publicNotes: null,
+  },
+  locationId,
+  stockDefinitionId,
+  vehicleFacts: {
+    bodyType: "Sedan/Saloon",
+    cylinders: 4,
+    drivetrain: "4x2",
+    engineLiters: "2.4",
+    fuelType: "Gasoline",
+    horsepower: 160,
+    make: "Toyota",
+    model: "Corolla",
+    modelYear: 2025,
+    transmission: "Automatic",
+    trimName: "LE",
+  },
+  vinDecodeRequestId,
 });
 
 const partyBody = Object.freeze({
@@ -100,10 +125,16 @@ describe("authenticated vertical-slice routes", () => {
     const fetchImplementation = vi.fn<typeof fetch>(async () =>
       Response.json([
         {
+          audit_event_id: auditEventId,
           inventory_unit_id: inventoryUnitId,
+          linked_existing_open_unit: false,
+          outbox_event_id: outboxEventId,
           replayed: false,
           stock_number: "V0001",
           vehicle_id: vehicleId,
+          vin_decode_request_id: vinDecodeRequestId,
+          vin_decode_request_version: 5,
+          vin_inventory_intake_id: vinInventoryIntakeId,
         },
       ]),
     );
@@ -116,21 +147,36 @@ describe("authenticated vertical-slice routes", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
       data: {
+        auditEventId,
         inventoryUnitId,
+        linkedExistingOpenUnit: false,
+        outboxEventId,
         replayed: false,
         stockNumber: "V0001",
         vehicleId,
+        vinDecodeRequestId,
+        vinDecodeRequestVersion: 5,
+        vinInventoryIntakeId,
       },
     });
     expect(response.headers.get("x-request-id")).toBe("request-0001");
     expect(response.headers.get("x-correlation-id")).toBe(correlationId);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(
-      assertForwardedRequest(fetchImplementation, "create_inventory_unit"),
+      assertForwardedRequest(
+        fetchImplementation,
+        "create_inventory_unit_from_vin_decode",
+      ),
     ).toMatchObject({
       p_correlation_id: correlationId,
+      p_condition_key: "used.ready",
+      p_expected_request_version: 4,
+      p_facts_confirmed: true,
       p_idempotency_key: "command-key-0001",
+      p_location_id: locationId,
       p_stock_definition_id: stockDefinitionId,
+      p_vin_decode_request_id: vinDecodeRequestId,
+      p_vin_decode_result_id: vinDecodeResultId,
       p_workspace_id: workspaceId,
     });
   });

@@ -38,7 +38,7 @@ outside this source integration.
 | 10. Deal | The deal draft links the selected party and inventory through composite workspace foreign keys while deriving owner membership from the authenticated identity. | `/api/v1/deals`, deals package and `create_deal_draft` | `M1-SLICE-AC-005`, `T-DEAL-001`, `T-TEN-001` |
 | 11. Preview transaction | The preview command stores the immutable watermarked, unnumbered render snapshot and atomically creates the `documents.render_preview` outbox event/job and immutable mapping. | `/api/v1/documents/preview`, preview pipeline migration, OpenAPI, pgTAP | `M1-SLICE-AC-006` to `M1-SLICE-AC-009`, `M1-DOC-AC-006` to `M1-DOC-AC-010`, `T-DOC-001`, `T-DOC-JOB-001` to `T-DOC-JOB-006` |
 | 12. Render/store | The durable worker claims with lease fencing, reloads and validates immutable source, escapes an allowlisted template, applies the non-production watermark, and uploads deterministic HTML to private Storage with create-only semantics. | Preview worker renderer, storage adapter, job runner, and tests | `M1-WORKER-AC-001` to `M1-WORKER-AC-006`, `T-JOB-002`, `T-JOB-003` |
-| 13. Complete/read | The artifact RPC requires the matching current worker ID and lease token, then records checksum/media/bytes/path before generic job success. The browser can request a 60-second signed URL only for a Storage object exactly matching an artifact row visible through workspace/requester RLS. | Preview artifact migration/RLS, worker repository, operations signed-read action | `M1-DOC-AC-011` to `M1-DOC-AC-013`, `M1-WORKER-AC-007`, `M1-WORKER-AC-008`, `T-DOC-JOB-006` to `T-DOC-JOB-010`, `T-TEN-003` |
+| 13. Complete/read | The artifact RPC requires the matching current worker ID and lease token, then records checksum/media/bytes/path before generic job success. The browser sees only safe artifact identity; an audited user authorization plus service-only metadata load verifies exact bytes before a short URL is signed. | Preview artifact/authorization migrations, verified server grant adapter, operations action | `M1-DOC-AC-011` to `M1-DOC-AC-013`, `M1-WORKER-AC-007`, `M1-WORKER-AC-008`, `T-DOC-JOB-006` to `T-DOC-JOB-010`, `T-TEN-003` |
 
 ## HTTP authority and response contract
 
@@ -82,7 +82,7 @@ database/provider detail.
 | Create deal | `deals.create`, `crm.read`, `inventory.read` | `deal.created` |
 | Request preview | `documents.preview`, `deals.read`, `crm.read`, `inventory.read` | `document.preview_requested`, `job.queued`, `document.preview_job_queued` |
 | Complete preview | Service role plus matching current worker ID and active job lease token | `document.preview_generated`, `document.preview_artifact_recorded`, `job.succeeded` |
-| Read artifact | `documents.read`, or requester plus `documents.preview`; exact Storage bucket/path policy match | Storage access is operational evidence; immutable artifact/audit rows remain authoritative |
+| Read artifact | `documents.read`, or requester plus `documents.preview`; audited server authorization; bounded size/checksum/MIME verification | Browser receives no provider coordinates; immutable artifact/authorization/audit rows remain authoritative |
 
 Every persisted domain/job/file row preserves `workspace_id`; cross-workspace
 links use composite foreign keys where applicable. Browser roles receive

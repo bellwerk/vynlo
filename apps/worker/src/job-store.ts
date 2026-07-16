@@ -48,6 +48,7 @@ export interface HeartbeatJobInput {
   readonly extendSeconds: number;
   readonly jobId: string;
   readonly leaseToken: string;
+  readonly signal?: AbortSignal | undefined;
   readonly workerId: string;
 }
 
@@ -129,7 +130,11 @@ export class PostgrestJobStore implements DurableJobStore {
     this.#supabaseUrl = validateSupabaseUrl(options.supabaseUrl);
   }
 
-  async #rpc(functionName: string, body: Record<string, unknown>) {
+  async #rpc(
+    functionName: string,
+    body: Record<string, unknown>,
+    signal?: AbortSignal,
+  ) {
     const response = await this.#fetch(
       `${this.#supabaseUrl}/rest/v1/rpc/${functionName}`,
       {
@@ -141,6 +146,7 @@ export class PostgrestJobStore implements DurableJobStore {
           "Content-Type": "application/json",
         },
         method: "POST",
+        ...(signal === undefined ? {} : { signal }),
       },
     );
 
@@ -218,12 +224,16 @@ export class PostgrestJobStore implements DurableJobStore {
   }
 
   async heartbeatJob(input: HeartbeatJobInput): Promise<string> {
-    const value = await this.#rpc("heartbeat_job", {
-      p_extend_seconds: input.extendSeconds,
-      p_job_id: input.jobId,
-      p_lease_token: input.leaseToken,
-      p_worker_id: input.workerId,
-    });
+    const value = await this.#rpc(
+      "heartbeat_job",
+      {
+        p_extend_seconds: input.extendSeconds,
+        p_job_id: input.jobId,
+        p_lease_token: input.leaseToken,
+        p_worker_id: input.workerId,
+      },
+      input.signal,
+    );
     return requireString(value, "heartbeat_response");
   }
 

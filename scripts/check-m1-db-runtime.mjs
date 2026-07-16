@@ -109,7 +109,7 @@ const expected = {
   profile_count: 4,
   membership_count: 4,
   active_membership_count: 3,
-  platform_permission_count: 75,
+  platform_permission_count: 79,
   forced_rls_table_count: 11,
 };
 
@@ -122,5 +122,5 @@ for (const [key, expectedValue] of Object.entries(expected)) {
 }
 
 console.log(
-  "milestone1_supabase_runtime: pass (idempotent reseed, 2 isolated workspaces, 75 permissions, 11 forced-RLS tables)",
+  "milestone1_supabase_runtime: pass (idempotent reseed, 2 isolated workspaces, 79 permissions, 11 forced-RLS tables)",
 );

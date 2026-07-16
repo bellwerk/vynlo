@@ -32,6 +32,16 @@
 - [Invitation-delivery worker](implementation/MILESTONE_1_INVITATION_DELIVERY_WORKER.md)
 - [PWA and localization shell](implementation/MILESTONE_1_PWA_SHELL.md)
 
+## Milestone 2 delivery records
+
+- [Inventory and workflow database foundation](implementation/MILESTONE_2_INVENTORY_WORKFLOW_FOUNDATION.md)
+- [Durable VIN pipeline](implementation/MILESTONE_2_VIN_PIPELINE.md)
+- [Inventory cost and search slice](implementation/MILESTONE_2_COST_SEARCH.md)
+- [Media and managed-storage pipeline](implementation/MILESTONE_2_MEDIA_PIPELINE.md)
+- [VIN-backed inventory intake](implementation/MILESTONE_2_VIN_INVENTORY_INTAKE.md)
+- [Inventory operations](implementation/MILESTONE_2_INVENTORY_OPERATIONS.md)
+- [Vehicle media management](implementation/MILESTONE_2_VEHICLE_MEDIA_MANAGEMENT.md)
+
 ## Governance
 
 - `01_GLOSSARY.md`

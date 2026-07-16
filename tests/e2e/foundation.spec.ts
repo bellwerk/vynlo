@@ -1,3 +1,4 @@
+// Stable test IDs: T-UX-001, T-UX-002, T-I18N-001, T-PWA-001.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 

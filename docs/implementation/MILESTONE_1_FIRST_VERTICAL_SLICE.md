@@ -186,9 +186,12 @@ schema presence, forced RLS, raw-write denial, permissions/MFA, cross-workspace
 denial, composite ownership, idempotency, uniqueness, append-only history,
 audit, preview safety, and a 100-allocation contention probe.
 
-The contention probe exercises the locked allocator 100 times in one database
-session. A true parallel multi-connection test is still required to fully close
-`T-NUM-001`.
+The pgTAP contention probe exercises the locked allocator 100 times in one
+database session. `scripts/check-stock-allocation-concurrency.mjs` is the
+separate `T-NUM-001` runtime gate: it opens at least 100 real connections,
+commits simultaneous allocations, checks persisted uniqueness/contiguity, and
+proves rollback does not burn a number. It must be run against disposable local
+and staging databases because the successful allocations are permanent.
 
 ## Explicit follow-ups
 
@@ -200,9 +203,8 @@ remaining work is:
    Supabase/Auth/Storage and retain exact-head runtime evidence.
 2. Add a real persisted draft-before-confirmation flow if product UX needs one;
    verify abandoned drafts consume no number (`T-NUM-002`).
-3. Run at least 100 genuinely parallel allocation transactions against local
-   and staging Postgres, then verify uniqueness, monotonicity, rollback gaps,
-   lock latency, and deadlock behavior (`T-NUM-001`).
+3. Run the committed `pnpm test:stock-concurrency` gate against local and
+   staging Postgres and retain its JSON evidence (`T-NUM-001`).
 4. Add controlled VIN duplicate/reacquisition review, provider decode snapshot,
    manual override permission/reason/audit, inventory lifecycle commands, and
    optimistic concurrency.

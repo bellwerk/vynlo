@@ -1,6 +1,6 @@
 schema_version: '1.0'
 workflow:
-  key: inventory_standard
+  key: inventory.standard
   entity_type: inventory_unit
   version: 1.0.0
   initial_state: draft
@@ -12,7 +12,9 @@ workflow:
       fr: Brouillon
     flags:
       publishable: false
+      available: false
       terminal: false
+    order: 10
   - key: incomplete
     category: draft
     labels:
@@ -20,7 +22,9 @@ workflow:
       fr: Incomplet
     flags:
       publishable: false
+      available: false
       terminal: false
+    order: 20
   - key: in_preparation
     category: active
     labels:
@@ -28,7 +32,9 @@ workflow:
       fr: En préparation
     flags:
       publishable: false
+      available: false
       terminal: false
+    order: 30
   - key: ready
     category: active
     labels:
@@ -36,7 +42,9 @@ workflow:
       fr: Prêt
     flags:
       publishable: true
+      available: true
       terminal: false
+    order: 40
   - key: listed
     category: active
     labels:
@@ -44,7 +52,9 @@ workflow:
       fr: Publié
     flags:
       publishable: true
+      available: true
       terminal: false
+    order: 50
   - key: pending_sale
     category: pending
     labels:
@@ -52,7 +62,9 @@ workflow:
       fr: Vente en attente
     flags:
       publishable: false
+      available: false
       terminal: false
+    order: 60
   - key: sold
     category: closed
     labels:
@@ -60,7 +72,9 @@ workflow:
       fr: Vendu
     flags:
       publishable: false
+      available: false
       terminal: true
+    order: 70
   - key: wholesale
     category: closed
     labels:
@@ -68,7 +82,9 @@ workflow:
       fr: Vente en gros
     flags:
       publishable: false
+      available: false
       terminal: true
+    order: 80
   - key: archived
     category: archived
     labels:
@@ -76,7 +92,9 @@ workflow:
       fr: Archivé
     flags:
       publishable: false
+      available: false
       terminal: true
+    order: 90
   transitions:
   - from: draft
     to: incomplete
@@ -95,15 +113,22 @@ workflow:
   - from: in_preparation
     to: ready
     permission: inventory.update
+    guard: required_fields_complete
     key: in_preparation__ready
+    effects:
+    - listing.refresh
   - from: ready
     to: listed
     permission: listings.publish
     key: ready__listed
+    effects:
+    - listing.publish
   - from: listed
     to: ready
     permission: listings.unpublish
     key: listed__ready
+    effects:
+    - listing.unpublish
   - from: ready
     to: pending_sale
     permission: deals.update
@@ -112,36 +137,66 @@ workflow:
     to: pending_sale
     permission: deals.update
     key: listed__pending_sale
+    effects:
+    - listing.unpublish
   - from: pending_sale
     to: ready
     permission: deals.update
     key: pending_sale__ready
+    reason_required: true
+    effects:
+    - listing.refresh
   - from: pending_sale
     to: sold
     permission: deals.close
     guard: sale_completion_requirements_met
     key: pending_sale__sold
+    effects:
+    - listing.unpublish
+    - media.retention_review
   - from: ready
     to: wholesale
     permission: deals.close
     key: ready__wholesale
+    reason_required: true
+    effects:
+    - listing.unpublish
+    - media.retention_review
   - from: listed
     to: wholesale
     permission: deals.close
     key: listed__wholesale
+    reason_required: true
+    effects:
+    - listing.unpublish
+    - media.retention_review
   - from: draft
     to: archived
     permission: inventory.archive
     key: draft__archived
+    reason_required: true
+    effects:
+    - media.retention_review
   - from: incomplete
     to: archived
     permission: inventory.archive
     key: incomplete__archived
+    reason_required: true
+    effects:
+    - media.retention_review
   - from: in_preparation
     to: archived
     permission: inventory.archive
     key: in_preparation__archived
+    reason_required: true
+    effects:
+    - listing.unpublish
+    - media.retention_review
   - from: ready
     to: archived
     permission: inventory.archive
     key: ready__archived
+    reason_required: true
+    effects:
+    - listing.unpublish
+    - media.retention_review

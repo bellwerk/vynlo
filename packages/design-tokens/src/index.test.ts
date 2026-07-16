@@ -1,3 +1,4 @@
+// Stable test IDs: T-UX-002.
 import { describe, expect, it } from "vitest";
 import { foundationTokens } from "./index";
 

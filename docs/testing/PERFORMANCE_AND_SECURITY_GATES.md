@@ -7,7 +7,10 @@
 - No unbounded list endpoint.
 - Upload/render/export jobs tested under configured concurrency.
 - Job backlog recovers after provider outage.
-- 100 concurrent stock/document allocations remain unique.
+- `pnpm test:stock-concurrency` passes against local and staging with at least
+  100 real connections; stock allocations remain unique and contiguous and a
+  rollback burns no number. Document-number concurrency is repeated when the
+  official numbering engine enters Milestone 4.
 - Mobile pages meet agreed useful-content and interaction targets.
 - PDF/media worker memory and timeout limits verified against maximum files.
 

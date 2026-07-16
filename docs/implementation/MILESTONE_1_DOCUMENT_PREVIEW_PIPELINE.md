@@ -18,7 +18,7 @@ vertical slice. It remains tenant-neutral and implements `M1-DOC-REQ-002`,
 | `M1-DOC-AC-010` | Base preview request and completion RPC grants are revoked after wrappers are installed | `T-DOC-JOB-001`, `T-DOC-JOB-007` |
 | `M1-DOC-AC-011` | Service completion accepts only the worker HTML contract and an active durable-job lease | `T-DOC-JOB-007`, `T-DOC-JOB-009` |
 | `M1-DOC-AC-012` | Forced-RLS append-only artifact provenance records storage, checksum, media, bytes, and renderer | `T-DOC-JOB-006`, `T-DOC-JOB-007`, `T-DOC-JOB-010` |
-| `M1-DOC-AC-013` | Authenticated storage reads require an exact visible artifact bucket/path match | `T-DOC-JOB-006` storage policy and grant assertions |
+| `M1-DOC-AC-013` | A user authorizes one visible artifact without receiving provider coordinates; the server resolves the authorization, verifies immutable bytes, and issues a short grant | `T-DOC-JOB-006` authorization, privilege, drift, and route assertions |
 
 ## Transaction and API contracts
 
@@ -102,18 +102,25 @@ attempt lifecycle remains authoritative.
 
 ## Authorization, RLS, and storage
 
-Both pipeline tables explicitly enable and force RLS. An authenticated user may
-read a row with `documents.read`, or their own requested row with
-`documents.preview`. Cross-workspace rows remain hidden. Browser and service
-roles have no direct insert, update, or delete access; all rows are append-only
-even for trusted database roles.
+All pipeline and authorization tables explicitly enable and force RLS. An
+authenticated user may read only the safe artifact columns with
+`documents.read`, or their own requested row with `documents.preview`.
+`storage_bucket` and `storage_object_path` have no authenticated column grant,
+cross-workspace rows remain hidden, and `storage.objects` has no authenticated
+read privilege or read policy. Browser and service roles have no direct artifact
+or authorization mutation access; provenance is append-only even for trusted
+database roles.
 
-`storage.objects` receives one authenticated `SELECT` policy. It permits a row
-only when `(bucket_id, name)` exactly matches a `document_preview_artifacts` row
-already visible through that table's workspace/requester RLS. Authenticated
-storage insert, update, and delete privileges are revoked. This is sufficient
-for the client storage API to request short-lived signed reads without exposing
-a service-role route or allowing arbitrary bucket listing.
+The browser calls
+`POST /api/v1/document-preview-artifacts/{id}/download-grants`. The
+authenticated RPC validates visibility and idempotency, appends
+`document_preview.download_authorized`, and returns public artifact provenance
+plus an opaque authorization reference only to the server application layer.
+A service-role-only loader resolves the exact bucket/path for that unexpired
+authorization. The server reads the object with bounded streaming, verifies its
+byte count, SHA-256 checksum, and HTML MIME, and only then requests a 30-to-300
+second signed URL. Neither provider coordinates, the service credential, nor the
+opaque authorization ID is returned in the public response.
 
 The deployment must create the worker-configured bucket as private. The database
 validates its identifier and the deterministic object path, while the worker's
@@ -142,25 +149,27 @@ evidence that the public wrapper completed the enqueue in the same transaction.
 
 ## Migration and verification notes
 
-The change is forward-only in
-`supabase/migrations/20260716130000_document_preview_pipeline.sql`. It adds two
-tables, two wrappers, one deterministic-path helper, append-only triggers, RLS
-policies, a storage read policy, and narrower function/table grants. It does not
-rewrite existing preview documents. A legacy queued preview created before this
-migration can acquire its mapping and job on its first wrapper replay; a legacy
-terminal preview cannot be re-enqueued.
+The pipeline is forward-only in
+`supabase/migrations/20260716130000_document_preview_pipeline.sql`. The later
+domain-hardening migration removes the non-expiring authenticated Storage read
+policy, and
+`supabase/migrations/20260716270000_document_preview_download_authorization.sql`
+adds append-only authorization provenance, safe artifact column grants, the
+audited user RPC, and the service-only metadata loader. Existing immutable
+preview artifacts are not rewritten.
 
-`supabase/tests/005_document_preview_pipeline.test.sql` contains 54 pgTAP
-assertions covering schema, grants, forced RLS, MFA/permission/tenant denial,
-atomic rollback, exact payload safety, idempotency conflicts, job claim state,
-stale worker/lease rejection, deterministic artifact validation, audit events,
-immutable history, storage authorization, and cross-workspace visibility.
+`supabase/tests/005_document_preview_pipeline.test.sql` covers schema, forced
+RLS, atomic enqueue, lease fencing, deterministic artifact validation, audit,
+and cross-workspace visibility.
+`supabase/tests/017_document_preview_download_authorization.test.sql` adds the
+safe-column, no-direct-Storage, idempotency, append-only, audit, tenant-isolation,
+and service-only resolution checks. Application, adapter, and route tests also
+prove that malformed requests stop before I/O and provider drift stops signing.
 
 Validated locally without a database runtime:
 
 - the complete migration chain and pgTAP file parse with `pglast`;
-- `pnpm check:supabase` passes with 33 forced-RLS tables and 364 total pgTAP
-  assertions.
+- `pnpm check:supabase` passes for the complete current migration and pgTAP set.
 
 Runtime pgTAP still requires the local Supabase/PostgreSQL stack. Rollback is a
 new corrective migration; do not delete populated mapping or artifact history.

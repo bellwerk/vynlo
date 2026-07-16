@@ -26,6 +26,11 @@ export interface JobRunnerLogger {
   info(message: string, context?: Readonly<Record<string, unknown>>): void;
 }
 
+export interface JobExecutionLane {
+  readonly jobTypes: readonly string[];
+  readonly maximumConcurrency: number;
+}
+
 type PersistedFailureClassification = Exclude<
   JobErrorClassification,
   "lease_expired"
@@ -36,8 +41,9 @@ const unsafeFailureDetail =
 
 class ManagedLeaseHeartbeat {
   readonly #abortController: AbortController;
-  readonly #heartbeat: () => Promise<string>;
+  readonly #heartbeat: (signal: AbortSignal) => Promise<string>;
   readonly #intervalMs: number;
+  readonly #timeoutMs: number;
   #failure: JobExecutionError | undefined;
   readonly #failurePromise: Promise<never>;
   #inFlight: Promise<void> | undefined;
@@ -47,12 +53,14 @@ class ManagedLeaseHeartbeat {
 
   constructor(input: {
     readonly abortController: AbortController;
-    readonly heartbeat: () => Promise<string>;
+    readonly heartbeat: (signal: AbortSignal) => Promise<string>;
     readonly intervalMs: number;
+    readonly timeoutMs: number;
   }) {
     this.#abortController = input.abortController;
     this.#heartbeat = input.heartbeat;
     this.#intervalMs = input.intervalMs;
+    this.#timeoutMs = input.timeoutMs;
     this.#failurePromise = new Promise<never>((_resolve, reject) => {
       this.#rejectFailure = reject;
     });
@@ -89,8 +97,19 @@ class ManagedLeaseHeartbeat {
   }
 
   async #runOnce(): Promise<void> {
+    const timeoutController = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      await this.#heartbeat();
+      await Promise.race([
+        this.#heartbeat(timeoutController.signal),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            const timeoutError = new Error("heartbeat_timeout");
+            timeoutController.abort(timeoutError);
+            reject(timeoutError);
+          }, this.#timeoutMs);
+        }),
+      ]);
     } catch {
       const failure = new JobExecutionError({
         classification: "transient",
@@ -101,6 +120,7 @@ class ManagedLeaseHeartbeat {
       this.#abortController.abort(failure);
       this.#rejectFailure(failure);
     } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
       this.#inFlight = undefined;
       this.#schedule();
     }
@@ -142,8 +162,11 @@ export class JobExecutionError extends Error {
 }
 
 export class DurableJobRunner {
+  readonly #executionLanes: readonly JobExecutionLane[];
   readonly #handlers: ReadonlyMap<string, JobHandler>;
   readonly #heartbeatIntervalMs: number;
+  readonly #heartbeatTimeoutMs: number;
+  readonly #handlerSettlementGraceMs: number;
   readonly #leaseSeconds: number;
   readonly #logger: JobRunnerLogger;
   readonly #store: DurableJobStore;
@@ -151,7 +174,10 @@ export class DurableJobRunner {
 
   constructor(input: {
     readonly handlers: ReadonlyMap<string, JobHandler>;
+    readonly executionLanes?: readonly JobExecutionLane[];
     readonly heartbeatIntervalMs?: number;
+    readonly heartbeatTimeoutMs?: number;
+    readonly handlerSettlementGraceMs?: number;
     readonly leaseSeconds?: number;
     readonly logger: JobRunnerLogger;
     readonly store: DurableJobStore;
@@ -179,8 +205,64 @@ export class DurableJobRunner {
         "heartbeatIntervalMs must be from 100ms through half of the lease.",
       );
     }
+    const handlerSettlementGraceMs = input.handlerSettlementGraceMs ?? 5_000;
+    if (
+      !Number.isInteger(handlerSettlementGraceMs) ||
+      handlerSettlementGraceMs < 100 ||
+      handlerSettlementGraceMs > 30_000
+    ) {
+      throw new RangeError(
+        "handlerSettlementGraceMs must be from 100ms through 30000ms.",
+      );
+    }
+    const maximumHeartbeatTimeoutMs =
+      leaseSeconds * 1_000 - heartbeatIntervalMs - 100;
+    const heartbeatTimeoutMs =
+      input.heartbeatTimeoutMs ??
+      Math.min(5_000, Math.max(100, Math.floor(heartbeatIntervalMs / 2)));
+    if (
+      !Number.isInteger(heartbeatTimeoutMs) ||
+      heartbeatTimeoutMs < 100 ||
+      heartbeatTimeoutMs > maximumHeartbeatTimeoutMs
+    ) {
+      throw new RangeError(
+        "heartbeatTimeoutMs must be at least 100ms and expire before the lease.",
+      );
+    }
     this.#handlers = input.handlers;
+    const executionLanes = input.executionLanes ?? [
+      {
+        jobTypes: [...input.handlers.keys()],
+        maximumConcurrency: 100,
+      },
+    ];
+    const laneJobTypes = executionLanes.flatMap((lane) => [...lane.jobTypes]);
+    if (
+      executionLanes.length < 1 ||
+      executionLanes.some(
+        (lane) =>
+          (input.executionLanes !== undefined && lane.jobTypes.length < 1) ||
+          !Number.isInteger(lane.maximumConcurrency) ||
+          lane.maximumConcurrency < 1 ||
+          lane.maximumConcurrency > 100,
+      ) ||
+      new Set(laneJobTypes).size !== laneJobTypes.length ||
+      laneJobTypes.some((jobType) => !input.handlers.has(jobType)) ||
+      [...input.handlers.keys()].some(
+        (jobType) => !laneJobTypes.includes(jobType),
+      )
+    ) {
+      throw new TypeError(
+        "Execution lanes must cover each registered job type exactly once.",
+      );
+    }
+    this.#executionLanes = executionLanes.map((lane) => ({
+      jobTypes: Object.freeze([...lane.jobTypes]),
+      maximumConcurrency: lane.maximumConcurrency,
+    }));
     this.#heartbeatIntervalMs = heartbeatIntervalMs;
+    this.#heartbeatTimeoutMs = heartbeatTimeoutMs;
+    this.#handlerSettlementGraceMs = handlerSettlementGraceMs;
     this.#leaseSeconds = leaseSeconds;
     this.#logger = input.logger;
     this.#store = input.store;
@@ -192,12 +274,19 @@ export class DurableJobRunner {
     if (reclaimedCount > 0) {
       this.#logger.info("expired job leases reclaimed", { reclaimedCount });
     }
-    const jobs = await this.#store.claimJobs({
-      jobTypes: [...this.#handlers.keys()],
-      leaseSeconds: this.#leaseSeconds,
-      limit,
-      workerId: this.#workerId,
-    });
+    const jobs: ClaimedJob[] = [];
+    let remaining = limit;
+    for (const lane of this.#executionLanes) {
+      if (remaining < 1) break;
+      const claimed = await this.#store.claimJobs({
+        jobTypes: [...lane.jobTypes],
+        leaseSeconds: this.#leaseSeconds,
+        limit: Math.min(remaining, lane.maximumConcurrency),
+        workerId: this.#workerId,
+      });
+      jobs.push(...claimed);
+      remaining -= claimed.length;
+    }
 
     await Promise.all(jobs.map((job) => this.#runJob(job)));
     return jobs.length;
@@ -227,14 +316,16 @@ export class DurableJobRunner {
     const abortController = new AbortController();
     const heartbeat = new ManagedLeaseHeartbeat({
       abortController,
-      heartbeat: () =>
+      heartbeat: (signal) =>
         this.#store.heartbeatJob({
           extendSeconds: this.#leaseSeconds,
           jobId: job.jobId,
           leaseToken: job.leaseToken,
+          signal,
           workerId: this.#workerId,
         }),
       intervalMs: this.#heartbeatIntervalMs,
+      timeoutMs: this.#heartbeatTimeoutMs,
     });
     const handlerPromise = Promise.resolve().then(() =>
       handler(job, { signal: abortController.signal }),
@@ -274,7 +365,26 @@ export class DurableJobRunner {
       } catch (heartbeatError) {
         effectiveError = heartbeatError;
       }
-      await handlerPromise.catch(() => undefined);
+      let settlementTimer: ReturnType<typeof setTimeout> | undefined;
+      const handlerSettled = await Promise.race([
+        handlerPromise.then(
+          () => true,
+          () => true,
+        ),
+        new Promise<false>((resolve) => {
+          settlementTimer = setTimeout(
+            () => resolve(false),
+            this.#handlerSettlementGraceMs,
+          );
+        }),
+      ]);
+      if (settlementTimer !== undefined) clearTimeout(settlementTimer);
+      if (!handlerSettled) {
+        this.#logger.info("job handler ignored cancellation grace period", {
+          ...logContext,
+          gracePeriodMs: this.#handlerSettlementGraceMs,
+        });
+      }
 
       const failure =
         effectiveError instanceof JobExecutionError

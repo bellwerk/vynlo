@@ -172,6 +172,126 @@ def check_workflows(root: Path) -> Result:
     return Result("workflow_reference_integrity", "pass" if not errors else "fail", errors)
 
 
+def check_starter_inventory_seed_binding(root: Path) -> Result:
+    """Prove the synthetic runtime seed matches the shipped inventory workflow."""
+    errors: list[str] = []
+    artifact_path = root / "packs/starter-retail-dealer/workflows/inventory.yaml"
+    seed_path = root / "supabase/seed.sql"
+    artifact = load(artifact_path)
+    workflow = artifact.get("workflow", {})
+    seed = seed_path.read_text(encoding="utf-8")
+    digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+
+    definition_region = seed.partition("insert into public.workflow_definitions")[2].partition(
+        "insert into public.workflow_versions"
+    )[0]
+    version_region = seed.partition("insert into public.workflow_versions")[2].partition(
+        "with version_fixture"
+    )[0]
+    if not definition_region or not version_region:
+        errors.append("supabase/seed.sql: starter inventory workflow fixture is missing")
+        return Result("starter_inventory_seed_binding", "fail", errors)
+
+    workflow_key = workflow.get("key")
+    workflow_version = workflow.get("version")
+    initial_state = workflow.get("initial_state")
+    if definition_region.count(f"'{workflow_key}'") != 2:
+        errors.append("supabase/seed.sql: starter inventory workflow key is not bound in both workspaces")
+    if version_region.count(f"'{workflow_version}'") < 2:
+        errors.append("supabase/seed.sql: starter inventory workflow version is not bound in both workspaces")
+    if version_region.count(f"'{initial_state}'") < 2:
+        errors.append("supabase/seed.sql: starter inventory initial state drifted")
+    if version_region.count(f"'{digest}'") != 2:
+        errors.append(
+            "supabase/seed.sql: starter inventory checksum does not match exact artifact bytes"
+        )
+
+    state_region = seed.partition("state_fixture(")[2].partition(
+        "insert into public.workflow_states"
+    )[0]
+    state_pattern = re.compile(
+        r"\(\s*'((?:''|[^'])*)'\s*,\s*'((?:''|[^'])*)'\s*,\s*"
+        r"'((?:''|[^'])*)'\s*,\s*'((?:''|[^'])*)'\s*,\s*"
+        r"(true|false)\s*,\s*(true|false)\s*,\s*(true|false)\s*,\s*(\d+)\s*\)",
+        re.IGNORECASE,
+    )
+    seeded_states = {
+        (
+            match.group(1).replace("''", "'"),
+            match.group(2).replace("''", "'"),
+            match.group(3).replace("''", "'"),
+            match.group(4).replace("''", "'"),
+            match.group(5).lower() == "true",
+            match.group(6).lower() == "true",
+            match.group(7).lower() == "true",
+            int(match.group(8)),
+        )
+        for match in state_pattern.finditer(state_region)
+    }
+    artifact_states = {
+        (
+            state["key"],
+            state["category"],
+            state["labels"]["en"],
+            state["labels"]["fr"],
+            bool(state["flags"].get("publishable", False)),
+            bool(state["flags"].get("available", False)),
+            bool(state["flags"].get("terminal", False)),
+            int(state["order"]),
+        )
+        for state in workflow.get("states", [])
+    }
+    if seeded_states != artifact_states:
+        errors.append("supabase/seed.sql: starter inventory state graph drifted from the pack")
+
+    transition_region = seed.partition("transition_fixture(")[2].partition(
+        "insert into public.workflow_transitions"
+    )[0]
+    transition_pattern = re.compile(
+        r"\(\s*'((?:''|[^'])*)'\s*,\s*'((?:''|[^'])*)'\s*,\s*"
+        r"'((?:''|[^'])*)'\s*,\s*'((?:''|[^'])*)'\s*,\s*"
+        r"(null|'(?:''|[^'])*')\s*,\s*(true|false)\s*,\s*"
+        r"'((?:''|[^'])*)'::jsonb\s*\)",
+        re.IGNORECASE,
+    )
+    seeded_transitions = set()
+    for match in transition_pattern.finditer(transition_region):
+        guard_token = match.group(5)
+        guard = None if guard_token.lower() == "null" else guard_token[1:-1].replace("''", "'")
+        effects = tuple(json.loads(match.group(7).replace("''", "'")))
+        seeded_transitions.add(
+            (
+                match.group(1).replace("''", "'"),
+                match.group(2).replace("''", "'"),
+                match.group(3).replace("''", "'"),
+                match.group(4).replace("''", "'"),
+                guard,
+                match.group(6).lower() == "true",
+                effects,
+            )
+        )
+    artifact_transitions = {
+        (
+            transition["key"],
+            transition["from"],
+            transition["to"],
+            transition["permission"],
+            transition.get("guard"),
+            bool(transition.get("reason_required", False)),
+            tuple(transition.get("effects", [])),
+        )
+        for transition in workflow.get("transitions", [])
+    }
+    if seeded_transitions != artifact_transitions:
+        errors.append("supabase/seed.sql: starter inventory transition graph drifted from the pack")
+
+    return Result(
+        "starter_inventory_seed_binding",
+        "pass" if not errors else "fail",
+        errors,
+    )
+
+
 def check_openapi(root: Path) -> Result:
     errors: list[str] = []
     path = root / "contracts/openapi.v1.yaml"
@@ -242,6 +362,30 @@ def check_markdown_links(root: Path) -> Result:
             if not resolved.exists():
                 errors.append(f"{path.relative_to(root)}: missing link target {raw}")
     return Result("markdown_file_links", "pass" if not errors else "fail", errors)
+
+
+def check_test_traceability(root: Path) -> Result:
+    """Require every automated test suite to cite a catalogued stable test ID."""
+    errors: list[str] = []
+    catalog_path = root / "docs/testing/TEST_CASE_CATALOG.md"
+    id_pattern = re.compile(r"\bT-[A-Z0-9]+-\d{3}\b")
+    catalog_ids = set(id_pattern.findall(catalog_path.read_text(encoding="utf-8")))
+    test_suffixes = (".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx", ".test.sql")
+
+    for path in repository_files(root):
+        if not path.name.endswith(test_suffixes):
+            continue
+        referenced_ids = set(
+            id_pattern.findall(path.read_text(encoding="utf-8", errors="ignore"))
+        )
+        relative_path = path.relative_to(root)
+        if not referenced_ids:
+            errors.append(f"{relative_path}: missing stable test ID metadata")
+            continue
+        for test_id in sorted(referenced_ids - catalog_ids):
+            errors.append(f"{relative_path}: unknown stable test ID {test_id}")
+
+    return Result("automated_test_traceability", "pass" if not errors else "fail", errors)
 
 
 def check_tenant_validators(root: Path) -> Result:
@@ -315,8 +459,10 @@ def main() -> int:
         check_artifact_schemas(root),
         check_manifest_paths(root),
         check_workflows(root),
+        check_starter_inventory_seed_binding(root),
         check_openapi(root),
         check_markdown_links(root),
+        check_test_traceability(root),
         check_tenant_validators(root),
         check_no_secret_like_values(root),
     ]

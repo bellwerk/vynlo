@@ -1,3 +1,4 @@
+// Stable test IDs: T-CFG-005, T-CFG-006.
 import { describe, expect, it } from "vitest";
 
 import {

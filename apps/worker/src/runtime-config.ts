@@ -6,6 +6,16 @@ export interface WorkerRuntimeConfig {
   readonly errorBackoffMaximumMs: number;
   readonly heartbeatIntervalMs: number;
   readonly leaseSeconds: number;
+  readonly mediaProcessing:
+    | Readonly<{ readonly enabled: false }>
+    | Readonly<{
+        readonly clamdConnectTimeoutMs: number;
+        readonly clamdHost: string;
+        readonly clamdPort: number;
+        readonly clamdScanTimeoutMs: number;
+        readonly enabled: true;
+        readonly maximumConcurrentMediaJobs: number;
+      }>;
   readonly pollIntervalMs: number;
   readonly previewBucket: string;
   readonly serviceRoleKey: string;
@@ -38,6 +48,18 @@ function integer(
     );
   }
   return value;
+}
+
+function boolean(
+  environment: Environment,
+  key: string,
+  fallback: boolean,
+): boolean {
+  const raw = environment[key]?.trim().toLowerCase();
+  if (raw === undefined || raw === "") return fallback;
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  throw new TypeError(`${key} must be true or false.`);
 }
 
 export function readWorkerRuntimeConfig(
@@ -140,6 +162,40 @@ export function readWorkerRuntimeConfig(
     errorBackoffBaseMs,
     300_000,
   );
+  const mediaProcessingEnabled = boolean(
+    environment,
+    "VYNLO_MEDIA_PROCESSING_ENABLED",
+    false,
+  );
+  const mediaProcessing: WorkerRuntimeConfig["mediaProcessing"] =
+    mediaProcessingEnabled
+      ? {
+          clamdConnectTimeoutMs: integer(
+            environment,
+            "VYNLO_CLAMD_CONNECT_TIMEOUT_MS",
+            3_000,
+            100,
+            30_000,
+          ),
+          clamdHost: required(environment, "VYNLO_CLAMD_HOST"),
+          clamdPort: integer(environment, "VYNLO_CLAMD_PORT", 3_310, 1, 65_535),
+          clamdScanTimeoutMs: integer(
+            environment,
+            "VYNLO_CLAMD_SCAN_TIMEOUT_MS",
+            30_000,
+            1_000,
+            120_000,
+          ),
+          enabled: true,
+          maximumConcurrentMediaJobs: integer(
+            environment,
+            "VYNLO_MEDIA_JOB_CONCURRENCY",
+            1,
+            1,
+            2,
+          ),
+        }
+      : { enabled: false };
 
   return {
     appUrl: parsedAppUrl.toString().replace(/\/$/u, ""),
@@ -155,6 +211,7 @@ export function readWorkerRuntimeConfig(
     errorBackoffMaximumMs,
     heartbeatIntervalMs,
     leaseSeconds,
+    mediaProcessing,
     pollIntervalMs: integer(
       environment,
       "VYNLO_WORKER_POLL_INTERVAL_MS",

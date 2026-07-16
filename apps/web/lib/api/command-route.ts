@@ -1,9 +1,23 @@
 import {
+  DocumentPreviewDownloadRpcContractError,
+  DocumentPreviewDownloadValidationError,
+  M2CostSearchRpcContractError,
+  M2CostSearchValidationError,
+  M2InventoryRpcContractError,
+  M2InventoryValidationError,
+  M2MediaRpcContractError,
+  M2MediaValidationError,
+  LegalOriginalRpcContractError,
+  LegalOriginalValidationError,
   type VerticalSliceApplicationService,
   type VerticalSliceCommandInput,
   type VerticalSliceCommandMetadata,
   VerticalSliceRpcContractError,
   VerticalSliceValidationError,
+  VinDecodeRpcContractError,
+  VinDecodeValidationError,
+  VinInventoryIntakeRpcContractError,
+  VinInventoryIntakeValidationError,
   WorkspaceInvitationRpcContractError,
   WorkspaceInvitationValidationError,
 } from "@vynlo/application";
@@ -14,6 +28,13 @@ import {
 } from "./postgrest";
 
 export const MAX_COMMAND_BODY_BYTES = 32 * 1024;
+
+export interface AuthenticatedWorkspaceMetadata {
+  readonly accessToken: string;
+  readonly correlationId: string;
+  readonly requestId: string;
+  readonly workspaceId: string;
+}
 
 type RequestErrorCode =
   | "authentication_required"
@@ -75,9 +96,9 @@ function responseIdentifiers(request: Request): {
   };
 }
 
-export function parseCommandMetadata(
+export function parseAuthenticatedWorkspaceMetadata(
   request: Request,
-): VerticalSliceCommandMetadata {
+): AuthenticatedWorkspaceMetadata {
   const authorization = bearerTokenSchema.safeParse(
     request.headers.get("authorization"),
   );
@@ -90,13 +111,6 @@ export function parseCommandMetadata(
   );
   if (!workspaceId.success) {
     throw new CommandRequestError("invalid_workspace");
-  }
-
-  const idempotencyKey = idempotencyKeySchema.safeParse(
-    request.headers.get("idempotency-key"),
-  );
-  if (!idempotencyKey.success) {
-    throw new CommandRequestError("invalid_idempotency_key");
   }
 
   const requestId = requestIdSchema.safeParse(
@@ -116,10 +130,22 @@ export function parseCommandMetadata(
   return {
     accessToken: authorization.data,
     correlationId: correlationId.data,
-    idempotencyKey: idempotencyKey.data,
     requestId: requestId.data,
     workspaceId: workspaceId.data,
   };
+}
+
+export function parseCommandMetadata(
+  request: Request,
+): VerticalSliceCommandMetadata {
+  const metadata = parseAuthenticatedWorkspaceMetadata(request);
+  const idempotencyKey = idempotencyKeySchema.safeParse(
+    request.headers.get("idempotency-key"),
+  );
+  if (!idempotencyKey.success) {
+    throw new CommandRequestError("invalid_idempotency_key");
+  }
+  return { ...metadata, idempotencyKey: idempotencyKey.data };
 }
 
 function validateDeclaredLength(request: Request): void {
@@ -197,6 +223,7 @@ const safeMessages: Readonly<Record<string, string>> = Object.freeze({
   invalid_request_body: "The command body is invalid.",
   invalid_request_id: "The request identifier is invalid.",
   invalid_workspace: "The workspace selection is invalid.",
+  not_found: "The requested resource is unavailable.",
   permission_denied: "The command is not permitted.",
   rate_limited: "The command service is temporarily rate limited.",
   request_body_too_large: "The command body exceeds the allowed size.",
@@ -240,14 +267,42 @@ function mapError(request: Request, error: unknown): Response {
   if (error instanceof VerticalSliceValidationError) {
     return errorResponse(request, error.code, 422);
   }
+  if (error instanceof DocumentPreviewDownloadValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
   if (error instanceof WorkspaceInvitationValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof M2InventoryValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof M2CostSearchValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof M2MediaValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof LegalOriginalValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof VinDecodeValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof VinInventoryIntakeValidationError) {
     return errorResponse(request, error.code, 422);
   }
   if (error instanceof PostgrestCommandError) {
     return errorResponse(request, error.code, error.status);
   }
   if (
+    error instanceof DocumentPreviewDownloadRpcContractError ||
     error instanceof VerticalSliceRpcContractError ||
+    error instanceof M2CostSearchRpcContractError ||
+    error instanceof M2InventoryRpcContractError ||
+    error instanceof M2MediaRpcContractError ||
+    error instanceof LegalOriginalRpcContractError ||
+    error instanceof VinDecodeRpcContractError ||
+    error instanceof VinInventoryIntakeRpcContractError ||
     error instanceof WorkspaceInvitationRpcContractError
   ) {
     return errorResponse(request, "service_unavailable", 503);
@@ -270,6 +325,30 @@ export interface ApplicationCommandRouteOptions<TService, TResult> {
     input: VerticalSliceCommandInput,
   ) => Promise<TResult>;
   readonly successStatus: (result: TResult) => 200 | 201 | 202;
+}
+
+export interface ApplicationQueryRouteOptions<TService, TResult> {
+  readonly createService: () => TService;
+  readonly execute: (
+    service: TService,
+    metadata: AuthenticatedWorkspaceMetadata,
+  ) => Promise<TResult>;
+}
+
+export async function handleApplicationQueryRoute<TService, TResult>(
+  request: Request,
+  options: ApplicationQueryRouteOptions<TService, TResult>,
+): Promise<Response> {
+  try {
+    const metadata = parseAuthenticatedWorkspaceMetadata(request);
+    const result = await options.execute(options.createService(), metadata);
+    return Response.json(
+      { data: result },
+      { headers: responseHeaders(request), status: 200 },
+    );
+  } catch (error) {
+    return mapError(request, error);
+  }
 }
 
 export async function handleApplicationCommandRoute<TService, TResult>(

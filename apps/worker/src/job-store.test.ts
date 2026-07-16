@@ -1,3 +1,4 @@
+// Stable test IDs: T-JOB-001, T-JOB-002, T-JOB-003.
 import { describe, expect, it, vi } from "vitest";
 import { JobStoreError, PostgrestJobStore } from "./job-store";
 
@@ -110,6 +111,32 @@ describe("PostgrestJobStore", () => {
     );
     expect(JSON.parse(String(request?.body))).toEqual({ p_limit: 25 });
     expect(new Headers(request?.headers).get("content-profile")).toBe("app");
+  });
+
+  it("forwards the heartbeat deadline signal to the transport", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>(async () =>
+      Response.json("2026-07-16T12:02:00.000Z"),
+    );
+    const store = new PostgrestJobStore({
+      fetchImplementation,
+      serviceRoleKey: "x".repeat(32),
+      supabaseUrl: "http://127.0.0.1:54321",
+    });
+    const deadline = new AbortController();
+
+    await expect(
+      store.heartbeatJob({
+        extendSeconds: 60,
+        jobId: "00000000-0000-4000-8000-000000000030",
+        leaseToken: "00000000-0000-4000-8000-000000000040",
+        signal: deadline.signal,
+        workerId: "worker-a",
+      }),
+    ).resolves.toBe("2026-07-16T12:02:00.000Z");
+
+    expect(fetchImplementation.mock.calls[0]?.[1]?.signal).toBe(
+      deadline.signal,
+    );
   });
 
   it("rejects plaintext remote transports", () => {

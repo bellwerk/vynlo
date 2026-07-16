@@ -1,3 +1,4 @@
+// Stable test IDs: T-AUTH-001, T-UX-001, T-UX-002, T-I18N-001.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
 
@@ -119,15 +120,6 @@ async function mockAuthenticatedWorkspace(
     }
     if (url.pathname === "/auth/v1/user") {
       await json(route, user);
-      return;
-    }
-    if (
-      request.method() === "POST" &&
-      url.pathname.startsWith("/storage/v1/object/sign/document-previews/")
-    ) {
-      await json(route, {
-        signedURL: `${url.pathname.replace("/storage/v1", "")}?token=e2e-signed-token`,
-      });
       return;
     }
     if (
@@ -474,10 +466,18 @@ test("an invited AAL1 user reloads workspace access after MFA verification", asy
   expect(results.violations).toEqual([]);
 });
 
-test("an authenticated operator completes the M1 inventory-to-private-preview UI path", async ({
+test("T-AUTH-001 / T-UX-001 completes the M1 inventory-to-private-preview UI path", async ({
   page,
 }) => {
-  const state = workspaceFixtureState();
+  const state = workspaceFixtureState({
+    inventory: [
+      {
+        id: "73000000-0000-4000-8000-000000000002",
+        status: "draft",
+        stock_number: "N-00042",
+      },
+    ],
+  });
   await mockAuthenticatedWorkspace(page, state);
   const commands: Array<{
     readonly body: Record<string, unknown>;
@@ -494,28 +494,6 @@ test("an authenticated operator completes the M1 inventory-to-private-preview UI
     });
   }
 
-  await page.route("**/api/v1/inventory-units", async (route) => {
-    await capture(route, "inventory");
-    state.inventory = [
-      {
-        id: "73000000-0000-4000-8000-000000000002",
-        status: "draft",
-        stock_number: "N-00042",
-      },
-    ];
-    await json(
-      route,
-      {
-        data: {
-          inventoryUnitId: "73000000-0000-4000-8000-000000000002",
-          replayed: false,
-          stockNumber: "N-00042",
-          vehicleId: "73000000-0000-4000-8000-000000000003",
-        },
-      },
-      201,
-    );
-  });
   await page.route("**/api/v1/parties", async (route) => {
     await capture(route, "party");
     state.parties = [
@@ -592,22 +570,51 @@ test("an authenticated operator completes the M1 inventory-to-private-preview UI
       ];
       state.artifacts = [
         {
+          id: "76000000-0000-4000-8000-000000000004",
           document_id: documentId,
-          storage_bucket: "document-previews",
-          storage_object_path: `${workspaceId}/documents/${documentId}/preview/${"a".repeat(64)}.html`,
         },
       ];
     }, 250);
   });
+  await page.route(
+    "**/api/v1/document-preview-artifacts/*/download-grants",
+    async (route) => {
+      await capture(route, "preview-download");
+      await json(route, {
+        data: {
+          artifactId: "76000000-0000-4000-8000-000000000004",
+          auditEventId: "76000000-0000-4000-8000-000000000005",
+          byteSize: 128,
+          checksumSha256: "a".repeat(64),
+          documentId: "76000000-0000-4000-8000-000000000001",
+          download: {
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            url: `http://127.0.0.1:54321/storage/v1/object/sign/document-previews/${workspaceId}/documents/preview.html?token=e2e-signed-token`,
+          },
+          filename: "preview.html",
+          mimeType: "text/html; charset=utf-8",
+          replayed: false,
+        },
+      });
+    },
+  );
 
   await signInAsAdministrator(page);
-  await page.getByLabel("Make").fill("Synthetic Motors");
-  await page.getByLabel("Model", { exact: true }).fill("Model One");
-  await page.getByLabel("Advertised price").fill("12500.00");
-  await page.getByRole("button", { name: "Create inventory" }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Stock number: N-00042" }),
-  ).toBeVisible();
+    page.getByRole("link", { name: "Start inventory intake" }),
+  ).toHaveAttribute("href", "/inventory/new");
+  const currentInventory = page.getByRole("region", {
+    name: "Current inventory",
+  });
+  if ((page.viewportSize()?.width ?? 0) < 760) {
+    await expect(
+      currentInventory.getByRole("listitem").filter({ hasText: "N-00042" }),
+    ).toBeVisible();
+  } else {
+    await expect(
+      currentInventory.getByRole("cell", { name: "N-00042" }),
+    ).toBeVisible();
+  }
 
   await page.getByLabel("Display name").fill("Alice Example");
   await page.getByRole("button", { name: "Create party" }).click();
@@ -634,10 +641,10 @@ test("an authenticated operator completes the M1 inventory-to-private-preview UI
   await popup.close();
 
   expect(commands.map(({ path }) => path)).toEqual([
-    "inventory",
     "party",
     "deal",
     "preview",
+    "preview-download",
   ]);
   for (const command of commands) {
     expect(JSON.stringify(command.body)).not.toMatch(
@@ -647,12 +654,7 @@ test("an authenticated operator completes the M1 inventory-to-private-preview UI
     expect(command.headers.get("x-workspace-id")).toBe(workspaceId);
     expect(command.headers.get("idempotency-key")).toMatch(/^[0-9a-f-]{36}$/u);
   }
-  expect(commands[0]?.body).toMatchObject({
-    advertisedPriceMinor: 1_250_000,
-    currencyCode: "CAD",
-    vin: "1M8GDM9AXKP042788",
-  });
-  expect(commands[2]?.body).toMatchObject({
+  expect(commands[1]?.body).toMatchObject({
     inventory: { roleKey: "sold" },
     participant: { roleKey: "customer.primary" },
   });

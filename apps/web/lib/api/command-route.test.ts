@@ -1,3 +1,4 @@
+// Stable test IDs: T-API-001, T-TEN-002.
 import { describe, expect, it } from "vitest";
 import {
   MAX_COMMAND_BODY_BYTES,

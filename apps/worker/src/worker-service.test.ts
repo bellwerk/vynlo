@@ -1,3 +1,4 @@
+// Stable test IDs: T-JOB-002, T-JOB-003, T-OPS-001.
 import { describe, expect, it, vi } from "vitest";
 
 import { WorkerService } from "./worker-service";

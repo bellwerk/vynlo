@@ -1,3 +1,4 @@
+// Stable test IDs: T-AUTH-001, T-JOB-003.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GoTrueInvitationDeliveryProvider } from "./gotrue-invitation-delivery-provider";

@@ -1,34 +1,23 @@
 import {
   type AuthenticatedRpcGateway,
   type AuthenticatedRpcRequest,
+  DocumentPreviewDownloadApplicationService,
+  LegalOriginalApplicationService,
+  M2CostSearchApplicationService,
+  M2InventoryApplicationService,
+  M2MediaApplicationService,
   VerticalSliceApplicationService,
+  VinDecodeApplicationService,
+  VinInventoryIntakeApplicationService,
   WorkspaceInvitationApplicationService,
 } from "@vynlo/application";
 import { z } from "zod";
+import { SupabaseVerifiedMediaDownloadGrantPort } from "./media-download-grant.server";
+import { SupabaseDocumentPreviewDownloadGrantPort } from "./document-preview-download-grant.server";
+import { PostgrestCommandError } from "./postgrest-error";
 
-export type SafeApiErrorCode =
-  | "authentication_required"
-  | "permission_denied"
-  | "conflict"
-  | "invalid_request"
-  | "rate_limited"
-  | "unprocessable_command"
-  | "service_unavailable";
-
-export class PostgrestCommandError extends Error {
-  readonly code: SafeApiErrorCode;
-  readonly status: 400 | 401 | 403 | 409 | 422 | 429 | 503;
-
-  constructor(
-    code: SafeApiErrorCode,
-    status: 400 | 401 | 403 | 409 | 422 | 429 | 503,
-  ) {
-    super("The command data store rejected the request.");
-    this.name = "PostgrestCommandError";
-    this.code = code;
-    this.status = status;
-  }
-}
+export { PostgrestCommandError } from "./postgrest-error";
+export type { SafeApiErrorCode } from "./postgrest-error";
 
 export interface PostgrestConfig {
   readonly publicKey: string;
@@ -132,7 +121,15 @@ function mapPostgrestError(
   if (status === 403 || sqlState === "42501") {
     return new PostgrestCommandError("permission_denied", 403);
   }
-  if (status === 409 || sqlState === "23505") {
+  if (status === 404 || sqlState === "P0002") {
+    return new PostgrestCommandError("not_found", 404);
+  }
+  if (
+    status === 409 ||
+    sqlState === "23505" ||
+    sqlState === "40001" ||
+    sqlState === "55000"
+  ) {
     return new PostgrestCommandError("conflict", 409);
   }
   if (status === 429) {
@@ -246,6 +243,132 @@ export function createWorkspaceInvitationApplicationService(): WorkspaceInvitati
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
   return new WorkspaceInvitationApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM2InventoryApplicationService(): M2InventoryApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M2InventoryApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM2CostSearchApplicationService(): M2CostSearchApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M2CostSearchApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM2MediaApplicationService(): M2MediaApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M2MediaApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createLegalOriginalApplicationService(): LegalOriginalApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new LegalOriginalApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM2MediaDownloadApplicationService(): M2MediaApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M2MediaApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+    new SupabaseVerifiedMediaDownloadGrantPort({
+      serviceRoleKey:
+        process.env.SUPABASE_SERVICE_ROLE_KEY ??
+        process.env.VYNLO_SUPABASE_SERVICE_ROLE_KEY ??
+        "",
+      supabaseUrl: config.url,
+    }),
+  );
+}
+
+export function createDocumentPreviewDownloadApplicationService(): DocumentPreviewDownloadApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new DocumentPreviewDownloadApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+    new SupabaseDocumentPreviewDownloadGrantPort({
+      serviceRoleKey:
+        process.env.SUPABASE_SERVICE_ROLE_KEY ??
+        process.env.VYNLO_SUPABASE_SERVICE_ROLE_KEY ??
+        "",
+      supabaseUrl: config.url,
+    }),
+  );
+}
+
+export function createVinDecodeApplicationService(): VinDecodeApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new VinDecodeApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createVinInventoryIntakeApplicationService(): VinInventoryIntakeApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new VinInventoryIntakeApplicationService(
     new PostgrestAuthenticatedRpcGateway({
       publicKey: config.publicKey,
       url: config.url,

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -23,8 +24,9 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import type { LegalOriginalUploadCopy } from "../i18n/legal-original-messages";
 import { getBrowserSupabase } from "../lib/supabase-browser";
-import { parseMoneyMinorInput } from "../lib/money";
+import { LegalOriginalUpload } from "./legal-original-upload";
 
 interface OperationsCopy {
   readonly authRequired: string;
@@ -37,6 +39,7 @@ interface OperationsCopy {
   readonly displayNameLabel: string;
   readonly emptyRows: string;
   readonly inventoryAction: string;
+  readonly inventoryIntakeDescription: string;
   readonly inventoryEmpty: string;
   readonly inventoryHeading: string;
   readonly inventoryRecentHeading: string;
@@ -54,6 +57,7 @@ interface OperationsCopy {
   readonly inviteQueued: string;
   readonly inviteRolesLabel: string;
   readonly localeLabel: string;
+  readonly legalOriginal: LegalOriginalUploadCopy;
   readonly makeLabel: string;
   readonly mfaCodeLabel: string;
   readonly mfaEnrollAction: string;
@@ -122,8 +126,7 @@ interface RoleOption {
 
 interface DocumentRow {
   readonly artifact: Readonly<{
-    bucket: string;
-    objectPath: string;
+    id: string;
   }> | null;
   readonly id: string;
   readonly status: string;
@@ -137,7 +140,6 @@ interface WorkspaceResources {
   readonly parties: readonly PartyRow[];
   readonly permissions: ReadonlySet<PlatformPermissionKey>;
   readonly roles: readonly RoleOption[];
-  readonly stockDefinitionId: string | null;
   readonly templateVersionId: string | null;
 }
 
@@ -148,7 +150,6 @@ const emptyResources: WorkspaceResources = {
   parties: [],
   permissions: new Set(),
   roles: [],
-  stockDefinitionId: null,
   templateVersionId: null,
 };
 
@@ -302,7 +303,6 @@ async function loadWorkspaceResources(
 ): Promise<WorkspaceResources> {
   const [
     permissions,
-    stockResult,
     templateResult,
     inventoryResult,
     partyResult,
@@ -312,13 +312,6 @@ async function loadWorkspaceResources(
     roleResult,
   ] = await Promise.all([
     loadPermissions(client, workspace),
-    client
-      .from("stock_number_definitions")
-      .select("id")
-      .eq("workspace_id", workspace.id)
-      .eq("status", "active")
-      .order("version", { ascending: false })
-      .limit(1),
     client
       .from("document_template_versions")
       .select("id")
@@ -352,7 +345,7 @@ async function loadWorkspaceResources(
       .limit(20),
     client
       .from("document_preview_artifacts")
-      .select("document_id,storage_bucket,storage_object_path")
+      .select("id,document_id")
       .eq("workspace_id", workspace.id),
     client
       .from("roles")
@@ -362,19 +355,15 @@ async function loadWorkspaceResources(
       .order("name"),
   ]);
 
-  const stockDefinitionId = stringField(rows(stockResult.data)[0] ?? {}, "id");
   const templateVersionId = stringField(
     rows(templateResult.data)[0] ?? {},
     "id",
   );
   const artifactsByDocument = new Map(
     rows(artifactResult.data).flatMap((item) => {
+      const id = stringField(item, "id");
       const documentId = stringField(item, "document_id");
-      const bucket = stringField(item, "storage_bucket");
-      const objectPath = stringField(item, "storage_object_path");
-      return documentId && bucket && objectPath
-        ? [[documentId, { bucket, objectPath }] as const]
-        : [];
+      return documentId && id ? [[documentId, { id }] as const] : [];
     }),
   );
 
@@ -419,14 +408,14 @@ async function loadWorkspaceResources(
       const name = stringField(item, "name");
       return id && name ? [{ id, name }] : [];
     }),
-    stockDefinitionId,
     templateVersionId,
   };
 }
 
 export function OperationsWorkbench({
   copy,
-}: Readonly<{ copy: OperationsCopy }>) {
+  locale,
+}: Readonly<{ copy: OperationsCopy; locale: "en" | "fr" }>) {
   const router = useRouter();
   const idempotency = useRef(
     new Map<string, Readonly<{ fingerprint: string; key: string }>>(),
@@ -651,47 +640,6 @@ export function OperationsWorkbench({
     }
   }
 
-  async function createInventory(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    if (!workspace || !resources.stockDefinitionId) {
-      setStatus(copy.commandFailed);
-      return;
-    }
-    const form = new FormData(formElement);
-    let advertisedPriceMinor: number | null;
-    try {
-      advertisedPriceMinor = parseMoneyMinorInput(
-        String(form.get("price") ?? ""),
-      );
-    } catch {
-      setStatus(copy.commandFailed);
-      return;
-    }
-    const modelYearValue = String(form.get("modelYear") ?? "").trim();
-    const odometerValue = String(form.get("odometer") ?? "").trim();
-    const data = await runCommand("inventory", "/api/v1/inventory-units", {
-      acquisitionDate: null,
-      advertisedPriceMinor,
-      currencyCode: workspace.currencyCode,
-      make: String(form.get("make") ?? "") || null,
-      model: String(form.get("model") ?? "") || null,
-      modelYear: modelYearValue ? Number(modelYearValue) : null,
-      odometer: odometerValue
-        ? { unit: workspace.odometerUnit, value: Number(odometerValue) }
-        : null,
-      publicNotes: null,
-      stockNumberDefinitionId: resources.stockDefinitionId,
-      vin: String(form.get("vin") ?? ""),
-    });
-    if (data) {
-      setStatus(
-        `${copy.stockLabel}: ${commandId(data, "stockNumber", "stock_number")}`,
-      );
-      formElement.reset();
-    }
-  }
-
   async function createParty(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -706,7 +654,7 @@ export function OperationsWorkbench({
     }
   }
 
-  async function createInvitation(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateInvitation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
@@ -718,13 +666,17 @@ export function OperationsWorkbench({
       setStatus(copy.commandFailed);
       return;
     }
+    const submittedAtMilliseconds =
+      event.timeStamp > 1_000_000_000_000
+        ? event.timeStamp
+        : performance.timeOrigin + event.timeStamp;
     const data = await runCommand(
       "workspace-invitation",
       "/api/v1/workspace-invitations",
       {
         email: String(form.get("email") ?? ""),
         expiresAt: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1_000,
+          submittedAtMilliseconds + 7 * 24 * 60 * 60 * 1_000,
         ).toISOString(),
         requestedLocale: String(form.get("requestedLocale") ?? "en-CA"),
         roleIds,
@@ -791,18 +743,32 @@ export function OperationsWorkbench({
     if (previewWindow) {
       previewWindow.opener = null;
     }
+    const scope = `open:${document.id}`;
     try {
-      const result = await getBrowserSupabase()
-        .storage.from(document.artifact.bucket)
-        .createSignedUrl(document.artifact.objectPath, 60);
-      if (result.error) {
-        throw result.error;
+      const result = record(
+        await command(
+          scope,
+          `/api/v1/document-preview-artifacts/${document.artifact.id}/download-grants`,
+          { expiresInSeconds: 60 },
+        ),
+      );
+      const download = record(result?.download);
+      const signedUrl = download ? stringField(download, "url") : null;
+      if (!signedUrl) throw new TypeError("preview_grant_missing");
+      const target = new URL(signedUrl);
+      if (
+        !["https:", "http:"].includes(target.protocol) ||
+        target.username !== "" ||
+        target.password !== ""
+      ) {
+        throw new TypeError("preview_grant_invalid");
       }
       if (!previewWindow) {
         throw new TypeError("preview_window_blocked");
       }
-      previewWindow.location.replace(result.data.signedUrl);
+      previewWindow.location.replace(target.toString());
     } catch {
+      idempotency.current.delete(scope);
       previewWindow?.close();
       setStatus(copy.previewUnavailable);
     } finally {
@@ -916,7 +882,7 @@ export function OperationsWorkbench({
                   <p>{copy.inviteExpiry}</p>
                 </div>
               </div>
-              <form onSubmit={createInvitation}>
+              <form onSubmit={handleCreateInvitation}>
                 <label>
                   <span>{copy.inviteEmailLabel}</span>
                   <input
@@ -977,66 +943,16 @@ export function OperationsWorkbench({
                 <p className="step-number">01</p>
                 <h2 id="inventory-step">{copy.inventoryHeading}</h2>
               </div>
-              <form onSubmit={createInventory}>
-                <label>
-                  <span>{copy.vinLabel}</span>
-                  <input
-                    defaultValue="1M8GDM9AXKP042788"
-                    maxLength={17}
-                    name="vin"
-                    required
-                  />
-                </label>
-                <div className="field-pair">
-                  <label>
-                    <span>{copy.modelYearLabel}</span>
-                    <input
-                      inputMode="numeric"
-                      max="2200"
-                      min="1886"
-                      name="modelYear"
-                      type="number"
-                    />
-                  </label>
-                  <label>
-                    <span>{copy.odometerLabel}</span>
-                    <input
-                      inputMode="numeric"
-                      min="0"
-                      name="odometer"
-                      type="number"
-                    />
-                  </label>
-                </div>
-                <div className="field-pair">
-                  <label>
-                    <span>{copy.makeLabel}</span>
-                    <input maxLength={100} name="make" />
-                  </label>
-                  <label>
-                    <span>{copy.modelLabel}</span>
-                    <input maxLength={100} name="model" />
-                  </label>
-                </div>
-                <label>
-                  <span>{copy.priceLabel}</span>
-                  <input
-                    inputMode="decimal"
-                    name="price"
-                    placeholder="12500.00"
-                  />
-                </label>
-                <Button
-                  disabled={
-                    !can("inventory.create") ||
-                    busy === "inventory" ||
-                    !resources.stockDefinitionId
-                  }
-                  type="submit"
-                >
-                  {busy === "inventory" ? copy.working : copy.inventoryAction}
+              <p>{copy.inventoryIntakeDescription}</p>
+              {can("inventory.create") ? (
+                <Button asChild>
+                  <Link href="/inventory/new">{copy.inventoryAction}</Link>
                 </Button>
-              </form>
+              ) : (
+                <Button disabled type="button">
+                  {copy.inventoryAction}
+                </Button>
+              )}
             </section>
 
             <section aria-labelledby="party-step" className="workflow-step">
@@ -1228,6 +1144,17 @@ export function OperationsWorkbench({
               </ul>
             )}
           </section>
+
+          {workspace ? (
+            <LegalOriginalUpload
+              canCreateLegal={can("media.create")}
+              canUploadSigned={can("documents.upload_signed")}
+              copy={copy.legalOriginal}
+              documents={resources.documents}
+              locale={locale}
+              workspaceId={workspace.id}
+            />
+          ) : null}
         </>
       )}
 

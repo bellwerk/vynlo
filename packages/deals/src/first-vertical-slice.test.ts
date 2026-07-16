@@ -1,3 +1,4 @@
+// Stable test IDs: T-DEAL-001, T-TEN-001.
 import { describe, expect, it } from "vitest";
 
 import {

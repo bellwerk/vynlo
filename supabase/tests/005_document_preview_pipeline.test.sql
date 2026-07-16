@@ -1,4 +1,5 @@
 -- M1-DOC-AC-006 through M1-DOC-AC-013
+-- Stable test IDs: T-DOC-001, T-JOB-001, T-STOR-001, T-TEN-001, T-AUD-001
 -- T-DOC-JOB-001 through T-DOC-JOB-010
 begin;
 
@@ -131,22 +132,21 @@ select extensions.ok(
   'T-DOC-JOB-006 storage objects retain RLS enforcement'
 );
 select extensions.ok(
-  exists (
+  not exists (
     select 1
     from pg_catalog.pg_policies policy
     where policy.schemaname = 'storage'
       and policy.tablename = 'objects'
-      and policy.policyname = 'document_preview_artifact_objects_select'
       and policy.cmd = 'SELECT'
       and 'authenticated' = any(policy.roles)
   ),
-  'T-DOC-JOB-006 authenticated storage reads use the artifact-only policy'
+  'T-DOC-JOB-006 authenticated storage reads require a server-signed exact grant'
 );
 select extensions.ok(
-  pg_catalog.has_table_privilege(
+  not pg_catalog.has_table_privilege(
     'authenticated', 'storage.objects', 'SELECT'
   )
-    and not pg_catalog.has_table_privilege(
+    and pg_catalog.has_table_privilege(
       'authenticated', 'storage.objects', 'INSERT'
     )
     and not pg_catalog.has_table_privilege(
@@ -155,31 +155,17 @@ select extensions.ok(
     and not pg_catalog.has_table_privilege(
       'authenticated', 'storage.objects', 'DELETE'
     ),
-  'T-DOC-JOB-006 browser storage access is read-only'
+  'T-DOC-JOB-006 browser storage access permits only RLS-fenced upload intents'
 );
 select extensions.ok(
-  (
-    select policy.qual
+  not exists (
+    select 1
     from pg_catalog.pg_policies policy
     where policy.schemaname = 'storage'
       and policy.tablename = 'objects'
       and policy.policyname = 'document_preview_artifact_objects_select'
-  ) ~ 'document_preview_artifacts'
-    and (
-      select policy.qual
-      from pg_catalog.pg_policies policy
-      where policy.schemaname = 'storage'
-        and policy.tablename = 'objects'
-        and policy.policyname = 'document_preview_artifact_objects_select'
-    ) ~ 'storage_bucket'
-    and (
-      select policy.qual
-      from pg_catalog.pg_policies policy
-      where policy.schemaname = 'storage'
-        and policy.tablename = 'objects'
-        and policy.policyname = 'document_preview_artifact_objects_select'
-    ) ~ 'storage_object_path',
-  'T-DOC-JOB-006 storage policy matches exact visible bucket and object path'
+  ),
+  'T-DOC-JOB-006 preview metadata visibility never grants non-expiring object GET'
 );
 
 insert into public.document_types (

@@ -1,3 +1,4 @@
+// Stable test IDs: T-RBAC-001, T-UX-001.
 import type { PlatformPermissionKey } from "@vynlo/auth";
 import { describe, expect, it } from "vitest";
 import { applicationNavigation, filterNavigation } from "./navigation";

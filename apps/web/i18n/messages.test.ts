@@ -1,3 +1,4 @@
+// Stable test IDs: T-I18N-001.
 import { describe, expect, it } from "vitest";
 import { messages } from "./messages";
 

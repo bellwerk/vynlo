@@ -1,3 +1,4 @@
+// Stable test IDs: T-DOC-001, T-JOB-003.
 import { describe, expect, it, vi } from "vitest";
 
 import type { ClaimedJob } from "./job-store";

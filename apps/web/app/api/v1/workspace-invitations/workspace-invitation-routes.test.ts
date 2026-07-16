@@ -1,3 +1,4 @@
+// Stable test IDs: T-AUTH-001, T-API-001, T-AUD-001.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { POST as acceptInvitation } from "./accept/route";

@@ -38,7 +38,9 @@ This catalogue gives stable test IDs for traceability. Test files may contain se
 | T-NUM-002 | VYN-NUM-001 | Abandoned pre-confirmation draft consumes no stock number. |
 | T-NUM-003 | VYN-NUM-001 | Allocated/imported number is never reused after archive, void, or failure. |
 | T-COST-001 | VYN-COST-001 | Posted cost cannot be edited; reversal/replacement preserves ledger total and audit. |
+| T-COST-002 | VYN-COST-001 | Cost, price, and estimated-gross values preserve exact PostgreSQL bigint minor units and the workspace ISO currency without binary floating point. |
 | T-INV-004 | VYN-INV-001 | Location transfer, state transition, price update, and archive enforce version/permission/workflow. |
+| T-SEARCH-001 | VYN-SEARCH-001 | Workspace-scoped inventory search, bounded filters, pagination, and saved views round-trip safely across phone cards and desktop tables. |
 
 ## Media and storage
 
@@ -49,7 +51,13 @@ This catalogue gives stable test IDs for traceability. Test files may contain se
 | T-MED-003 | VYN-MEDIA-001 | Extension spoof, malware, pixel/decompression bomb, and size violation fail in quarantine. |
 | T-MED-004 | VYN-MEDIA-001 | Replayed completion/reprocess job does not duplicate derivatives or mappings. |
 | T-MED-005 | VYN-MEDIA-001 | Cover uniqueness and order persist under concurrent edits. |
+| T-MED-006 | VYN-MEDIA-001 | Vehicle upload status is owner-safe and bounded; only the exact active dead-letter verification job accepts a reasoned actor-scoped retry, while terminal rejection requires a new upload. |
 | T-STOR-001 | VYN-STOR-001 | Managed storage authorizes short-lived download only for eligible workspace/role/file. |
+
+`T-MED-001` runs deterministic oriented JPEG, PNG, and WebP golden transforms
+in the standard worker suite. Genuine HEIC transformation is a required
+deployment gate for a custom libvips/libheif build with an HEVC decoder; the
+prebuilt Sharp runtime must report the missing codec and fail before decode.
 
 ## CRM, deals, external finance, and one-time money
 
@@ -119,4 +127,4 @@ This catalogue gives stable test IDs for traceability. Test files may contain se
 
 ## Traceability rule
 
-Every automated test implementation includes the stable test ID in its title or metadata. A pull request cannot close a requirement without linking the applicable acceptance and test IDs. Candidate tax/legal/calculation tests prove implementation consistency only; production activation still requires the documented professional/business approvals.
+Every automated test implementation includes the stable test ID in its title or metadata. `scripts/validate_spec.py` enforces that each suite cites at least one ID from this catalogue. A pull request cannot close a requirement without linking the applicable acceptance and test IDs. Candidate tax/legal/calculation tests prove implementation consistency only; production activation still requires the documented professional/business approvals.

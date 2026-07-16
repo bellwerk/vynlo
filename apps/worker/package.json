@@ -12,8 +12,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vynlo/integrations": "workspace:*",
     "@vynlo/jobs": "workspace:*",
-    "@vynlo/observability": "workspace:*"
+    "@vynlo/media": "workspace:*",
+    "@vynlo/observability": "workspace:*",
+    "sharp": "0.35.3"
   },
   "devDependencies": {
     "@types/node": "26.1.1",

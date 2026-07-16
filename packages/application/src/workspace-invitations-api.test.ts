@@ -1,3 +1,4 @@
+// Stable test IDs: T-AUTH-001, T-JOB-001, T-AUD-001.
 import { describe, expect, it } from "vitest";
 import type {
   AuthenticatedRpcGateway,

@@ -1,3 +1,4 @@
+// Stable test IDs: T-INV-001, T-DEAL-001, T-DOC-001, T-TEN-001.
 import { describe, expect, it } from "vitest";
 import {
   type AuthenticatedRpcGateway,

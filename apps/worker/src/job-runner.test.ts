@@ -1,3 +1,4 @@
+// Stable test IDs: T-JOB-002, T-JOB-003.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createInvitationDeliveryJobHandler,
@@ -157,6 +158,83 @@ describe("DurableJobRunner", () => {
     );
   });
 
+  it("records heartbeat failure after a bounded grace period when a handler ignores cancellation", async () => {
+    vi.useFakeTimers();
+    const job = claimedJob();
+    const store = jobStore(job);
+    vi.mocked(store.heartbeatJob).mockRejectedValueOnce(
+      new Error("untrusted heartbeat response"),
+    );
+    const handler: JobHandler = vi.fn(() => new Promise<void>(() => undefined));
+    const runner = new DurableJobRunner({
+      handlers: new Map([[job.jobType, handler]]),
+      handlerSettlementGraceMs: 100,
+      heartbeatIntervalMs: 100,
+      logger,
+      store,
+      workerId: "worker-a",
+    });
+
+    const run = runner.runBatch();
+    await vi.advanceTimersByTimeAsync(200);
+    await expect(run).resolves.toBe(1);
+    expect(store.failJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: "worker.heartbeat_failed",
+      }),
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      "job handler ignored cancellation grace period",
+      expect.objectContaining({ gracePeriodMs: 100 }),
+    );
+  });
+
+  it("aborts a stalled heartbeat before the lease can expire", async () => {
+    vi.useFakeTimers();
+    const job = claimedJob();
+    const store = jobStore(job);
+    let heartbeatSignal: AbortSignal | undefined;
+    vi.mocked(store.heartbeatJob).mockImplementationOnce(
+      (input) =>
+        new Promise<string>(() => {
+          heartbeatSignal = input.signal;
+        }),
+    );
+    const handler: JobHandler = vi.fn(
+      (_job, context) =>
+        new Promise<void>((_resolve, reject) => {
+          context.signal.addEventListener(
+            "abort",
+            () => reject(context.signal.reason),
+            { once: true },
+          );
+        }),
+    );
+    const runner = new DurableJobRunner({
+      handlers: new Map([[job.jobType, handler]]),
+      handlerSettlementGraceMs: 100,
+      heartbeatIntervalMs: 100,
+      heartbeatTimeoutMs: 100,
+      leaseSeconds: 5,
+      logger,
+      store,
+      workerId: "worker-a",
+    });
+
+    const run = runner.runBatch();
+    await vi.advanceTimersByTimeAsync(200);
+    await expect(run).resolves.toBe(1);
+
+    expect(heartbeatSignal?.aborted).toBe(true);
+    expect(store.completeJob).not.toHaveBeenCalled();
+    expect(store.failJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classification: "transient",
+        errorCode: "worker.heartbeat_failed",
+      }),
+    );
+  });
+
   it("never overlaps heartbeats and drains an in-flight renewal before completion", async () => {
     vi.useFakeTimers();
     const job = claimedJob();
@@ -175,6 +253,7 @@ describe("DurableJobRunner", () => {
     const runner = new DurableJobRunner({
       handlers: new Map([[job.jobType, () => handlerResult.promise]]),
       heartbeatIntervalMs: 100,
+      heartbeatTimeoutMs: 1_000,
       logger,
       store,
       workerId: "worker-a",
@@ -371,5 +450,97 @@ describe("DurableJobRunner", () => {
         errorCode: "worker.handler_not_registered",
       }),
     );
+  });
+
+  it("claims heavy media work in a bounded lane without blocking lightweight jobs", async () => {
+    const mediaJobs = Array.from({ length: 5 }, (_, index) =>
+      claimedJob({
+        jobId: `00000000-0000-4000-8000-${String(index + 100).padStart(12, "0")}`,
+        jobType: "media.process_vehicle_photo",
+      }),
+    );
+    const lightweightJobs = Array.from({ length: 4 }, (_, index) =>
+      claimedJob({
+        jobId: `00000000-0000-4000-8000-${String(index + 200).padStart(12, "0")}`,
+        jobType: "documents.render_preview",
+      }),
+    );
+    const releaseMedia = deferred<void>();
+    let activeMedia = 0;
+    let maximumActiveMedia = 0;
+    const mediaHandler: JobHandler = vi.fn(async () => {
+      activeMedia += 1;
+      maximumActiveMedia = Math.max(maximumActiveMedia, activeMedia);
+      await releaseMedia.promise;
+      activeMedia -= 1;
+    });
+    const lightweightHandler: JobHandler = vi.fn(async () => undefined);
+    const store: DurableJobStore = {
+      claimJobs: vi.fn(async (input) =>
+        (input.jobTypes.includes("media.process_vehicle_photo")
+          ? mediaJobs
+          : lightweightJobs
+        ).slice(0, input.limit),
+      ),
+      completeJob: vi.fn(async () => undefined),
+      failJob: vi.fn(async () => undefined),
+      heartbeatJob: vi.fn(async () => "2026-07-16T12:02:00.000Z"),
+      reclaimExpiredJobs: vi.fn(async () => 0),
+    };
+    const runner = new DurableJobRunner({
+      executionLanes: [
+        {
+          jobTypes: ["documents.render_preview"],
+          maximumConcurrency: 10,
+        },
+        {
+          jobTypes: ["media.process_vehicle_photo"],
+          maximumConcurrency: 2,
+        },
+      ],
+      handlers: new Map([
+        ["documents.render_preview", lightweightHandler],
+        ["media.process_vehicle_photo", mediaHandler],
+      ]),
+      logger,
+      store,
+      workerId: "worker-a",
+    });
+
+    const run = runner.runBatch(10);
+    await vi.waitFor(() => {
+      expect(mediaHandler).toHaveBeenCalledTimes(2);
+      expect(lightweightHandler).toHaveBeenCalledTimes(4);
+    });
+    expect(maximumActiveMedia).toBe(2);
+    expect(store.claimJobs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobTypes: ["media.process_vehicle_photo"],
+        limit: 2,
+      }),
+    );
+
+    releaseMedia.resolve();
+    await expect(run).resolves.toBe(6);
+    expect(vi.mocked(store.claimJobs).mock.results).toHaveLength(2);
+  });
+
+  it("rejects lane definitions that omit or duplicate handlers", () => {
+    const handler: JobHandler = vi.fn();
+    expect(
+      () =>
+        new DurableJobRunner({
+          executionLanes: [
+            { jobTypes: ["documents.render_preview"], maximumConcurrency: 1 },
+          ],
+          handlers: new Map([
+            ["documents.render_preview", handler],
+            ["media.process_vehicle_photo", handler],
+          ]),
+          logger,
+          store: jobStore(claimedJob()),
+          workerId: "worker-a",
+        }),
+    ).toThrow(/cover each registered job type exactly once/u);
   });
 });

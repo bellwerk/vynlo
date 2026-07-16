@@ -6,7 +6,7 @@ export default async function OperationsPage() {
   const locale = await getRequestLocale();
   return (
     <main id="main">
-      <OperationsWorkbench copy={messages[locale].operations} />
+      <OperationsWorkbench copy={messages[locale].operations} locale={locale} />
     </main>
   );
 }

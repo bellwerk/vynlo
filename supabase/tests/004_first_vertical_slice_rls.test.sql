@@ -6,6 +6,14 @@ create extension if not exists pgtap with schema extensions;
 
 select extensions.plan(72);
 
+-- The M2 VIN-intake cutover revokes browser access to this M1 primitive.
+-- Re-enable it only inside this rolled-back historical contract test; the
+-- canonical privilege boundary is asserted in 011_inventory_intake_from_vin.
+grant execute on function app.create_inventory_unit(
+  uuid, uuid, text, text, integer, text, text, date, bigint, text, text,
+  bigint, text, text, uuid
+) to authenticated;
+
 create function pg_temp.authenticate_as(
   fixture_user_id uuid,
   assurance text default 'aal2'
