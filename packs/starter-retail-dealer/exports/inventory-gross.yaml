@@ -1,0 +1,42 @@
+schema_version: "1.1"
+export:
+  key: inventory_gross
+  version: "1.0.0"
+  labels: { en: Inventory gross, fr: Marge dâ€™inventaire }
+  entity: inventory_unit
+  formats: [csv, xlsx]
+  columns:
+    - key: stock_number
+      labels: { en: Stock number, fr: NumÃ©ro de stock }
+      source: inventory_unit.stock_number
+      format: text
+    - key: advertised_price_minor
+      labels: { en: Advertised price, fr: Prix annoncÃ© }
+      source: inventory_unit.advertised_price_minor
+      format: minor_units
+      nullable: true
+    - key: total_cost_minor
+      labels: { en: Total cost, fr: CoÃ»t total }
+      source: metrics.total_cost_minor
+      format: minor_units
+      sensitive: true
+      permission: inventory.read_internal
+    - key: estimated_gross_minor
+      labels: { en: Estimated gross, fr: Marge estimÃ©e }
+      source: metrics.estimated_gross_minor
+      format: minor_units
+      sensitive: true
+      permission: inventory.read_internal
+      nullable: true
+    - key: currency_code
+      labels: { en: Currency, fr: Devise }
+      source: inventory_unit.currency_code
+      format: currency_code
+  default_filters: { include_archived: false }
+  available_filters: [include_archived, location_id, states]
+  security:
+    permission: exports.run_sensitive
+    step_up_required: true
+    audit_required: true
+    links_expire: true
+  activation_gate: approved_export

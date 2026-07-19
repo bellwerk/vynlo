@@ -1,0 +1,58 @@
+schema_version: "1.0"
+deal_type:
+  key: retail.third_party_financed
+  version: "1.0.0"
+  labels:
+    en: Third-party-financed retail
+    fr: Vente au détail financée par un tiers
+  option_labels:
+    participant_roles:
+      buyer: { en: Buyer, fr: Acheteur }
+      seller: { en: Seller, fr: Vendeur }
+      lender: { en: Lender, fr: Prêteur }
+      trade_in_owner: { en: Trade-in owner, fr: Propriétaire du véhicule d’échange }
+      authorized_representative: { en: Authorized representative, fr: Représentant autorisé }
+    inventory_roles:
+      sold: { en: Sale vehicle, fr: Véhicule vendu }
+      trade_in: { en: Trade-in vehicle, fr: Véhicule d’échange }
+    one_time_event_types:
+      deposit: { en: Deposit, fr: Dépôt }
+      receipt: { en: Receipt, fr: Encaissement }
+      balance_received: { en: Balance received, fr: Solde reçu }
+      trade_in_credit: { en: Trade-in credit, fr: Crédit d’échange }
+      lender_proceeds: { en: Lender proceeds, fr: Fonds du prêteur }
+  workflow:
+    key: retail_deal_standard
+    version: "1.0.0"
+    checksum: 0855356701f9c095a7683a7e9813bc1cb55cd20f58376055e610b96d4b209214
+  allowed_participant_roles:
+    - buyer
+    - seller
+    - lender
+    - trade_in_owner
+    - authorized_representative
+  allowed_inventory_roles:
+    - sold
+    - trade_in
+  fields:
+    required:
+      - buyer_party_id
+      - sold_inventory_unit_id
+      - lender_party_id
+      - currency_code
+    optional:
+      - trade_in_owner_party_id
+      - trade_in_inventory_unit_id
+      - authorized_representative_party_id
+      - notes
+  behavior:
+    inventory_direction: outbound
+    inventory_creation: none
+    finance_mode: external_lender_tracking
+    money_mode: one_time
+    one_time_event_types:
+      - deposit
+      - receipt
+      - balance_received
+      - trade_in_credit
+      - lender_proceeds

@@ -1,0 +1,46 @@
+schema_version: "1.0"
+deal_type:
+  key: purchase.vehicle
+  version: "1.0.0"
+  labels:
+    en: Vehicle purchase
+    fr: Achat de véhicule
+  option_labels:
+    participant_roles:
+      seller: { en: Seller, fr: Vendeur }
+      dealer_buyer: { en: Dealer buyer, fr: Acheteur du concessionnaire }
+      authorized_representative: { en: Authorized representative, fr: Représentant autorisé }
+    inventory_roles:
+      purchased: { en: Purchased vehicle, fr: Véhicule acheté }
+    one_time_event_types:
+      receipt: { en: Receipt, fr: Encaissement }
+      balance_received: { en: Balance received, fr: Solde reçu }
+  workflow:
+    key: retail_deal_standard
+    version: "1.0.0"
+    checksum: 0855356701f9c095a7683a7e9813bc1cb55cd20f58376055e610b96d4b209214
+  allowed_participant_roles:
+    - seller
+    - dealer_buyer
+    - authorized_representative
+  allowed_inventory_roles:
+    - purchased
+  fields:
+    required:
+      - seller_party_id
+      - purchased_inventory_unit_id
+      - currency_code
+    optional:
+      - authorized_representative_party_id
+      - ownership_details
+      - condition
+      - odometer
+      - notes
+  behavior:
+    inventory_direction: inbound
+    inventory_creation: explicit_confirmation
+    finance_mode: none
+    money_mode: one_time
+    one_time_event_types:
+      - receipt
+      - balance_received

@@ -5,7 +5,7 @@ labels:
   en: "Vehicle purchase"
   fr: "Achat de véhicule"
 field_schema: "schemas/vehicle-purchase.schema.json"
-numbering: "VPU-{{sequence:6}}"
+numbering: "official_document@1.0.0"
 template: "templates/vehicle-purchase.html"
 workflow: null
 tax_pack: "workspace_active_tax_pack"

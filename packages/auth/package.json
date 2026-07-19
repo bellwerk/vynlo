@@ -5,6 +5,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "scripts": {
+    "test": "vitest run --root ../.. packages/auth/src",
     "typecheck": "tsc --noEmit"
   }
 }

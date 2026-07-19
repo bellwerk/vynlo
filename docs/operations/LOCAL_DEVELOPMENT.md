@@ -24,9 +24,24 @@ corepack prepare pnpm@11.13.0 --activate
 pnpm install --frozen-lockfile
 cp .env.example .env.local
 pnpm supabase:start
+pnpm exec supabase status -o env
 pnpm db:reset
 pnpm dev
 ```
+
+Map the local values printed by `supabase status -o env` before starting the
+application:
+
+| Supabase output | Root `.env.local` targets |
+| --- | --- |
+| `API_URL` | `NEXT_PUBLIC_SUPABASE_URL`, `VYNLO_SUPABASE_URL` |
+| `PUBLISHABLE_KEY` | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` |
+| `ANON_KEY` (legacy local projects) | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| `SERVICE_ROLE_KEY` | `VYNLO_SUPABASE_SERVICE_ROLE_KEY` |
+
+The web and worker development scripts both load the ignored root `.env.local`.
+Do not place the service-role value in any `NEXT_PUBLIC_*` variable or reuse a
+local key in staging or production.
 
 Expected services:
 
@@ -47,7 +62,7 @@ pnpm typecheck
 pnpm lint
 pnpm format:check
 pnpm test                unit/invariant suites
-pnpm test:db             migrations, constraints, RLS, concurrency
+pnpm test:db             migrations, constraints, RLS, invariants
 pnpm test:api            OpenAPI and API contract tests
 pnpm test:e2e            Playwright responsive E2E
 pnpm test:security
@@ -61,13 +76,14 @@ pnpm db:migrate
 pnpm seed:synthetic
 ```
 
-At Stage 0, `test:db` validates the safety and two-workspace shape of the disposable synthetic seed. Production tenancy migrations, pgTAP, RLS policies, and cross-workspace database tests begin in PR 2.
+`pnpm check:supabase` validates the migration/RLS/helper structure, permission-catalog parity, and two-workspace synthetic seed without Docker. With the local Supabase stack running, `pnpm test:db` adds the pgTAP tenancy, permission, MFA/step-up, ownership-spoofing, and append-only audit matrix. `pnpm check:supabase:runtime` reapplies the seed to prove idempotency before checking executed fixture counts.
 
 The GitHub-hosted `quality / database-smoke` job additionally starts Supabase, resets and seeds the local Postgres database, and queries the executed rows. Reproduce that runtime assertion on a Docker-capable machine with:
 
 ```bash
 pnpm supabase:start
 pnpm db:reset
+pnpm test:db
 pnpm check:supabase:runtime
 pnpm exec supabase stop --no-backup
 ```
@@ -77,6 +93,7 @@ pnpm exec supabase stop --no-backup
 - **Wrong Node or pnpm version:** use Node 24.18.0 and run `corepack prepare pnpm@11.13.0 --activate`.
 - **Frozen lockfile failure:** do not regenerate with npm or yarn; use the pinned pnpm version and commit intentional dependency changes with `pnpm-lock.yaml`.
 - **Supabase will not start:** confirm Docker is running and ports 54320-54323 are available, then run `pnpm supabase:stop` before retrying.
+- **Worker reports missing `VYNLO_*` configuration:** run `pnpm exec supabase status -o env`, map the local values as shown above, and confirm the root `.env.local` exists.
 - **Playwright browser missing:** run `pnpm exec playwright install chromium`.
 - **Python validation import error:** install `python -m pip install -r scripts/requirements.txt`.
 - **Windows Corepack permission error:** open an elevated shell only for `corepack enable`; normal project commands should run without elevation.

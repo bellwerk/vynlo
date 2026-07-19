@@ -58,15 +58,16 @@ Application commands additionally prevent workspace ID changes, enforce expected
 |---|---|---|---|---|
 | organizations/workspaces | membership/support policy | provisioning service | admin/manage | prohibited; close command |
 | memberships/roles | member can see safe roster; admin full | users.manage | users.manage + step-up | deactivate/unassign command |
-| legal entities/locations/brands | member or configured permission | settings.manage | settings.manage | retire/deactivate |
+| legal entities/locations/brands | member or configured permission | configuration.manage | configuration.manage | retire/deactivate |
 | legal identifiers | restricted permission; masked view otherwise | settings.manage + step-up | version/replace + step-up | prohibited |
 | workspace settings/entitlements | configuration read | configuration.manage | versioned update; entitlement source restrictions | prohibited |
 | workspace configuration versions/changes | configuration read | import/admin configuration service | lifecycle command only | prohibited |
 | configuration imports/exports/activations | configuration read | configuration/import/export service | system/lifecycle status only | prohibited |
 | starter/tax pack installations | configuration read | pack service | lifecycle command | prohibited |
 | vehicles/inventory units | inventory.read | inventory.create | inventory.update | prohibited; archive |
-| costs | costs.read | costs.edit | draft only | posted entry prohibited; reverse |
-| media | inventory/media read | media.create | metadata/order/cover permission | archive; file retention job |
+| vehicle fact override history/receipts | inventory.read + inventory.facts_override; receipts additionally actor-only | fact-override command only | prohibited | prohibited |
+| costs | costs.read | costs.create | draft only | posted entry prohibited; reverse with costs.reverse |
+| media | inventory/media read; cleanup provenance is service-only | media.create | metadata/order/cover permission | archive; exact-lease retention/cleanup job only after an atomic provider precondition is available |
 | listings | listings.read | system/application command | application/provider job | disable/unpublish command |
 | parties/CRM | crm.read | crm.create | crm.update | archive/anonymize policy |
 | party identifiers | restricted permission | restricted permission | replace/version | prohibited |
@@ -91,9 +92,19 @@ No user UPDATE/DELETE policies:
 stock_number_allocations
 number_allocations
 workflow_events
+vehicle_facts_override_history
+vehicle_facts_override_command_receipts
 calculation_snapshots
 tax_calculation_snapshots
 job_attempts
+media_quarantine_cleanups
+legal_original_quarantine_cleanups
+document_preview_download_authorizations
+managed_media_download_authorizations
+vin_inventory_intakes
+vin_inventory_intake_links
+vin_manual_inventory_intakes
+media_retention_hold_events
 approval_records
 audit_events
 posted/reversal payment records

@@ -1,3 +1,4 @@
+// Stable test IDs: T-OPS-001.
 import { describe, expect, it } from "vitest";
 import { getWorkerHealth } from "./health";
 

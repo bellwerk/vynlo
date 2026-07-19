@@ -1,24 +1,53 @@
-schema_version: "1.0"
+schema_version: "1.1"
 export:
   key: inventory_summary
-  version: "1.0.0"
-  labels: { en: Inventory summary, fr: Sommaire de l’inventaire }
+  version: "1.1.0"
+  labels: { en: Inventory summary, fr: Sommaire de lâ€™inventaire }
   entity: inventory_unit
   formats: [csv, xlsx]
   columns:
-    - { key: stock_number, source: inventory_unit.stock_number }
-    - { key: vin, source: vehicle.vin }
-    - { key: year, source: vehicle.model_year }
-    - { key: make, source: vehicle.make }
-    - { key: model, source: vehicle.model }
-    - { key: trim, source: vehicle.trim }
-    - { key: status, source: inventory_unit.workflow_state_label }
-    - { key: location, source: location.name }
-    - { key: acquired_at, source: inventory_unit.acquired_at }
-    - { key: days_in_stock, source: metrics.days_in_stock }
-    - { key: advertised_price_minor, source: inventory_unit.advertised_price_minor }
-    - { key: total_cost_minor, source: metrics.total_cost_minor }
-    - { key: estimated_gross_minor, source: metrics.estimated_gross_minor }
-    - { key: currency_code, source: inventory_unit.currency_code }
-  default_filters:
-    include_archived: false
+    - key: stock_number
+      labels: { en: Stock number, fr: NumÃ©ro de stock }
+      source: inventory_unit.stock_number
+      format: text
+    - key: vin
+      labels: { en: VIN, fr: NIV }
+      source: vehicle.vin
+      format: text
+    - key: model_year
+      labels: { en: Year, fr: AnnÃ©e }
+      source: vehicle.model_year
+      format: integer
+    - key: make
+      labels: { en: Make, fr: Marque }
+      source: vehicle.make
+      format: text
+    - key: model
+      labels: { en: Model, fr: ModÃ¨le }
+      source: vehicle.model
+      format: text
+    - key: workflow_state
+      labels: { en: Status, fr: Statut }
+      source: inventory_unit.workflow_state
+      format: text
+    - key: acquired_at
+      labels: { en: Acquired, fr: Acquis }
+      source: inventory_unit.acquired_at
+      format: date
+      nullable: true
+    - key: advertised_price_minor
+      labels: { en: Advertised price, fr: Prix annoncÃ© }
+      source: inventory_unit.advertised_price_minor
+      format: minor_units
+      nullable: true
+    - key: currency_code
+      labels: { en: Currency, fr: Devise }
+      source: inventory_unit.currency_code
+      format: currency_code
+  default_filters: { include_archived: false }
+  available_filters: [include_archived, location_id, states]
+  security:
+    permission: exports.run
+    audit_required: true
+    links_expire: true
+  activation_gate: approved_export

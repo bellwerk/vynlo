@@ -17,6 +17,30 @@
 - `implementation/IMPLEMENTATION_PLAN.md`
 - `implementation/EPICS_AND_STORIES.md`
 - `implementation/ENGINEERING_HANDOFF_CHECKLIST.md`
+- `implementation/MILESTONE_1_TENANCY_FOUNDATION.md`
+
+## Milestone 1 delivery records
+
+- [End-to-end source integration](implementation/MILESTONE_1_END_TO_END.md)
+- [Tenancy and identity foundation](implementation/MILESTONE_1_TENANCY_FOUNDATION.md)
+- [Configuration and entitlement foundation](implementation/MILESTONE_1_CONFIGURATION_ENTITLEMENTS.md)
+- [Transactional outbox and durable jobs](implementation/MILESTONE_1_OUTBOX_JOBS.md)
+- [First vertical slice](implementation/MILESTONE_1_FIRST_VERTICAL_SLICE.md)
+- [Invite-only authentication](implementation/MILESTONE_1_INVITE_ONLY_AUTH.md)
+- [Document-preview pipeline](implementation/MILESTONE_1_DOCUMENT_PREVIEW_PIPELINE.md)
+- [Document-preview worker](implementation/MILESTONE_1_PREVIEW_WORKER.md)
+- [Invitation-delivery worker](implementation/MILESTONE_1_INVITATION_DELIVERY_WORKER.md)
+- [PWA and localization shell](implementation/MILESTONE_1_PWA_SHELL.md)
+
+## Milestone 2 delivery records
+
+- [Inventory and workflow database foundation](implementation/MILESTONE_2_INVENTORY_WORKFLOW_FOUNDATION.md)
+- [Durable VIN pipeline](implementation/MILESTONE_2_VIN_PIPELINE.md)
+- [Inventory cost and search slice](implementation/MILESTONE_2_COST_SEARCH.md)
+- [Media and managed-storage pipeline](implementation/MILESTONE_2_MEDIA_PIPELINE.md)
+- [VIN-backed inventory intake](implementation/MILESTONE_2_VIN_INVENTORY_INTAKE.md)
+- [Inventory operations](implementation/MILESTONE_2_INVENTORY_OPERATIONS.md)
+- [Vehicle media management](implementation/MILESTONE_2_VEHICLE_MEDIA_MANAGEMENT.md)
 
 ## Governance
 

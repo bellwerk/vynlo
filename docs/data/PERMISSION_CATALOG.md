@@ -29,6 +29,10 @@ inventory.create
 inventory.update
 inventory.transition
 inventory.archive
+inventory.duplicate_override
+inventory.facts_override
+inventory.read_internal
+inventory.update_internal
 
 costs.read
 costs.create
@@ -92,6 +96,7 @@ formula.read
 formula.activate
 tax.read
 tax.activate
+tax.override
 template.read
 template.activate
 workflow.read
@@ -118,7 +123,9 @@ files.read_restricted
 support.access
 ```
 
-A tenant may add namespaced private keys such as `drivven.collections.review`. Private keys do not become platform permissions.
+A workspace may add namespaced private keys such as
+`<tenant-namespace>.collections.review`. Private keys do not become platform
+permissions.
 
 ## Action rules
 
@@ -128,3 +135,4 @@ A tenant may add namespaced private keys such as `drivven.collections.review`. P
 - `payments.record` cannot reverse/refund.
 - `inventory.archive` is not hard delete.
 - Restricted identifiers/files require the dedicated permission even when the parent party/document is readable.
+- `media.create` may create, poll, and reason-retry an owned legal-original upload intent. Signed originals require the narrower `documents.upload_signed` key and recent strong authentication at intent, Storage INSERT, verification request, status poll, and manual dead-letter retry. Neither key grants direct upload-session SELECT or retry of a rejected/other-owner upload.

@@ -1,0 +1,12 @@
+[
+  {
+    "date": "2026-07-17",
+    "scope": "app",
+    "macrostructure": "Workbench",
+    "theme": "custom",
+    "theme_axes": "cool-neutral paper / native system sans / system-blue accent",
+    "vibe": "clean exact neutral near-iOS operations",
+    "enrichment": "none",
+    "brief": "Unify every Vynlo route under one shadcn-based light and dark application system"
+  }
+]

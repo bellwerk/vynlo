@@ -8,7 +8,8 @@
 - mobile-first PWA and French/English architecture;
 - inventory, costs, media, managed storage, VIN adapter, search;
 - listing/provider framework;
-- CRM, deals, trade-ins, third-party finance tracking, one-time payments;
+- CRM with workflow-derived lead pipeline board/list, deals, trade-ins,
+  third-party finance tracking, and one-time payments;
 - document, calculation, tax-pack, workflow, numbering, custom-field, and export engines;
 - API, outbox/worker, security, observability, operations, and testing;
 - standard retail dealer starter pack;

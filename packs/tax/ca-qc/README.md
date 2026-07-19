@@ -1,10 +1,12 @@
 # Candidate tax pack: Canada / Québec
 
 **Pack key:** `tax-ca-qc`  
-**Version:** 1.0.0-candidate  
+**Version:** 1.0.0
 **Activation status:** Draft; production activation requires accountant/legal approval and signed golden tests.
 
-This pack models a conventional Québec vehicle-sale context. It is not a universal contract formula and must not contain Drivven's 70/30, brokerage, RTB, repayment, or collection logic.
+This pack models a conventional Québec vehicle-sale context. It is not a
+universal contract formula and must not contain tenant-specific revenue splits,
+brokerage, repayment, or collection logic.
 
 ## Candidate defaults
 
@@ -12,6 +14,7 @@ This pack models a conventional Québec vehicle-sale context. It is not a univer
 - QST/TVQ rate: 9.975%.
 - QST is calculated on the price excluding GST.
 - In a qualifying dealer trade-in transaction, an eligible trade-in credit may reduce the taxable consideration according to the active trade-in rule and recorded eligibility inputs.
+- A discount affects a tax bucket only when the deal line explicitly classifies it; the runtime does not infer classification from its label, source, or tenant.
 - Taxes are rounded to the nearest cent using half-up rounding on the tax base defined by the active rule.
 
 ## Activation requirements

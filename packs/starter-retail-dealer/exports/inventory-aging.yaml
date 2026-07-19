@@ -1,0 +1,40 @@
+schema_version: "1.1"
+export:
+  key: inventory_aging
+  version: "1.0.0"
+  labels: { en: Inventory aging, fr: Vieillissement de lâ€™inventaire }
+  entity: inventory_unit
+  formats: [csv, xlsx]
+  columns:
+    - key: stock_number
+      labels: { en: Stock number, fr: NumÃ©ro de stock }
+      source: inventory_unit.stock_number
+      format: text
+    - key: vehicle
+      labels: { en: Vehicle, fr: VÃ©hicule }
+      source: vehicle.display_name
+      format: text
+    - key: acquired_at
+      labels: { en: Acquired, fr: Acquis }
+      source: inventory_unit.acquired_at
+      format: date
+      nullable: true
+    - key: days_in_stock
+      labels: { en: Days in stock, fr: Jours en stock }
+      source: metrics.days_in_stock
+      format: integer
+    - key: aging_bucket
+      labels: { en: Aging bucket, fr: Tranche dâ€™anciennetÃ© }
+      source: metrics.aging_bucket
+      format: text
+    - key: workflow_state
+      labels: { en: Status, fr: Statut }
+      source: inventory_unit.workflow_state
+      format: text
+  default_filters: { include_archived: false }
+  available_filters: [include_archived, location_id, states, acquired_before]
+  security:
+    permission: reports.read
+    audit_required: true
+    links_expire: true
+  activation_gate: approved_export

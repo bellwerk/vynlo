@@ -1,0 +1,15 @@
+{
+  "date": "2026-07-17",
+  "fontStack": "Native system stack; no bundled font dependency",
+  "palette": "Canonical light/dark OKLCH semantic tokens in packages/design-tokens/src/tokens.css, mapped to shadcn roles",
+  "motion": "Motion-cut project; no animation framework dependency",
+  "spacing": "Four-point CSS custom-property scale",
+  "framework": "Next.js 16 App Router, React 19, Tailwind CSS 4, pnpm monorepo",
+  "designSystem": "Vynlo System in design.md",
+  "sources": [
+    "package.json",
+    "apps/web/package.json",
+    "apps/web/app/globals.css",
+    "packages/design-tokens/src/tokens.css"
+  ]
+}

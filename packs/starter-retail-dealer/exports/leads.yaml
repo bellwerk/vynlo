@@ -1,0 +1,37 @@
+schema_version: "1.1"
+export:
+  key: leads
+  version: "1.0.0"
+  labels: { en: Leads, fr: Prospects }
+  entity: lead
+  formats: [csv, xlsx]
+  columns:
+    - key: reference
+      labels: { en: Reference, fr: RÃ©fÃ©rence }
+      source: lead.reference
+      format: text
+    - key: status
+      labels: { en: Status, fr: Statut }
+      source: lead.status
+      format: text
+    - key: source
+      labels: { en: Source, fr: Source }
+      source: lead.source
+      format: text
+      nullable: true
+    - key: assignee
+      labels: { en: Assignee, fr: Responsable }
+      source: lead.assignee_name
+      format: text
+      nullable: true
+    - key: created_at
+      labels: { en: Created, fr: CrÃ©Ã© }
+      source: lead.created_at
+      format: datetime
+  default_filters: {}
+  available_filters: [statuses, assignee_id, created_from, created_to]
+  security:
+    permission: reports.read
+    audit_required: true
+    links_expire: true
+  activation_gate: approved_export

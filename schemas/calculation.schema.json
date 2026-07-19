@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.vynlo.example/calculation/1.0.0",
+  "$id": "https://schemas.vynlo.example/calculation/1.1.0",
   "title": "Vynlo Calculation Definition",
   "type": "object",
   "additionalProperties": false,
@@ -23,268 +23,301 @@
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
     "status": {
-      "enum": [
-        "draft",
-        "test_passed",
-        "approved",
-        "active",
-        "retired"
-      ]
+      "enum": ["draft", "validated", "test_passed", "approved", "active", "retired"]
     },
-    "input_schema": {
-      "type": "object"
-    },
+    "input_schema": { "type": "object" },
     "outputs": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/expression"
-      }
+      "minProperties": 1,
+      "maxProperties": 128,
+      "propertyNames": { "$ref": "#/$defs/output_key" },
+      "additionalProperties": { "$ref": "#/$defs/expression" }
     },
-    "rounding": {
-      "type": "object"
-    },
+    "rounding": { "type": "object" },
     "fixtures": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "items": { "type": "string", "minLength": 1 }
     },
     "approval_refs": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "items": { "type": "string", "minLength": 1 }
     },
-    "metadata": {
-      "type": "object"
-    }
+    "metadata": { "type": "object" }
   },
   "$defs": {
+    "output_key": {
+      "allOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,127}$"
+        },
+        {
+          "not": {
+            "enum": ["__proto__", "prototype", "constructor"]
+          }
+        }
+      ]
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^(?!(?:.*\\.)?(?:__proto__|prototype|constructor)(?:\\.|$))(?:[A-Za-z_][A-Za-z0-9_]*|0|[1-9][0-9]*)(?:\\.(?:[A-Za-z_][A-Za-z0-9_]*|0|[1-9][0-9]*))*$"
+    },
+    "json_value": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "string" },
+        {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/json_value" }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "not": {
+              "enum": ["__proto__", "prototype", "constructor"]
+            }
+          },
+          "additionalProperties": { "$ref": "#/$defs/json_value" }
+        }
+      ]
+    },
     "expression": {
       "oneOf": [
-        {
-          "$ref": "#/$defs/constant"
-        },
-        {
-          "$ref": "#/$defs/field"
-        },
-        {
-          "$ref": "#/$defs/arithmetic"
-        },
-        {
-          "$ref": "#/$defs/round"
-        },
-        {
-          "$ref": "#/$defs/compare"
-        },
-        {
-          "$ref": "#/$defs/if"
-        },
-        {
-          "$ref": "#/$defs/coalesce"
-        },
-        {
-          "$ref": "#/$defs/sum_rows"
-        },
-        {
-          "$ref": "#/$defs/tax_pack"
-        },
-        {
-          "$ref": "#/$defs/amortized_payment"
-        },
-        {
-          "$ref": "#/$defs/amortization_schedule"
-        },
-        {
-          "$ref": "#/$defs/date_add"
-        }
+        { "$ref": "#/$defs/constant" },
+        { "$ref": "#/$defs/field" },
+        { "$ref": "#/$defs/output" },
+        { "$ref": "#/$defs/arithmetic" },
+        { "$ref": "#/$defs/percentage" },
+        { "$ref": "#/$defs/abs" },
+        { "$ref": "#/$defs/round" },
+        { "$ref": "#/$defs/floor_ceil" },
+        { "$ref": "#/$defs/compare" },
+        { "$ref": "#/$defs/if" },
+        { "$ref": "#/$defs/coalesce" },
+        { "$ref": "#/$defs/sum_rows" },
+        { "$ref": "#/$defs/tax_pack" },
+        { "$ref": "#/$defs/amortized_payment" },
+        { "$ref": "#/$defs/amortization_schedule" },
+        { "$ref": "#/$defs/date_add" },
+        { "$ref": "#/$defs/date_difference" }
       ]
     },
     "constant": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "value"
-      ],
+      "required": ["op", "value"],
       "properties": {
-        "op": {
-          "const": "constant"
-        },
-        "value": {}
+        "op": { "const": "constant" },
+        "value": { "$ref": "#/$defs/json_value" }
       }
     },
     "field": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "path"
-      ],
+      "required": ["op", "path"],
       "properties": {
-        "op": {
-          "const": "field"
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        }
+        "op": { "const": "field" },
+        "path": { "$ref": "#/$defs/path" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "key"],
+      "properties": {
+        "op": { "const": "output" },
+        "key": { "$ref": "#/$defs/output_key" }
       }
     },
     "arithmetic": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "args"
-      ],
+      "required": ["op", "args"],
       "properties": {
         "op": {
-          "enum": [
-            "add",
-            "subtract",
-            "multiply",
-            "divide",
-            "min",
-            "max",
-            "sum",
-            "abs"
-          ]
+          "enum": ["add", "sum", "subtract", "multiply", "divide", "min", "max"]
         },
         "args": {
           "type": "array",
-          "items": {
-            "$ref": "#/$defs/expression"
-          },
+          "items": { "$ref": "#/$defs/expression" },
           "minItems": 1,
           "maxItems": 1000
         }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "op": { "enum": ["subtract", "divide"] }
+            },
+            "required": ["op"]
+          },
+          "then": {
+            "properties": {
+              "args": { "minItems": 2 }
+            }
+          }
+        }
+      ]
+    },
+    "percentage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "value", "percentage"],
+      "properties": {
+        "op": { "const": "percentage" },
+        "value": { "$ref": "#/$defs/expression" },
+        "percentage": { "$ref": "#/$defs/expression" }
+      }
+    },
+    "abs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "value"],
+      "properties": {
+        "op": { "const": "abs" },
+        "value": { "$ref": "#/$defs/expression" }
       }
     },
     "round": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "value",
-        "scale",
-        "mode"
-      ],
+      "required": ["op", "value", "scale", "mode"],
       "properties": {
-        "op": {
-          "const": "round"
-        },
-        "value": {
-          "$ref": "#/$defs/expression"
-        },
-        "scale": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 8
-        },
-        "mode": {
-          "enum": [
-            "half_up",
-            "half_even",
-            "down",
-            "up"
-          ]
-        }
+        "op": { "const": "round" },
+        "value": { "$ref": "#/$defs/expression" },
+        "scale": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "mode": { "$ref": "#/$defs/rounding_mode" }
       }
+    },
+    "floor_ceil": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "value"],
+      "properties": {
+        "op": { "enum": ["floor", "ceil"] },
+        "value": { "$ref": "#/$defs/expression" },
+        "scale": { "type": "integer", "minimum": 0, "maximum": 8 }
+      }
+    },
+    "rounding_mode": {
+      "enum": ["half_up", "half_even", "down", "up"]
     },
     "compare": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "left",
-        "right"
-      ],
+      "required": ["op", "left", "right"],
       "properties": {
-        "op": {
-          "enum": [
-            "eq",
-            "ne",
-            "lt",
-            "lte",
-            "gt",
-            "gte"
-          ]
-        },
-        "left": {
-          "$ref": "#/$defs/expression"
-        },
-        "right": {
-          "$ref": "#/$defs/expression"
-        }
+        "op": { "enum": ["eq", "ne", "lt", "lte", "gt", "gte"] },
+        "left": { "$ref": "#/$defs/expression" },
+        "right": { "$ref": "#/$defs/expression" }
       }
     },
     "if": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "condition",
-        "then",
-        "else"
-      ],
+      "required": ["op", "condition", "then", "else"],
       "properties": {
-        "op": {
-          "const": "if"
-        },
-        "condition": {
-          "$ref": "#/$defs/expression"
-        },
-        "then": {
-          "$ref": "#/$defs/expression"
-        },
-        "else": {
-          "$ref": "#/$defs/expression"
-        }
+        "op": { "const": "if" },
+        "condition": { "$ref": "#/$defs/expression" },
+        "then": { "$ref": "#/$defs/expression" },
+        "else": { "$ref": "#/$defs/expression" }
       }
     },
     "coalesce": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "args"
-      ],
+      "required": ["op", "args"],
       "properties": {
-        "op": {
-          "const": "coalesce"
-        },
+        "op": { "const": "coalesce" },
         "args": {
           "type": "array",
-          "items": {
-            "$ref": "#/$defs/expression"
-          },
-          "minItems": 1
+          "items": { "$ref": "#/$defs/expression" },
+          "minItems": 1,
+          "maxItems": 100
         }
       }
+    },
+    "row_predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all"],
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": { "$ref": "#/$defs/row_predicate" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["any"],
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 100,
+              "items": { "$ref": "#/$defs/row_predicate" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["not"],
+          "properties": {
+            "not": { "$ref": "#/$defs/row_predicate" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "path": { "$ref": "#/$defs/path" },
+            "eq": { "$ref": "#/$defs/json_value" },
+            "ne": { "$ref": "#/$defs/json_value" },
+            "lt": { "$ref": "#/$defs/json_value" },
+            "lte": { "$ref": "#/$defs/json_value" },
+            "gt": { "$ref": "#/$defs/json_value" },
+            "gte": { "$ref": "#/$defs/json_value" }
+          },
+          "oneOf": [
+            { "required": ["eq"] },
+            { "required": ["ne"] },
+            { "required": ["lt"] },
+            { "required": ["lte"] },
+            { "required": ["gt"] },
+            { "required": ["gte"] }
+          ]
+        }
+      ]
     },
     "sum_rows": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "rows_path",
-        "value_path"
-      ],
+      "required": ["op", "rows_path", "value_path"],
       "properties": {
-        "op": {
-          "const": "sum_rows"
-        },
-        "rows_path": {
-          "type": "string"
-        },
-        "value_path": {
-          "type": "string"
-        },
+        "op": { "const": "sum_rows" },
+        "rows_path": { "$ref": "#/$defs/path" },
+        "value_path": { "$ref": "#/$defs/path" },
         "where": {
-          "type": [
-            "object",
-            "null"
+          "oneOf": [
+            { "$ref": "#/$defs/row_predicate" },
+            { "type": "null" }
           ]
         }
       }
@@ -292,28 +325,17 @@
     "tax_pack": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "context",
-        "inputs",
-        "output"
-      ],
+      "required": ["op", "context", "inputs", "output"],
       "properties": {
-        "op": {
-          "const": "tax_pack"
-        },
-        "context": {
-          "type": "string"
-        },
+        "op": { "const": "tax_pack" },
+        "context": { "$ref": "#/$defs/output_key" },
         "inputs": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/expression"
-          }
+          "maxProperties": 100,
+          "propertyNames": { "$ref": "#/$defs/output_key" },
+          "additionalProperties": { "$ref": "#/$defs/expression" }
         },
-        "output": {
-          "type": "string"
-        }
+        "output": { "$ref": "#/$defs/output_key" }
       }
     },
     "amortized_payment": {
@@ -328,41 +350,18 @@
         "rounding"
       ],
       "properties": {
-        "op": {
-          "const": "amortized_payment"
-        },
-        "principal_minor": {
-          "$ref": "#/$defs/expression"
-        },
-        "annual_rate_bps": {
-          "$ref": "#/$defs/expression"
-        },
-        "periods_per_year": {
-          "$ref": "#/$defs/expression"
-        },
-        "number_of_periods": {
-          "$ref": "#/$defs/expression"
-        },
+        "op": { "const": "amortized_payment" },
+        "principal_minor": { "$ref": "#/$defs/expression" },
+        "annual_rate_bps": { "$ref": "#/$defs/expression" },
+        "periods_per_year": { "$ref": "#/$defs/expression" },
+        "number_of_periods": { "$ref": "#/$defs/expression" },
         "rounding": {
           "type": "object",
-          "required": [
-            "mode",
-            "minor_unit"
-          ],
+          "additionalProperties": false,
+          "required": ["mode", "minor_unit"],
           "properties": {
-            "mode": {
-              "enum": [
-                "half_up",
-                "half_even",
-                "down",
-                "up"
-              ]
-            },
-            "minor_unit": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6
-            }
+            "mode": { "$ref": "#/$defs/rounding_mode" },
+            "minor_unit": { "type": "integer", "minimum": 0, "maximum": 6 }
           }
         }
       }
@@ -382,54 +381,22 @@
         "rounding"
       ],
       "properties": {
-        "op": {
-          "const": "amortization_schedule"
-        },
-        "principal_minor": {
-          "$ref": "#/$defs/expression"
-        },
-        "annual_rate_bps": {
-          "$ref": "#/$defs/expression"
-        },
-        "periods_per_year": {
-          "$ref": "#/$defs/expression"
-        },
-        "number_of_periods": {
-          "$ref": "#/$defs/expression"
-        },
-        "first_due_date": {
-          "$ref": "#/$defs/expression"
-        },
-        "period_days": {
-          "$ref": "#/$defs/expression"
-        },
-        "payment_minor": {
-          "$ref": "#/$defs/expression"
-        },
+        "op": { "const": "amortization_schedule" },
+        "principal_minor": { "$ref": "#/$defs/expression" },
+        "annual_rate_bps": { "$ref": "#/$defs/expression" },
+        "periods_per_year": { "$ref": "#/$defs/expression" },
+        "number_of_periods": { "$ref": "#/$defs/expression" },
+        "first_due_date": { "$ref": "#/$defs/expression" },
+        "period_days": { "$ref": "#/$defs/expression" },
+        "payment_minor": { "$ref": "#/$defs/expression" },
         "rounding": {
           "type": "object",
-          "required": [
-            "mode",
-            "minor_unit",
-            "final_payment_adjustment"
-          ],
+          "additionalProperties": false,
+          "required": ["mode", "minor_unit", "final_payment_adjustment"],
           "properties": {
-            "mode": {
-              "enum": [
-                "half_up",
-                "half_even",
-                "down",
-                "up"
-              ]
-            },
-            "minor_unit": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 6
-            },
-            "final_payment_adjustment": {
-              "const": true
-            }
+            "mode": { "$ref": "#/$defs/rounding_mode" },
+            "minor_unit": { "type": "integer", "minimum": 0, "maximum": 6 },
+            "final_payment_adjustment": { "const": true }
           }
         }
       }
@@ -437,21 +404,21 @@
     "date_add": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "op",
-        "date",
-        "days"
-      ],
+      "required": ["op", "date", "days"],
       "properties": {
-        "op": {
-          "const": "date_add_days"
-        },
-        "date": {
-          "$ref": "#/$defs/expression"
-        },
-        "days": {
-          "$ref": "#/$defs/expression"
-        }
+        "op": { "const": "date_add_days" },
+        "date": { "$ref": "#/$defs/expression" },
+        "days": { "$ref": "#/$defs/expression" }
+      }
+    },
+    "date_difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "start", "end"],
+      "properties": {
+        "op": { "const": "date_difference_days" },
+        "start": { "$ref": "#/$defs/expression" },
+        "end": { "$ref": "#/$defs/expression" }
       }
     }
   }

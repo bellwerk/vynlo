@@ -15,6 +15,7 @@ export default defineConfig([
   },
   globalIgnores([
     "**/.next/**",
+    "**/.supabase/**",
     "**/coverage/**",
     "**/dist/**",
     "contracts/**",

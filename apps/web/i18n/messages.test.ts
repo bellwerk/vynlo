@@ -1,12 +1,30 @@
+// Stable test IDs: T-I18N-001.
 import { describe, expect, it } from "vitest";
 import { messages } from "./messages";
 
-describe("foundation message catalogs", () => {
-  it("keeps English and French top-level keys aligned", () => {
-    expect(Object.keys(messages.fr)).toEqual(Object.keys(messages.en));
+function catalogShape(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(catalogShape);
+  }
+
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, catalogShape(child)]),
+    );
+  }
+
+  return typeof value;
+}
+
+describe("message catalogs", () => {
+  it("keeps the complete English and French catalog structures aligned", () => {
+    expect(catalogShape(messages.fr)).toEqual(catalogShape(messages.en));
   });
 
-  it("preserves French accents", () => {
-    expect(messages.fr.heading).toContain("équipes");
+  it("preserves French accents and language-independent machine keys", () => {
+    expect(messages.fr.heading).toContain("préparation");
+    expect(Object.keys(messages.fr.navigation)).toEqual(
+      Object.keys(messages.en.navigation),
+    );
   });
 });

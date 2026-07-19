@@ -1,0 +1,40 @@
+schema_version: "1.1"
+export:
+  key: deals
+  version: "1.0.0"
+  labels: { en: Deals, fr: Dossiers }
+  entity: deal
+  formats: [csv, xlsx]
+  columns:
+    - key: reference
+      labels: { en: Reference, fr: RÃ©fÃ©rence }
+      source: deal.reference
+      format: text
+    - key: deal_type
+      labels: { en: Deal type, fr: Type de dossier }
+      source: deal.deal_type
+      format: text
+    - key: workflow_state
+      labels: { en: Status, fr: Statut }
+      source: deal.workflow_state
+      format: text
+    - key: total_minor
+      labels: { en: Total, fr: Total }
+      source: deal.total_minor
+      format: minor_units
+      nullable: true
+    - key: currency_code
+      labels: { en: Currency, fr: Devise }
+      source: deal.currency_code
+      format: currency_code
+    - key: updated_at
+      labels: { en: Updated, fr: Mis Ã  jour }
+      source: deal.updated_at
+      format: datetime
+  default_filters: {}
+  available_filters: [workflow_states, deal_type_keys, updated_from, updated_to]
+  security:
+    permission: reports.read
+    audit_required: true
+    links_expire: true
+  activation_gate: approved_export

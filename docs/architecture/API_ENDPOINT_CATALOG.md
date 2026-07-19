@@ -43,17 +43,24 @@ Reads return masked values unless restricted permission is present.
 | Method/path | Behavior |
 |---|---|
 | `GET /inventory-units` | Cursor list, filters, saved-view-compatible fields |
-| `POST /inventory-units` | Confirm creation, allocate stock, create unit/outbox atomically |
-| `GET /inventory-units/{id}` | Detail with media/listing/job summaries |
+| `POST /inventory-units` | Confirm decoded facts and atomically create or safely link; response distinguishes allocation from existing-open-unit linkage |
+| `GET /inventory-units/{id}` | Permission-aware operator detail; internal notes and cost/gross fields are masked independently |
 | `PATCH /inventory-units/{id}` | Versioned editable fields |
+| `POST /inventory-units/{id}/location-transfers` | Versioned transfer to an active workspace location with audit/outbox evidence |
 | `POST /inventory-units/{id}/transition` | Execute configured workflow transition |
 | `POST /inventory-units/{id}/archive` | Convenience command to configured archive transition |
-| `GET/POST /inventory-units/{id}/costs` | Cost ledger |
-| `POST /costs/{id}/reverse` | Reversal entry, never edit posted amount |
+| `GET/POST /inventory-units/{id}/costs` | Bounded exact cost ledger, active localized categories, metrics, and cost posting |
+| `POST /inventory-costs/{id}/reversal` | Step-up reversal entry, never edit posted amount |
+| `GET/POST /inventory-saved-views` | List complete visible configurations or save a versioned private/shared view |
+| `POST /inventory-saved-views/{id}/archive` | Owner-only optimistic saved-view archive |
+| `GET /locations` | Active workspace locations available to inventory search and transfer |
 | `GET /vehicles/{id}` | Physical vehicle facts/history |
 | `POST /vin/decode` | Decode suggestions; no stock allocation |
-| `POST /vin/duplicate-review` | Return active/history candidates |
-| `POST /vehicles/{id}/facts-override` | Controlled audited correction |
+| `GET /vin/decode/{requestId}` | Safe request/job/result status without raw provider payload; consumed requests are terminal while job history remains intact |
+| `POST /vin/decode/{requestId}/retry` | Reasoned retry of eligible durable decode work |
+| `POST /vin/decode/{requestId}/duplicate-review` | Append a reasoned active/history duplicate decision |
+| `POST /vin/decode/{requestId}/manual-intake` | Confirm manual facts only after authoritative dead-letter state; response distinguishes create from safe linkage without a second open holding episode |
+| `POST /vehicles/{id}/facts-override` | Full-snapshot controlled correction with reason, expected facts version, immutable history, permission, and recent step-up |
 
 Inventory creation requires idempotency. Transition and update require expected version.
 
@@ -61,16 +68,37 @@ Inventory creation requires idempotency. Transition and update require expected 
 
 ```text
 POST /inventory-units/{id}/media/upload-intents
+GET /inventory-units/{id}/media
 POST /media/{id}/complete-upload
+GET /media/{id}/upload-sessions/{uploadSessionId}
+POST /media/{id}/upload-sessions/{uploadSessionId}/retry
 GET /media/{id}
 PATCH /media/{id}
 POST /inventory-units/{id}/media/reorder
 POST /inventory-units/{id}/media/{mediaId}/set-cover
 POST /media/{id}/reprocess
 POST /media/{id}/archive
+POST /media-files/{id}/download-grants
+POST /documents/{id}/original-upload-intents
+POST /documents/{id}/original-upload-completions
+GET /documents/{id}/original-upload-sessions/{uploadSessionId}
+POST /documents/{id}/original-upload-sessions/{uploadSessionId}/retry
 ```
 
-Upload intent declares expected type/size. Completion queues processing. Responses expose raw/master/derivative states without leaking provider credentials.
+Upload intent declares expected type/size. Completion queues processing. Responses expose raw/master/derivative states without leaking provider credentials. Download authorization returns an opaque grant; a service-only loader verifies exact immutable bytes before signing a short URL.
+
+Legal-original status is owner/permission scoped and exposes only projected
+lifecycle, bounded attempt/retry, and safe failure fields. Manual retry accepts
+an explicit reason only while the active verification job is dead-letter;
+terminal rejection requires a new upload intent. Signed-original status and
+retry repeat recent strong authentication.
+
+Vehicle upload status is separately owner/permission scoped and exposes only
+projected lifecycle, bounded attempt/retry, and safe failure fields. Manual
+retry requires an explicit reason and the exact current dead-letter job; a
+terminally rejected vehicle photo must use a new upload intent. Neither route
+returns quarantine coordinates, checksums, scan receipts, or raw worker/provider
+errors.
 
 ## Listings and integrations
 
@@ -148,6 +176,7 @@ Record/settle requires idempotency. Reverse/refund requires permission, reason, 
 | `POST /documents/official` | Allocate permanent number and queue official render |
 | `GET /documents` | Search/filter |
 | `GET /documents/{id}` | Version/lineage/files/job |
+| `POST /document-preview-artifacts/{id}/download-grants` | Audit visibility, verify immutable provider bytes server-side, and issue a short grant without exposing provider coordinates |
 | `GET /documents/{id}/files/{fileId}/download` | Time-limited authorized download |
 | `POST /documents/{id}/signed-files` | Register signed scan version |
 | `POST /documents/{id}/mark-signed` | Transition with required data |

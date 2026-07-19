@@ -1,0 +1,307 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4
+ * genre: modern-minimal · design-system: Vynlo System · designed-as-app
+ * palette: cool neutral paper · restrained system blue · semantic status only
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Near-iOS system typography without bundling proprietary Apple fonts. */
+  --font-display:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
+    "Segoe UI", sans-serif;
+  --font-body:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
+    "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+
+  /* Hallmark semantic foundation. */
+  --color-paper: oklch(0.968 0.003 286);
+  --color-paper-2: oklch(0.995 0.002 255);
+  --color-ink: oklch(0.245 0.006 286);
+  --color-ink-2: oklch(0.335 0.008 286);
+  --color-rule: oklch(0.845 0.007 286);
+  --color-accent: oklch(0.49 0.19 258);
+  --color-accent-ink: oklch(0.99 0.002 255);
+  --color-focus: oklch(0.2 0.04 258);
+
+  /* shadcn/ui semantic contract. */
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --card: var(--color-paper-2);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-paper-2);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-ink);
+  --secondary: oklch(0.925 0.006 286);
+  --secondary-foreground: oklch(0.305 0.008 286);
+  --muted: oklch(0.93 0.005 286);
+  --muted-foreground: oklch(0.48 0.012 286);
+  --accent: oklch(0.925 0.025 258);
+  --accent-foreground: oklch(0.31 0.105 258);
+  --destructive: oklch(0.505 0.19 27);
+  --destructive-foreground: oklch(0.99 0.002 255);
+  --success: oklch(0.45 0.13 152);
+  --success-foreground: oklch(0.99 0.002 255);
+  --warning: oklch(0.72 0.125 78);
+  --warning-foreground: oklch(0.235 0.03 78);
+  --border: var(--color-rule);
+  --input: oklch(0.64 0.012 286);
+  --ring: var(--color-focus);
+  --overlay: oklch(0.16 0.008 286 / 0.44);
+
+  /* Data visualisation is kept separate from interaction colour. */
+  --chart-1: oklch(0.54 0.17 258);
+  --chart-2: oklch(0.57 0.12 205);
+  --chart-3: oklch(0.59 0.13 145);
+  --chart-4: oklch(0.63 0.14 76);
+  --chart-5: oklch(0.56 0.12 318);
+
+  --sidebar: oklch(0.952 0.005 286);
+  --sidebar-foreground: var(--color-ink);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.91 0.02 258);
+  --sidebar-accent-foreground: oklch(0.29 0.09 258);
+  --sidebar-border: var(--color-rule);
+  --sidebar-ring: var(--ring);
+
+  /* Four-point geometry and type rhythm. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --touch-target: 2.75rem;
+  --page-max: 90rem;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-display: clamp(2rem, 3vw + 1rem, 3.5rem);
+
+  --radius: 0.625rem;
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --radius-large: 1rem;
+  --radius-overlay: 1.25rem;
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
+  --radius-lg: var(--radius-panel);
+  --radius-xl: var(--radius-large);
+
+  --focus-width: 0.1875rem;
+  --focus-offset: 0.125rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.29, 1);
+  --ease-in: cubic-bezier(0.71, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-short: 180ms;
+  --duration-medium: 220ms;
+  --duration-long: 220ms;
+
+  --shadow-whisper: 0 1px 2px oklch(0.2 0.008 286 / 0.07);
+  --shadow-overlay: 0 16px 40px oklch(0.2 0.008 286 / 0.14);
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-paper: oklch(0.15 0.004 286);
+  --color-paper-2: oklch(0.235 0.006 286);
+  --color-ink: oklch(0.968 0.003 286);
+  --color-ink-2: oklch(0.84 0.006 286);
+  --color-rule: oklch(0.335 0.009 286);
+  --color-accent: oklch(0.68 0.17 255);
+  --color-accent-ink: oklch(0.16 0.02 255);
+  --color-focus: oklch(0.92 0.03 255);
+
+  --secondary: oklch(0.28 0.008 286);
+  --secondary-foreground: oklch(0.945 0.004 286);
+  --muted: oklch(0.255 0.007 286);
+  --muted-foreground: oklch(0.72 0.01 286);
+  --accent: oklch(0.31 0.05 258);
+  --accent-foreground: oklch(0.95 0.012 258);
+  --destructive: oklch(0.67 0.17 27);
+  --destructive-foreground: oklch(0.16 0.02 27);
+  --success: oklch(0.69 0.13 152);
+  --success-foreground: oklch(0.16 0.02 152);
+  --warning: oklch(0.79 0.12 78);
+  --warning-foreground: oklch(0.18 0.025 78);
+  --input: oklch(0.55 0.012 286);
+  --overlay: oklch(0.08 0.004 286 / 0.72);
+
+  --chart-1: oklch(0.71 0.15 255);
+  --chart-2: oklch(0.72 0.11 205);
+  --chart-3: oklch(0.72 0.12 145);
+  --chart-4: oklch(0.78 0.12 76);
+  --chart-5: oklch(0.72 0.11 318);
+
+  --sidebar: oklch(0.19 0.005 286);
+  --sidebar-foreground: var(--color-ink);
+  --sidebar-accent: oklch(0.29 0.045 258);
+  --sidebar-accent-foreground: oklch(0.95 0.012 258);
+  --sidebar-border: var(--color-rule);
+
+  --shadow-whisper: 0 1px 2px oklch(0.05 0.004 286 / 0.32);
+  --shadow-overlay: 0 20px 48px oklch(0.05 0.004 286 / 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-paper: oklch(0.15 0.004 286);
+    --color-paper-2: oklch(0.235 0.006 286);
+    --color-ink: oklch(0.968 0.003 286);
+    --color-ink-2: oklch(0.84 0.006 286);
+    --color-rule: oklch(0.335 0.009 286);
+    --color-accent: oklch(0.68 0.17 255);
+    --color-accent-ink: oklch(0.16 0.02 255);
+    --color-focus: oklch(0.92 0.03 255);
+    --secondary: oklch(0.28 0.008 286);
+    --secondary-foreground: oklch(0.945 0.004 286);
+    --muted: oklch(0.255 0.007 286);
+    --muted-foreground: oklch(0.72 0.01 286);
+    --accent: oklch(0.31 0.05 258);
+    --accent-foreground: oklch(0.95 0.012 258);
+    --destructive: oklch(0.67 0.17 27);
+    --destructive-foreground: oklch(0.16 0.02 27);
+    --success: oklch(0.69 0.13 152);
+    --success-foreground: oklch(0.16 0.02 152);
+    --warning: oklch(0.79 0.12 78);
+    --warning-foreground: oklch(0.18 0.025 78);
+    --input: oklch(0.55 0.012 286);
+    --overlay: oklch(0.08 0.004 286 / 0.72);
+    --chart-1: oklch(0.71 0.15 255);
+    --chart-2: oklch(0.72 0.11 205);
+    --chart-3: oklch(0.72 0.12 145);
+    --chart-4: oklch(0.78 0.12 76);
+    --chart-5: oklch(0.72 0.11 318);
+    --sidebar: oklch(0.19 0.005 286);
+    --sidebar-foreground: var(--color-ink);
+    --sidebar-accent: oklch(0.29 0.045 258);
+    --sidebar-accent-foreground: oklch(0.95 0.012 258);
+    --sidebar-border: var(--color-rule);
+    --shadow-whisper: 0 1px 2px oklch(0.05 0.004 286 / 0.32);
+    --shadow-overlay: 0 20px 48px oklch(0.05 0.004 286 / 0.5);
+  }
+}
+
+/* Hallmark focus contract: instant, high-contrast, and independent of colour. */
+:where(input, select, textarea) {
+  outline: var(--focus-width) solid transparent;
+  outline-offset: var(--focus-offset);
+}
+
+:where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="menuitem"],
+  [role="option"],
+  [role="tab"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: var(--focus-width) solid var(--ring) !important;
+  outline-offset: var(--focus-offset) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(
+      [data-slot="input"],
+      [data-slot="textarea"],
+      [data-slot="native-select"],
+      [data-slot="select-trigger"]
+    ):not(:disabled):hover {
+    background-color: var(--muted);
+  }
+}
+
+:where(:disabled, [aria-disabled="true"]) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+:where(
+    [data-slot="button"],
+    [data-slot="checkbox"],
+    [data-slot="radio-group-item"],
+    [data-slot="switch"],
+    [data-slot="select-trigger"],
+    [data-slot="select-item"],
+    [data-slot="tabs-trigger"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="command-item"],
+    [data-slot="breadcrumb-link"],
+    [data-slot="pagination-link"],
+    [data-slot="sidebar-menu-button"]
+  ):active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(1px);
+}
+
+:where(
+  [data-slot="button"],
+  [data-slot="select-trigger"],
+  [data-slot="select-item"],
+  [data-slot="tabs-trigger"],
+  [data-slot="dropdown-menu-item"],
+  [data-slot="command-item"],
+  [data-slot="breadcrumb-link"],
+  [data-slot="pagination-link"],
+  [data-slot="sidebar-menu-button"]
+) {
+  white-space: nowrap;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-style: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-short: 0ms;
+    --duration-medium: 0ms;
+    --duration-long: 0ms;
+  }
+
+  :where(
+    [data-slot],
+    [data-slot] *,
+    [data-sonner-toast],
+    [data-sonner-toast] *
+  ) {
+    animation: none !important;
+    transition-property: opacity !important;
+    transition-duration: 0ms !important;
+  }
+}

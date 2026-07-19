@@ -1,0 +1,27 @@
+{
+  "case_id": "CA-QC-VEHICLE-SALE-DISCOUNT-001",
+  "status": "candidate",
+  "description": "Illustrative explicitly classified taxable discount reducing taxable consideration without jurisdiction inference.",
+  "currency": "CAD",
+  "input": {
+    "vehicle_price_minor": 1000000,
+    "taxable_fees_minor": 0,
+    "taxable_discounts_minor": 50000,
+    "non_taxable_fees_minor": 0,
+    "non_taxable_discounts_minor": 0,
+    "eligible_trade_in_credit_minor": 0
+  },
+  "expected": {
+    "eligible_taxable_consideration_minor": 950000,
+    "non_taxable_fees_minor": 0,
+    "gst_minor": 47500,
+    "qst_minor": 94763,
+    "total_tax_minor": 142263,
+    "net_cash_consideration_before_payments_minor": 1092263
+  },
+  "rounding": {
+    "mode": "HALF_UP",
+    "scale": 2
+  },
+  "approval_required": true
+}
