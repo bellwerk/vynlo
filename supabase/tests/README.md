@@ -173,3 +173,92 @@ terminal rejection, explicit retry reason, exact source-job and aggregate
 locking, copied scheduling policy, causation/replay lineage, actor-aware raw-key
 namespaces, audit/outbox parity, stale active-job denial, and deterministic
 receipt replay/conflict behavior after a later terminal transition.
+
+`025_m3_workflow_hardening.test.sql` adds 48 assertions for immutable workflow
+definitions and versions, checksum and compatibility activation, pinned
+instances, declarative guards, required fields, permissions, recent-AAL2
+administration, optimistic concurrency, reasoned transitions, actor-scoped
+idempotency, forced RLS, audit, and inert outbox evidence.
+
+`026_m3_typed_custom_fields.test.sql` adds 69 assertions for versioned bilingual
+definitions, supported typed values, exact decimals and money, active option
+sets, same-workspace party, location, user, and inventory references,
+sensitivity masking, visibility/edit and inventory-read permissions, core-field
+shadow rejection, optimistic concurrency, immutable definition provenance,
+forced RLS, and audit evidence.
+
+`027_m3_starter_configuration.test.sql` adds 40 assertions for tenant-neutral
+starter role permissions, localized workflow/deal-type configuration,
+checksum-bound bilingual role/event option labels, configuration-driven lead
+conversion/loss and deal cancellation semantics, valid immutable references,
+and the absence of tenant-specific runtime logic.
+
+`028_m3_party_crm_foundation.test.sql` adds 67 assertions for person and
+organization parties, normalized contacts, structured addresses, masked
+identifiers, communication preferences, same-workspace relationships, bounded
+safe projections, deterministic legacy profile materialization, optimistic
+concurrency, archive behavior, RLS, authorization, audit, and idempotency.
+
+`029_m3_deal_foundation.test.sql` adds 75 assertions for immutable deal-type
+versions, exact bilingual configured participant/inventory/payment options,
+configured-role projections, exact line items, authorized active custom-field
+workflow checks, cash and external-finance policies, active-sale conflict
+prevention, workspace isolation, optimistic concurrency, RLS, audit, and outbox
+parity.
+
+`030_m3_lead_timeline_tasks_appointments.test.sql` adds 78 assertions for leads,
+inventory interest, configured transitions, append-only activities, versioned
+tasks, timezone-explicit appointments, participant and inventory reservations,
+reasoned outcomes, authorized active custom-field transition requirements,
+actor-idempotent conversion, concurrency, authorization, forced RLS, audit, and
+outbox evidence.
+
+`031_m3_trade_ins_external_finance.test.sql` adds 79 assertions for distinct
+trade-in facts and separately confirmed inventory creation, lender-reported
+amounts and exact rates, finance status history, immutable condition replacement
+lineage, satisfaction, expiry, permissions, recent authentication where
+required, workspace isolation, forced RLS, concurrency, audit, and outbox
+evidence.
+
+`032_m3_one_time_payment_ledger.test.sql` adds 58 assertions for exact
+minor-unit one-time events, settlement, dedicated refund/reversal permissions,
+recent-AAL2 protection, immutable originals, same-deal correction lineage,
+actor-scoped idempotency, row-lock concurrency defenses, workspace isolation,
+forced RLS, proof masking, strict operator-ledger evidence, receipt generation,
+audit, and outbox parity.
+
+`033_m3_end_to_end_exit.test.sql` adds 32 assertions for the milestone exit
+criteria. It carries a lead through conversion into one cash deal and one
+third-party-financed deal, including valid parties, inventory roles, exact line
+items, one-time money settlement, reasoned correction, and the absence of
+recurring-servicing artifacts.
+
+`034_m4_configuration_numbering_runtime_evidence.test.sql` adds 64 assertions
+for checksum-bound configuration lifecycle commands, exact append-only
+approvals, optimistic numbering-version creation, permanent monotonic
+allocation and replay, UTC/official-document allocation semantics, forced RLS,
+historical/future tax-assignment cutover, and service-only
+actor/workspace/version-bound calculation evidence. All configuration and
+execution fixtures are tenant-neutral and rolled back.
+
+`035_m4_documents_numbering_lifecycle.test.sql` adds 82 assertions for preview
+permission, watermarking, regeneration and idempotency; exact approved official
+issuance; bounded fail-closed field-schema validation; deal-checksum-bound,
+single-consumption runtime receipts and replay after receipt expiry; atomic
+number/outbox/job/attempt creation; immutable render receipts and files; opaque
+download grants; permission- and expected-version-guarded supersession;
+replacement failure/success behavior; durable dead-letter status
+synchronization; reasoned retry; failure-preserving, actor-idempotent void
+recovery; fresh-successor and concurrent-claim serialization; audit evidence;
+and workspace/RLS isolation. The official fixture approvals exist only inside
+the rolled-back test transaction.
+
+`036_m4_exports_reports_jobs.test.sql` adds 53 assertions for exact approved
+CSV/XLSX plans, sensitive step-up, actor idempotency, durable worker leases,
+crash-window replay, append-only paged source snapshots, exact bigint text
+transport, bounded filter schemas, verified storage receipts, per-column
+download reauthorization, opaque downloads, guarded run lifecycle/dead-letter
+synchronization, forced RLS, report
+pagination/date/workspace guards, and exact fractional minor-unit line rounding
+before summation. Together, the Milestone 4 database suites contain 199 pgTAP
+assertions.

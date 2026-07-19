@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 import { readWorkerRuntimeConfig } from "./runtime-config";
 
 const validEnvironment = {
+  PDF_RENDERER: "playwright",
   VYNLO_APP_URL: "http://localhost:3000",
+  VYNLO_DOCUMENT_BUCKET: "documents-private",
+  VYNLO_EXPORT_BUCKET: "exports-private",
   VYNLO_PREVIEW_BUCKET: "preview-artifacts",
   VYNLO_SUPABASE_SERVICE_ROLE_KEY: "x".repeat(32),
   VYNLO_SUPABASE_URL: "http://127.0.0.1:54321",
@@ -17,11 +20,19 @@ describe("worker runtime configuration", () => {
       appUrl: "http://localhost:3000",
       authInviteTimeoutMs: 10_000,
       batchSize: 10,
+      documentBucket: "documents-private",
       errorBackoffBaseMs: 1_000,
       errorBackoffMaximumMs: 30_000,
       heartbeatIntervalMs: 20_000,
       leaseSeconds: 60,
+      exportBucket: "exports-private",
+      exportGeneration: { maximumConcurrentJobs: 2 },
       mediaProcessing: { enabled: false },
+      pdfRendering: {
+        maximumConcurrentJobs: 2,
+        renderer: "playwright",
+        timeoutMs: 60_000,
+      },
       pollIntervalMs: 1_000,
       previewBucket: "preview-artifacts",
       workerId: "preview-worker-1",
@@ -105,5 +116,26 @@ describe("worker runtime configuration", () => {
         VYNLO_AUTH_INVITE_TIMEOUT_MS: "999",
       }),
     ).toThrow(/AUTH_INVITE_TIMEOUT/u);
+  });
+
+  it("requires private M4 buckets and the approved bounded PDF runtime", () => {
+    expect(() =>
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        VYNLO_DOCUMENT_BUCKET: "",
+      }),
+    ).toThrow(/VYNLO_DOCUMENT_BUCKET/u);
+    expect(() =>
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        PDF_RENDERER: "wkhtmltopdf",
+      }),
+    ).toThrow(/PDF_RENDERER/u);
+    expect(() =>
+      readWorkerRuntimeConfig({
+        ...validEnvironment,
+        VYNLO_EXPORT_JOB_CONCURRENCY: "5",
+      }),
+    ).toThrow(/EXPORT_JOB_CONCURRENCY/u);
   });
 });

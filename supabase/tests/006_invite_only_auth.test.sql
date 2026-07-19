@@ -27,15 +27,14 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'totp',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint - factor_age_seconds
         )
+      )
       else pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object(
           'method', 'password',
-          'timestamp', pg_catalog.extract(
-            epoch from pg_catalog.statement_timestamp()
-          )::bigint
+          'timestamp', pg_catalog.extract('epoch', pg_catalog.statement_timestamp())::bigint
         )
       )
     end
@@ -523,6 +522,7 @@ select extensions.results_eq(
   $$values ('pending'::text, 'queued'::text, false)$$,
   'T-JOB-001 invitation and delivery job commit in one command'
 );
+reset role;
 select extensions.ok(
   (
     select invitation.email::text = 'new.user@northstar.invalid'
@@ -553,7 +553,7 @@ select extensions.ok(
       and job.payload = pg_catalog.jsonb_build_object(
         'invitation_id', result.invitation_id
       )
-      and pg_catalog.jsonb_object_length(job.payload) = 1
+      and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(job.payload, '$.keyvalue()')) = 1
     from public.jobs job
     join pg_temp.invite_create_result result on result.job_id = job.id
   ),
@@ -607,6 +607,13 @@ select extensions.is(
   'T-AUD-001 invitation creation emits a scoped non-PII audit event'
 );
 
+select pg_temp.authenticate_as(
+  '31000000-0000-4000-8000-000000000001',
+  'admin@northstar.invalid',
+  'aal2',
+  0
+);
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.invite_replay_result
@@ -634,6 +641,7 @@ select extensions.ok(
   ),
   'T-JOB-001 exact retry returns the original invitation and job identities'
 );
+reset role;
 select extensions.is(
   (
     select pg_catalog.count(*)
@@ -644,6 +652,13 @@ select extensions.is(
   1::bigint,
   'T-JOB-001 exact retry cannot duplicate the delivery job'
 );
+select pg_temp.authenticate_as(
+  '31000000-0000-4000-8000-000000000001',
+  'admin@northstar.invalid',
+  'aal2',
+  0
+);
+set local role authenticated;
 select extensions.throws_ok(
   $$
     select * from app.create_workspace_invitation_job(

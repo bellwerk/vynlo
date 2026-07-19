@@ -14,30 +14,33 @@ begin
     'sub', fixture_user_id::text, 'role', 'authenticated', 'aal', assurance,
     'amr', pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
       'method', case when assurance = 'aal2' then 'totp' else 'password' end,
-      'timestamp', pg_catalog.floor(pg_catalog.extract(epoch from pg_catalog.statement_timestamp()))::bigint)));
+      'timestamp', pg_catalog.floor(pg_catalog.extract('epoch', pg_catalog.statement_timestamp()))::bigint)));
   perform pg_catalog.set_config('request.jwt.claim.sub', fixture_user_id::text, true);
   perform pg_catalog.set_config('request.jwt.claim.role', 'authenticated', true);
   perform pg_catalog.set_config('request.jwt.claims', claims::text, true);
 end; $$;
 
 insert into public.document_types (
-  id, workspace_id, type_key, version, name, field_schema, production_enabled, status
+  id, workspace_id, key, version, display_name, field_schema,
+  production_enabled, status, labels, field_schema_checksum, checksum
 ) values (
   'e5100000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
-  'legal_original_fixture', 1, 'Legal original fixture', '{}', false, 'active'
+  'legal_original_fixture', 1, 'Legal original fixture', '{}', false, 'active',
+  '{"en":"Legal original fixture","fr":"Original legal fictif"}', repeat('d', 64), repeat('e', 64)
 );
 insert into public.document_template_versions (
   id, workspace_id, document_type_id, version, locale, template_class,
   source_html, source_checksum, renderer_version, field_schema,
-  production_approved, watermark, status
+  production_approved, watermark, status, source_bundle_checksum,
+  field_schema_checksum
 ) values (
   'e5200000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
   'e5100000-0000-4000-8000-000000000001', 1, 'en-CA',
   'synthetic_non_production', '<html><body>fixture</body></html>',
   repeat('1', 64), 'synthetic-html-v1', '{}', false,
-  'DRAFT / NON-PRODUCTION', 'active'
+  'DRAFT / NON-PRODUCTION', 'active', repeat('f', 64), repeat('d', 64)
 );
 insert into public.deals (
   id, workspace_id, deal_type_key, status, currency_code,
@@ -170,8 +173,8 @@ select extensions.throws_ok($$
     'e5400000-0000-4000-8000-000000000001', 'signed_document',
     'signed.pdf', 'application/pdf', 900, repeat('b', 64),
     'request-signed-no-stepup', 'e6000000-0000-4000-8000-000000000003')
-$$, '42501', 'recent strong authentication is required',
-  'signed originals require recent step-up authentication');
+$$, '42501', 'active workspace membership and permission are required',
+  'AAL1 administrator is denied before signed-original upload');
 select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
 insert into pg_temp.legal_requests select result.*, 'first'
 from app.request_legal_original_upload_verification(
@@ -183,12 +186,15 @@ select extensions.ok(exists(select 1 from pg_temp.legal_requests
   where probe = 'first' and job_status = 'queued' and not replayed
     and audit_event_id is not null and outbox_event_id is not null),
   'completion request atomically audits and queues durable verification');
+reset role;
 select extensions.ok(exists(select 1 from pg_temp.legal_requests request
   join public.jobs job on job.id = request.job_id where request.probe = 'first'
     and job.job_type = 'media.verify_legal_original'
     and job.entity_type = 'document' and job.entity_id = request.document_id
     and job.payload = pg_catalog.jsonb_build_object('upload_session_id', request.upload_session_id)),
   'legal verification job contains the upload reference only');
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 insert into pg_temp.legal_requests select result.*, 'replay'
 from app.request_legal_original_upload_verification(
   '10000000-0000-4000-8000-000000000001', 'legal-verify-request-001',
@@ -341,6 +347,7 @@ from app.reject_legal_original_upload_verification(
   (select attempt_number from pg_temp.legal_claims where probe = 'rejected'),
   'media.malware_detected', 'validation', 'job:reject-legal',
   (select correlation_id from pg_temp.legal_claims where probe = 'rejected')) result;
+reset role;
 select extensions.ok(exists(select 1 from pg_temp.legal_rejections rejection
   join public.legal_original_upload_sessions upload on upload.id = rejection.upload_session_id
   where rejection.probe = 'first' and rejection.upload_status = 'rejected'
@@ -353,6 +360,7 @@ select extensions.ok(exists(select 1 from pg_temp.legal_rejections rejection
     and audit.action = 'media.legal_original_verification_rejected'
     and event.event_name = 'media.legal_original_verification_rejected'),
   'terminal rejection is audited and emitted through the outbox');
+reset role;
 select extensions.ok(not exists(select 1 from public.jobs job
   where job.job_type = 'media.verify_legal_original'
     and app.job_payload_contains_forbidden_key(job.payload)),
@@ -405,6 +413,7 @@ select * from app.enqueue_due_legal_original_quarantine_cleanup(
   10, 'e6000000-0000-4000-8000-000000000010');
 select extensions.is((select pg_catalog.count(*) from pg_temp.legal_cleanup_schedules),
   2::bigint, 'bounded scheduler queues expired and rejected quarantine objects');
+reset role;
 select extensions.ok(exists(select 1 from public.legal_original_upload_sessions upload
   where upload.id = (select upload_session_id from pg_temp.legal_intents where probe = 'expired')
     and upload.status = 'expired'),
@@ -412,6 +421,7 @@ select extensions.ok(exists(select 1 from public.legal_original_upload_sessions 
 select extensions.ok(not exists(select 1 from public.legal_original_quarantine_cleanups cleanup
   where cleanup.upload_session_id = (select upload_session_id from pg_temp.legal_intents where probe = 'first')),
   'a completed byte-preserved original can never enter quarantine cleanup');
+reset role;
 select extensions.ok(not exists(select 1 from public.jobs job
   where job.job_type = 'media.delete_legal_original_quarantine'
     and (app.job_payload_contains_forbidden_key(job.payload)
@@ -419,6 +429,7 @@ select extensions.ok(not exists(select 1 from public.jobs job
       or not job.payload ?& array['upload_session_id', 'reason'])),
   'legal cleanup jobs contain only the opaque session and bounded reason');
 
+set local role service_role;
 insert into pg_temp.legal_claims select claimed.*, 'cleanup'
 from app.claim_jobs('legal-cleanup.fixture-01', 2, 300,
   array['media.delete_legal_original_quarantine']) claimed;
@@ -522,7 +533,8 @@ select extensions.ok(exists(select 1 from public.legal_original_quarantine_clean
 select extensions.ok(exists(select 1 from public.media_files file
   where file.id = (select media_file_id from pg_temp.legal_completions where probe = 'first')
     and file.retention_policy = 'preserve_original'
-    and file.deletion_requested_at is null),
+    and file.retention_delete_job_id is null
+    and file.deleted_at is null),
   'cleanup processing leaves accepted preserved originals byte-for-byte retained');
 
 reset role;

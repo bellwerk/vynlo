@@ -24,7 +24,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', 'totp',
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -36,24 +36,26 @@ end;
 $$;
 
 insert into public.document_types (
-  id, workspace_id, type_key, version, name, field_schema,
-  production_enabled, status
+  id, workspace_id, key, version, display_name, field_schema,
+  production_enabled, status, labels, field_schema_checksum, checksum
 ) values (
   'fa100000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
-  'media_security_fixture', 1, 'Media security fixture', '{}', false, 'active'
+  'media_security_fixture', 1, 'Media security fixture', '{}', false, 'active',
+  '{"en":"Media security fixture","fr":"Securite media fictive"}', repeat('d', 64), repeat('e', 64)
 );
 insert into public.document_template_versions (
   id, workspace_id, document_type_id, version, locale, template_class,
   source_html, source_checksum, renderer_version, field_schema,
-  production_approved, watermark, status
+  production_approved, watermark, status, source_bundle_checksum,
+  field_schema_checksum
 ) values (
   'fa200000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
   'fa100000-0000-4000-8000-000000000001', 1, 'en-CA',
   'synthetic_non_production', '<html><body>security fixture</body></html>',
   repeat('1', 64), 'synthetic-html-v1', '{}', false,
-  'DRAFT / NON-PRODUCTION', 'active'
+  'DRAFT / NON-PRODUCTION', 'active', repeat('f', 64), repeat('d', 64)
 );
 insert into public.deals (
   id, workspace_id, deal_type_key, status, currency_code,
@@ -61,7 +63,7 @@ insert into public.deals (
 ) values (
   'fa300000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
-  'synthetic.media-security', 'draft', 'CAD',
+  'retail.cash', 'draft', 'CAD',
   '41000000-0000-4000-8000-000000000001',
   'media-security-fixture-deal', repeat('2', 64),
   '31000000-0000-4000-8000-000000000001'

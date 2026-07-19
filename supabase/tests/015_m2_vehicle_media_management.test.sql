@@ -29,7 +29,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -613,6 +613,7 @@ select extensions.ok(
   ),
   'exact asset read preserves archived aggregate history'
 );
+reset role;
 select extensions.ok(
   (
     select event.event_name = 'media.archived'
@@ -652,9 +653,9 @@ select extensions.ok(
     from public.audit_events audit
     where audit.action in ('media.caption_updated', 'media.archived')
       and (
-        pg_catalog.coalesce(audit.before_data, '{}'::jsonb)::text
+        coalesce(audit.before_data, '{}'::jsonb)::text
           ~* '(storage|bucket|object_key|generation|service_role)'
-        or pg_catalog.coalesce(audit.after_data, '{}'::jsonb)::text
+        or coalesce(audit.after_data, '{}'::jsonb)::text
           ~* '(storage|bucket|object_key|generation|service_role)'
         or audit.metadata::text
           ~* '(storage|bucket|object_key|generation|service_role)'

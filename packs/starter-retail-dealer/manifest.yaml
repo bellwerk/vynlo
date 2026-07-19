@@ -4,7 +4,7 @@ pack:
   name:
     en: Standard Retail Dealer
     fr: Concessionnaire automobile standard
-  version: "1.0.0"
+  version: "1.1.0"
   kind: starter
   status: installable
   compatible_platform: ">=2.1.0 <3.0.0"
@@ -17,13 +17,13 @@ pack:
     - deals
     - third_party_finance
     - one_time_payments
+    - custom_workflows
     - documents
     - exports
   excludes:
     - recurring_payment_servicing
     - in_house_financing
     - leasing
-    - rent_to_buy
     - short_term_rental
     - collections
     - repossession
@@ -33,6 +33,14 @@ pack:
       - workflows/inventory.yaml
       - workflows/lead.yaml
       - workflows/deal.yaml
+    deal_types:
+      - deal-types/cash-retail.yaml
+      - deal-types/third-party-financed-retail.yaml
+      - deal-types/wholesale.yaml
+      - deal-types/vehicle-purchase.yaml
+      - deal-types/trade-in-acquisition.yaml
+    numbering:
+      - numbering/official-document.yaml
     document_types:
       - documents/cash-retail-sale.yaml
       - documents/third-party-finance-summary.yaml
@@ -41,3 +49,7 @@ pack:
       - documents/generic-invoice.yaml
     exports:
       - exports/inventory-summary.yaml
+      - exports/inventory-aging.yaml
+      - exports/inventory-gross.yaml
+      - exports/leads.yaml
+      - exports/deals.yaml

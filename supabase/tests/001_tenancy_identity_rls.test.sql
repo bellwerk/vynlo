@@ -25,15 +25,14 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'totp',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint - factor_age_seconds
         )
+      )
       else pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object(
           'method', 'password',
-          'timestamp', pg_catalog.extract(
-            epoch from pg_catalog.statement_timestamp()
-          )::bigint
+          'timestamp', pg_catalog.extract('epoch', pg_catalog.statement_timestamp())::bigint
         )
       )
     end

@@ -1,0 +1,23 @@
+schema_version: "1.0"
+numbering:
+  key: official_document
+  version: "1.0.0"
+  labels:
+    en: Official document sequence
+    fr: SÃ©quence des documents officiels
+  status: draft
+  scope_type: document_type
+  prefix: ""
+  suffix: ""
+  numeric_width: 6
+  starting_value: "1"
+  increment_by: "1"
+  reset_policy: yearly
+  period_anchor: null
+  timezone: UTC
+  format_pattern: "{{scope}}-{{period}}-{{sequence}}"
+  import_policy: authorized_reservation
+  reuse_policy: never
+  allocation_event: official_document_created
+  fixture_evidence: null
+  approval_refs: []

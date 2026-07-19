@@ -12,10 +12,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vynlo/documents": "workspace:*",
+    "@vynlo/exports": "workspace:*",
     "@vynlo/integrations": "workspace:*",
     "@vynlo/jobs": "workspace:*",
     "@vynlo/media": "workspace:*",
     "@vynlo/observability": "workspace:*",
+    "playwright": "1.61.1",
     "sharp": "0.35.3"
   },
   "devDependencies": {

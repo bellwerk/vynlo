@@ -243,6 +243,7 @@ create table public.audit_events (
   metadata jsonb not null default '{}'::jsonb
     check (pg_catalog.jsonb_typeof(metadata) = 'object'),
   occurred_at timestamptz not null default pg_catalog.statement_timestamp(),
+  unique (workspace_id, id),
   check (actor_type <> 'user' or actor_user_id is not null),
   check (before_data is null or pg_catalog.jsonb_typeof(before_data) = 'object'),
   check (after_data is null or pg_catalog.jsonb_typeof(after_data) = 'object'),
@@ -951,10 +952,10 @@ as $$
       where factor ->> 'method' in ('totp', 'webauthn', 'phone')
         and (factor ->> 'timestamp') ~ '^[0-9]+$'
         and (factor ->> 'timestamp')::numeric between
-          pg_catalog.floor(pg_catalog.extract(epoch from pg_catalog.statement_timestamp()))
+          pg_catalog.floor(pg_catalog.extract('epoch', pg_catalog.statement_timestamp()))
             - max_age_seconds
           and pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )
     );
 $$;

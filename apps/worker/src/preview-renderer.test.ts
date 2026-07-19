@@ -203,7 +203,7 @@ describe("deterministic preview rendering", () => {
     expect(() =>
       renderPreviewHtml({
         payload: payload(),
-        source: source({ officialNumber: "P001" as never }),
+        source: source({ officialNumber: "OFFICIAL-001" as never }),
         workspaceId,
       }),
     ).toThrow(JobExecutionError);

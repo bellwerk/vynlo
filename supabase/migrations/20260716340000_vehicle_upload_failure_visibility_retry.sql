@@ -42,7 +42,7 @@ declare
   target_job public.jobs%rowtype;
   existing_receipt public.media_command_receipts%rowtype;
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
   request_fingerprint text;
   current_media_version bigint;
@@ -86,7 +86,7 @@ begin
     into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.request_upload_verification'
     and receipt.idempotency_key = normalized_key;
 
@@ -334,13 +334,13 @@ begin
     target_upload.media_id,
     projected_status,
     target_job.id,
-    pg_catalog.coalesce(target_job.attempts_started, 0),
+    coalesce(target_job.attempts_started, 0),
     target_job.max_attempts,
     case
       when target_job.status = 'retry_wait' then target_job.available_at
       else null
     end,
-    pg_catalog.coalesce(
+    coalesce(
       target_upload.status = 'awaiting_upload'
         and target_media.status = 'awaiting_upload'
         and target_job.status = 'dead_letter',
@@ -399,9 +399,9 @@ declare
   existing_receipt public.media_command_receipts%rowtype;
   existing_job public.jobs%rowtype;
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
-  normalized_reason text := pg_catalog.btrim(pg_catalog.coalesce(p_reason, ''));
+  normalized_reason text := pg_catalog.btrim(coalesce(p_reason, ''));
   fingerprint text;
   next_media_version bigint;
   queued record;
@@ -472,7 +472,7 @@ begin
     into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.retry_upload_verify'
     and receipt.idempotency_key = normalized_key;
 
@@ -636,7 +636,7 @@ begin
     p_reason => normalized_reason,
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'source_job_id', source_job.id,
       'job_id', queued.job_id,

@@ -628,7 +628,7 @@ begin
     into existing_receipt
   from public.inventory_saved_view_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.idempotency_key = normalized_idempotency_key;
 
   if found then
@@ -772,13 +772,13 @@ begin
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_reason := pg_catalog.btrim(coalesce(p_reason, ''));
-  normalized_make := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
-  normalized_model := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
-  normalized_body_type := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_body_type, '')), '');
-  normalized_drivetrain := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_drivetrain, '')), '');
-  normalized_fuel_type := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_fuel_type, '')), '');
-  normalized_transmission := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_transmission, '')), '');
-  normalized_trim_name := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_trim_name, '')), '');
+  normalized_make := nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
+  normalized_model := nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
+  normalized_body_type := nullif(pg_catalog.btrim(coalesce(p_body_type, '')), '');
+  normalized_drivetrain := nullif(pg_catalog.btrim(coalesce(p_drivetrain, '')), '');
+  normalized_fuel_type := nullif(pg_catalog.btrim(coalesce(p_fuel_type, '')), '');
+  normalized_transmission := nullif(pg_catalog.btrim(coalesce(p_transmission, '')), '');
+  normalized_trim_name := nullif(pg_catalog.btrim(coalesce(p_trim_name, '')), '');
 
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200
     or p_vehicle_id is null
@@ -854,7 +854,7 @@ begin
     into existing_receipt
   from public.vehicle_facts_override_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.idempotency_key = normalized_idempotency_key;
 
   if found then

@@ -15,6 +15,7 @@
   },
   "expected": {
     "eligible_taxable_consideration_minor": 700000,
+    "non_taxable_fees_minor": 0,
     "gst_minor": 35000,
     "qst_minor": 69825,
     "total_tax_minor": 104825,

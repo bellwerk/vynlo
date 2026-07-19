@@ -33,14 +33,15 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'totp',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
+      )
       else pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object(
           'method', 'password',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
       )
@@ -304,7 +305,7 @@ select extensions.throws_ok(
       and key = 'ready'
   $$,
   '55000',
-  'activated workflow configuration is immutable',
+  'approved or activated workflow configuration is immutable',
   'activated workflow states cannot be rewritten'
 );
 select extensions.throws_ok(
@@ -318,7 +319,7 @@ select extensions.throws_ok(
     )
   $$,
   '55000',
-  'activated workflow configuration is immutable',
+  'approved or activated workflow configuration is immutable',
   'activated workflow versions cannot gain late child configuration'
 );
 
@@ -354,7 +355,7 @@ select extensions.throws_ok(
 );
 insert into public.workflow_versions (
   id, workspace_id, workflow_definition_id, version, initial_state_key,
-  status, checksum
+  status, checksum, source
 ) values (
   '74300000-0000-4000-8000-000000000002',
   '10000000-0000-4000-8000-000000000001',
@@ -362,7 +363,8 @@ insert into public.workflow_versions (
   '2.0.0',
   'missing',
   'draft',
-  repeat('b', 64)
+  repeat('b', 64),
+  'starter_pack'
 );
 select extensions.throws_ok(
   $$
@@ -372,8 +374,8 @@ select extensions.throws_ok(
         retired_at = pg_catalog.statement_timestamp()
     where id = '74300000-0000-4000-8000-000000000002'
   $$,
-  '23514',
-  'workflow version lifecycle transition is not allowed',
+  '55000',
+  'approved or activated workflow configuration is immutable',
   'draft workflow versions cannot skip activation and retire directly'
 );
 select extensions.throws_ok(
@@ -389,7 +391,7 @@ select extensions.throws_ok(
 );
 insert into public.workflow_versions (
   id, workspace_id, workflow_definition_id, version, initial_state_key,
-  status, checksum
+  status, checksum, source
 ) values (
   '74300000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
@@ -397,7 +399,8 @@ insert into public.workflow_versions (
   '1.0.0',
   'draft',
   'draft',
-  repeat('a', 64)
+  repeat('a', 64),
+  'starter_pack'
 );
 insert into public.workflow_states (
   workspace_id, workflow_version_id, key, canonical_category, labels
@@ -425,7 +428,7 @@ select extensions.throws_ok(
     )
   $$,
   '23514',
-  'workflow transition effect is not allowlisted',
+  'workflow transition effect is not allowlisted for entity',
   'tenant workflow configuration cannot execute arbitrary effects'
 );
 select extensions.lives_ok(
@@ -445,7 +448,7 @@ select extensions.throws_ok(
     where id = '74300000-0000-4000-8000-000000000001'
   $$,
   '55000',
-  'activated workflow configuration is immutable',
+  'approved or activated workflow configuration is immutable',
   'an active workflow version cannot return to draft'
 );
 select extensions.lives_ok(
@@ -465,7 +468,7 @@ select extensions.throws_ok(
     where id = '74300000-0000-4000-8000-000000000001'
   $$,
   '55000',
-  'activated workflow configuration is immutable',
+  'approved or activated workflow configuration is immutable',
   'a retired workflow version cannot be reactivated'
 );
 select extensions.throws_ok(
@@ -475,7 +478,7 @@ select extensions.throws_ok(
     where id = '74300000-0000-4000-8000-000000000001'
   $$,
   '55000',
-  'activated workflow configuration is immutable',
+  'approved or activated workflow configuration is immutable',
   'retired workflow configuration remains immutable'
 );
 select extensions.throws_ok(
@@ -818,6 +821,7 @@ select extensions.ok(
   ),
   'T-AUD-001 audit records changed keys but redact internal values'
 );
+reset role;
 select extensions.ok(
   (
     select event.payload::text not like '%Restricted synthetic note%'
@@ -840,6 +844,8 @@ select extensions.ok(
   ),
   'idempotency receipt stores only canonical result identifiers and state'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001', 'aal2');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.inventory_detail_results
@@ -1167,6 +1173,7 @@ select extensions.ok(
   ),
   'transition synchronizes instance state, canonical status, and aggregate version'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -1190,6 +1197,8 @@ select extensions.ok(
   ),
   'T-AUD-001 transition commits workflow, audit, and outbox evidence at one version'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001', 'aal2');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.inventory_transition_results

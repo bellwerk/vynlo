@@ -70,6 +70,7 @@ export const PLATFORM_PERMISSION_KEYS = Object.freeze([
   "formula.activate",
   "tax.read",
   "tax.activate",
+  "tax.override",
   "template.read",
   "template.activate",
   "workflow.read",

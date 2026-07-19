@@ -30,7 +30,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -77,25 +77,27 @@ insert into public.membership_roles (
 );
 
 insert into public.document_types (
-  id, workspace_id, type_key, version, name, field_schema,
-  production_enabled, status
+  id, workspace_id, key, version, display_name, field_schema,
+  production_enabled, status, labels, field_schema_checksum, checksum
 ) values (
   'f8300000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
   'managed_download_fixture', 1, 'Managed download fixture', '{}', false,
-  'active'
+  'active', '{"en":"Managed download fixture","fr":"Telechargement gere fictif"}',
+  repeat('d', 64), repeat('e', 64)
 );
 insert into public.document_template_versions (
   id, workspace_id, document_type_id, version, locale, template_class,
   source_html, source_checksum, renderer_version, field_schema,
-  production_approved, watermark, status
+  production_approved, watermark, status, source_bundle_checksum,
+  field_schema_checksum
 ) values (
   'f8400000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000001',
   'f8300000-0000-4000-8000-000000000001', 1, 'en-CA',
   'synthetic_non_production', '<html><body>fixture</body></html>',
   repeat('1', 64), 'synthetic-html-v1', '{}', false,
-  'DRAFT / NON-PRODUCTION', 'active'
+  'DRAFT / NON-PRODUCTION', 'active', repeat('f', 64), repeat('d', 64)
 );
 insert into public.deals (
   id, workspace_id, deal_type_key, status, currency_code,
@@ -190,8 +192,11 @@ insert into public.media_files (
     'f9200000-0000-4000-8000-000000000003',
     '10000000-0000-4000-8000-000000000001',
     'f9100000-0000-4000-8000-000000000003',
-    'legal_document_original',
-    'legal_original',
+    -- This M2 authorization fixture classifies restricted access from the
+    -- signed_document asset. A preview-class byte fixture deliberately avoids
+    -- manufacturing M4 official-document lineage outside its issuance command.
+    'document_preview',
+    'preview',
     'media-private',
     'workspaces/10000000-0000-4000-8000-000000000001/documents/'
       || 'f8600000-0000-4000-8000-000000000001/files/'
@@ -202,7 +207,7 @@ insert into public.media_files (
     1024,
     repeat('b', 64),
     false,
-    'preserve_original',
+    'retain_until_archive',
     pg_catalog.jsonb_build_object(
       'schemaVersion', 1,
       'verifier', pg_catalog.jsonb_build_object(
@@ -502,8 +507,8 @@ select extensions.throws_ok(
     )
   $$,
   '42501',
-  'recent strong authentication is required',
-  'restricted-file permission does not replace recent AAL2 for signed originals'
+  'managed media download is not authorized',
+  'an AAL1 session cannot exercise the MFA-bound restricted-file permission'
 );
 reset role;
 

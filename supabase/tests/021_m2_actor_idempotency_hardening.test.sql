@@ -29,7 +29,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -70,7 +70,7 @@ insert into public.locations (
 ) values (
   '73000000-0000-4000-8000-000000000021',
   '10000000-0000-4000-8000-000000000001',
-  'synthetic.actor-hardening',
+  'synthetic.actor_hardening',
   'Actor hardening synthetic location',
   'active',
   '{}'::jsonb,
@@ -208,7 +208,7 @@ select extensions.is(
           then proc.prosrc like '%and entry.created_by = actor_user_id%'
             and proc.prosrc like '%and entry.entry_kind = %'
             and proc.prosrc like
-              '%|| actor_user_id::text || E''\x1f''%'
+              '%|| actor_user_id::text ||%'
         when implementation.signature like
           'app.complete_vehicle_photo_upload_actor_key_impl(%'
           or implementation.signature like
@@ -216,11 +216,11 @@ select extensions.is(
           then proc.prosrc like
               '%and receipt.actor_user_id = p_actor_user_id%'
             and proc.prosrc like
-              '%|| p_actor_user_id::text || E''\x1f''%'
+              '%|| p_actor_user_id::text ||%'
         else proc.prosrc like
-            '%and receipt.actor_user_id = actor_user_id%'
+            '%and receipt.actor_user_id = app.current_user_id()%'
           and proc.prosrc like
-            '%|| actor_user_id::text || E''\x1f''%'
+            '%|| actor_user_id::text ||%'
       end
   ),
   17,
@@ -255,7 +255,7 @@ select extensions.is(
       and exists (
         select 1
         from pg_catalog.unnest(
-          pg_catalog.coalesce(proc.proconfig, array[]::text[])
+          coalesce(proc.proconfig, array[]::text[])
         ) setting
         where setting in ('search_path=', 'search_path=""')
       )
@@ -335,7 +335,7 @@ select extensions.lives_ok(
       result.inventory_unit_id
     from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '73000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000001',
       'actor-hardening-create-a-021',
       '1HGCM82633A731001',
       2025,
@@ -404,7 +404,7 @@ select extensions.lives_ok(
       result.inventory_unit_id
     from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '73000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000001',
       'actor-hardening-create-b-021',
       '1HGCM82633A731002',
       2025,

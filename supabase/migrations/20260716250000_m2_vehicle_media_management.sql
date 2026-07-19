@@ -17,7 +17,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select pg_catalog.coalesce(
+  select coalesce(
     pg_catalog.jsonb_agg(
       pg_catalog.jsonb_build_object(
         'id', file.id,
@@ -187,13 +187,13 @@ begin
   from public.inventory_media_collections collection
   where collection.workspace_id = p_workspace_id
     and collection.inventory_unit_id = p_inventory_unit_id;
-  current_collection_version := pg_catalog.coalesce(current_collection_version, 1);
+  current_collection_version := coalesce(current_collection_version, 1);
 
   return query
   select
     p_inventory_unit_id,
     current_collection_version,
-    pg_catalog.coalesce(
+    coalesce(
       (
         select pg_catalog.jsonb_agg(
           app.vehicle_media_asset_snapshot(
@@ -247,7 +247,7 @@ declare
   result_payload jsonb;
 begin
   actor_user_id := app.require_media_permission(p_workspace_id, 'media.update');
-  normalized_idempotency_key := pg_catalog.btrim(pg_catalog.coalesce(p_idempotency_key, ''));
+  normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_caption := case
     when p_caption is null then null
     else pg_catalog.btrim(p_caption)
@@ -357,7 +357,7 @@ begin
     ),
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'inventory_unit_id', target_media.inventory_unit_id,
       'outbox_event_id', new_outbox_event_id
@@ -427,8 +427,8 @@ declare
   result_payload jsonb;
 begin
   actor_user_id := app.require_media_permission(p_workspace_id, 'media.archive');
-  normalized_idempotency_key := pg_catalog.btrim(pg_catalog.coalesce(p_idempotency_key, ''));
-  normalized_reason := pg_catalog.btrim(pg_catalog.coalesce(p_reason, ''));
+  normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
+  normalized_reason := pg_catalog.btrim(coalesce(p_reason, ''));
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200
     or p_media_id is null
     or p_expected_media_version is null or p_expected_media_version < 1
@@ -620,7 +620,7 @@ begin
     p_reason => normalized_reason,
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'inventory_unit_id', target_media.inventory_unit_id,
       'outbox_event_id', new_outbox_event_id

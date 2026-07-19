@@ -440,10 +440,10 @@ begin
 
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_vin := pg_catalog.upper(pg_catalog.btrim(coalesce(p_vin, '')));
-  normalized_make := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
-  normalized_model := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
+  normalized_make := nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
+  normalized_model := nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
   normalized_currency := pg_catalog.upper(pg_catalog.btrim(coalesce(p_currency_code, '')));
-  normalized_public_notes := pg_catalog.nullif(
+  normalized_public_notes := nullif(
     pg_catalog.btrim(coalesce(p_public_notes, '')),
     ''
   );
@@ -863,7 +863,7 @@ begin
   normalized_inventory_role_key := pg_catalog.lower(
     pg_catalog.btrim(coalesce(p_inventory_role_key, ''))
   );
-  normalized_notes := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_notes, '')), '');
+  normalized_notes := nullif(pg_catalog.btrim(coalesce(p_notes, '')), '');
 
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200 then
     raise exception using errcode = '22023', message = 'invalid deal idempotency key';

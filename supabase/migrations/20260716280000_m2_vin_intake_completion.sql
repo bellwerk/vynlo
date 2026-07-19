@@ -16,7 +16,7 @@ create table public.inventory_condition_definitions (
   ),
   labels jsonb not null check (
     pg_catalog.jsonb_typeof(labels) = 'object'
-    and pg_catalog.jsonb_object_length(labels) > 0
+    and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(labels, '$.keyvalue()')) > 0
   ),
   status text not null default 'active' check (status in ('active', 'inactive')),
   created_by uuid references auth.users (id) on delete restrict,
@@ -452,11 +452,11 @@ declare
   normalized_condition_key text := pg_catalog.lower(
     pg_catalog.btrim(coalesce(p_condition_key, ''))
   );
-  normalized_duplicate_decision text := pg_catalog.nullif(
+  normalized_duplicate_decision text := nullif(
     pg_catalog.btrim(coalesce(p_duplicate_decision, '')),
     ''
   );
-  normalized_duplicate_reason text := pg_catalog.nullif(
+  normalized_duplicate_reason text := nullif(
     pg_catalog.btrim(coalesce(p_duplicate_reason, '')),
     ''
   );
@@ -878,16 +878,16 @@ declare
   existing_intake public.vin_inventory_intakes%rowtype;
   normalized_idempotency_key text := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_condition_key text := pg_catalog.lower(pg_catalog.btrim(coalesce(p_condition_key, '')));
-  normalized_make text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
-  normalized_model text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
-  normalized_body_type text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_body_type, '')), '');
-  normalized_drivetrain text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_drivetrain, '')), '');
+  normalized_make text := nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
+  normalized_model text := nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
+  normalized_body_type text := nullif(pg_catalog.btrim(coalesce(p_body_type, '')), '');
+  normalized_drivetrain text := nullif(pg_catalog.btrim(coalesce(p_drivetrain, '')), '');
   normalized_engine_liters numeric(6, 3);
-  normalized_fuel_type text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_fuel_type, '')), '');
-  normalized_transmission text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_transmission, '')), '');
-  normalized_trim_name text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_trim_name, '')), '');
+  normalized_fuel_type text := nullif(pg_catalog.btrim(coalesce(p_fuel_type, '')), '');
+  normalized_transmission text := nullif(pg_catalog.btrim(coalesce(p_transmission, '')), '');
+  normalized_trim_name text := nullif(pg_catalog.btrim(coalesce(p_trim_name, '')), '');
   normalized_currency text := pg_catalog.upper(pg_catalog.btrim(coalesce(p_currency_code, '')));
-  normalized_public_notes text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_public_notes, '')), '');
+  normalized_public_notes text := nullif(pg_catalog.btrim(coalesce(p_public_notes, '')), '');
   confirmed_facts_snapshot jsonb;
   request_fingerprint text;
   resolved_inventory record;
@@ -999,7 +999,7 @@ begin
   select intake.* into existing_intake
   from public.vin_inventory_intakes intake
   where intake.workspace_id = p_workspace_id
-    and intake.actor_user_id = actor_user_id
+    and intake.actor_user_id = app.current_user_id()
     and intake.idempotency_key = normalized_idempotency_key;
 
   if found then
@@ -1220,18 +1220,18 @@ declare
   normalized_idempotency_key text := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_condition_key text := pg_catalog.lower(pg_catalog.btrim(coalesce(p_condition_key, '')));
   normalized_manual_reason text := pg_catalog.btrim(coalesce(p_manual_reason, ''));
-  normalized_duplicate_decision text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_duplicate_decision, '')), '');
-  normalized_duplicate_reason text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_duplicate_reason, '')), '');
-  normalized_make text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
-  normalized_model text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
-  normalized_body_type text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_body_type, '')), '');
-  normalized_drivetrain text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_drivetrain, '')), '');
+  normalized_duplicate_decision text := nullif(pg_catalog.btrim(coalesce(p_duplicate_decision, '')), '');
+  normalized_duplicate_reason text := nullif(pg_catalog.btrim(coalesce(p_duplicate_reason, '')), '');
+  normalized_make text := nullif(pg_catalog.btrim(coalesce(p_make, '')), '');
+  normalized_model text := nullif(pg_catalog.btrim(coalesce(p_model, '')), '');
+  normalized_body_type text := nullif(pg_catalog.btrim(coalesce(p_body_type, '')), '');
+  normalized_drivetrain text := nullif(pg_catalog.btrim(coalesce(p_drivetrain, '')), '');
   normalized_engine_liters numeric(6, 3);
-  normalized_fuel_type text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_fuel_type, '')), '');
-  normalized_transmission text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_transmission, '')), '');
-  normalized_trim_name text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_trim_name, '')), '');
+  normalized_fuel_type text := nullif(pg_catalog.btrim(coalesce(p_fuel_type, '')), '');
+  normalized_transmission text := nullif(pg_catalog.btrim(coalesce(p_transmission, '')), '');
+  normalized_trim_name text := nullif(pg_catalog.btrim(coalesce(p_trim_name, '')), '');
   normalized_currency text := pg_catalog.upper(pg_catalog.btrim(coalesce(p_currency_code, '')));
-  normalized_public_notes text := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_public_notes, '')), '');
+  normalized_public_notes text := nullif(pg_catalog.btrim(coalesce(p_public_notes, '')), '');
   manual_facts_snapshot jsonb;
   failure_snapshot jsonb;
   request_fingerprint text;
@@ -1349,7 +1349,7 @@ begin
   select intake.* into existing_intake
   from public.vin_manual_inventory_intakes intake
   where intake.workspace_id = p_workspace_id
-    and intake.actor_user_id = actor_user_id
+    and intake.actor_user_id = app.current_user_id()
     and intake.idempotency_key = normalized_idempotency_key;
   if found then
     if existing_intake.command_fingerprint <> request_fingerprint then

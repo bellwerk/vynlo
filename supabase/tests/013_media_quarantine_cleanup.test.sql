@@ -30,7 +30,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -330,7 +330,7 @@ select extensions.ok(
       and job.entity_type = 'media_upload_session'
       and job.entity_id = scheduled.upload_session_id
       and job.payload_schema_version = 1
-      and pg_catalog.jsonb_object_length(job.payload) = 5
+      and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(job.payload, '$.keyvalue()')) = 5
       and job.payload ->> 'reason' = 'expired_intent'
       and job.payload -> 'checksum_sha256' = 'null'::jsonb
       and (job.payload ->> 'generation')::integer = 1
@@ -606,7 +606,7 @@ from app.create_vehicle_photo_upload_session(
   '10000000-0000-4000-8000-000000000001',
   'm2-quarantine-rejected-upload-001',
   (select inventory_unit_id from pg_temp.inventory_fixture),
-  'rejected-source.png', 'image/png', 900, null,
+  'rejected-source.png', 'image/png', 900, repeat('d', 64),
   'request-quarantine-rejected-upload-001',
   'ba000000-0000-4000-8000-000000000006'
 ) result;
@@ -707,6 +707,7 @@ select extensions.ok(
   ),
   'rejected object checksum is observed and fenced by the worker, never trusted from the browser'
 );
+reset role;
 select extensions.ok(
   not exists (
     select 1 from public.jobs job

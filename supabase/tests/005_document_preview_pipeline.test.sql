@@ -25,7 +25,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -170,23 +170,26 @@ select extensions.ok(
 
 insert into public.document_types (
   id, workspace_id, key, version, display_name, field_schema,
-  official_generation_enabled, status
+  official_generation_enabled, status, labels, field_schema_checksum, checksum
 )
 values
   (
     'a5100000-0000-4000-8000-000000000001',
     '10000000-0000-4000-8000-000000000001',
-    'pipeline_preview', 1, 'Pipeline preview', '{}', false, 'active'
+    'pipeline_preview', 1, 'Pipeline preview', '{}', false, 'active',
+    '{"en":"Pipeline preview","fr":"Apercu du pipeline"}', repeat('d', 64), repeat('e', 64)
   ),
   (
     'a5200000-0000-4000-8000-000000000001',
     '20000000-0000-4000-8000-000000000002',
-    'pipeline_preview', 1, 'Pipeline preview', '{}', false, 'active'
+    'pipeline_preview', 1, 'Pipeline preview', '{}', false, 'active',
+    '{"en":"Pipeline preview","fr":"Apercu du pipeline"}', repeat('d', 64), repeat('e', 64)
   );
 insert into public.document_template_versions (
   id, workspace_id, document_type_id, version, locale, template_class,
   source_html, source_checksum, renderer_version, field_schema,
-  production_approved, watermark, status
+  production_approved, watermark, status, source_bundle_checksum,
+  field_schema_checksum
 )
 values
   (
@@ -195,7 +198,8 @@ values
     'a5100000-0000-4000-8000-000000000001',
     1, 'en-CA', 'synthetic_non_production',
     '<html><body>{{ deal.id }}</body></html>', repeat('1', 64),
-    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active'
+    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active',
+    repeat('f', 64), repeat('d', 64)
   ),
   (
     'a5400000-0000-4000-8000-000000000001',
@@ -203,7 +207,8 @@ values
     'a5200000-0000-4000-8000-000000000001',
     1, 'fr-CA', 'synthetic_non_production',
     '<html><body>{{ deal.id }}</body></html>', repeat('2', 64),
-    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active'
+    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active',
+    repeat('f', 64), repeat('d', 64)
   );
 insert into public.deals (
   id, workspace_id, deal_type_key, status, currency_code,
@@ -282,6 +287,7 @@ select extensions.results_eq(
   $$values ('queued'::text, 'DRAFT / NON-PRODUCTION'::text, 'queued'::text, false)$$,
   'T-DOC-JOB-001 first request returns queued non-production state'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -375,6 +381,8 @@ select extensions.is(
   'T-DOC-JOB-008 immutable pipeline linkage has its own audit event'
 );
 
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.preview_pipeline_results
@@ -404,12 +412,15 @@ select extensions.ok(
   ),
   'T-DOC-JOB-004 replay returns the same document, outbox event, and job'
 );
+reset role;
 select extensions.ok(
   (select pg_catalog.count(*) from public.document_preview_jobs where idempotency_key = 'pipeline-preview-a') = 1
     and (select pg_catalog.count(*) from public.jobs where job_type = 'documents.render_preview' and idempotency_key = 'pipeline-preview-a') = 1
     and (select pg_catalog.count(*) from public.audit_events where action = 'document.preview_job_queued') = 1,
   'T-DOC-JOB-004 replay creates no duplicate mapping, job, or audit event'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.throws_ok(
   $$
     select * from app.request_document_preview_job(

@@ -33,14 +33,15 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'totp',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
+      )
       else pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object(
           'method', 'password',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
       )
@@ -96,15 +97,18 @@ select extensions.has_function(
 );
 select extensions.has_function(
   'app',
-  'request_document_preview',
+  'request_document_preview_job',
   array['uuid', 'text', 'uuid', 'uuid', 'text', 'text', 'uuid'],
-  'preview request command exists'
+  'atomic preview request command exists'
 );
 select extensions.has_function(
   'app',
-  'complete_document_preview',
-  array['uuid', 'uuid', 'boolean', 'text', 'text', 'text', 'uuid'],
-  'preview completion command exists'
+  'complete_document_preview_artifact',
+  array[
+    'uuid', 'uuid', 'uuid', 'text', 'uuid', 'text', 'text', 'text',
+    'text', 'bigint', 'text', 'text', 'text', 'uuid'
+  ],
+  'lease-fenced preview artifact command exists'
 );
 
 select extensions.is(
@@ -133,12 +137,17 @@ select extensions.ok(
   'T-RBAC-001 browser mutations must use permissioned commands'
 );
 select extensions.ok(
-  not pg_catalog.has_function_privilege(
+  pg_catalog.has_function_privilege(
+    'service_role',
+    'app.complete_document_preview_artifact(uuid,uuid,uuid,text,uuid,text,text,text,text,bigint,text,text,text,uuid)',
+    'EXECUTE'
+  )
+  and not pg_catalog.has_function_privilege(
     'authenticated',
-    'app.complete_document_preview(uuid,uuid,boolean,text,text,text,uuid)',
+    'app.complete_document_preview_artifact(uuid,uuid,uuid,text,uuid,text,text,text,text,bigint,text,text,text,uuid)',
     'EXECUTE'
   ),
-  'preview completion remains service-only'
+  'preview artifact completion remains service-only'
 );
 
 insert into public.stock_number_definitions (
@@ -147,12 +156,12 @@ insert into public.stock_number_definitions (
 )
 values
   (
-    '71000000-0000-4000-8000-000000000001',
+    '71000000-0000-4000-8000-000000000004',
     '10000000-0000-4000-8000-000000000001',
     'synthetic_stock', 1, 'S', 5, 1, 1, 'active', repeat('a', 64)
   ),
   (
-    '72000000-0000-4000-8000-000000000001',
+    '72000000-0000-4000-8000-000000000004',
     '20000000-0000-4000-8000-000000000002',
     'synthetic_stock', 1, 'H', 5, 1, 1, 'active', repeat('b', 64)
   );
@@ -162,33 +171,36 @@ insert into public.stock_number_counters (
 values
   (
     '10000000-0000-4000-8000-000000000001',
-    '71000000-0000-4000-8000-000000000001',
+    '71000000-0000-4000-8000-000000000004',
     1
   ),
   (
     '20000000-0000-4000-8000-000000000002',
-    '72000000-0000-4000-8000-000000000001',
+    '72000000-0000-4000-8000-000000000004',
     1
   );
 insert into public.document_types (
   id, workspace_id, key, version, display_name, field_schema,
-  official_generation_enabled, status
+  official_generation_enabled, status, labels, field_schema_checksum, checksum
 )
 values
   (
     '91000000-0000-4000-8000-000000000001',
     '10000000-0000-4000-8000-000000000001',
-    'synthetic_preview', 1, 'Synthetic preview', '{}', false, 'active'
+    'synthetic_preview', 1, 'Synthetic preview', '{}', false, 'active',
+    '{"en":"Synthetic preview","fr":"Apercu synthetique"}', repeat('d', 64), repeat('e', 64)
   ),
   (
     '92000000-0000-4000-8000-000000000001',
     '20000000-0000-4000-8000-000000000002',
-    'synthetic_preview', 1, 'Synthetic preview', '{}', false, 'active'
+    'synthetic_preview', 1, 'Synthetic preview', '{}', false, 'active',
+    '{"en":"Synthetic preview","fr":"Apercu synthetique"}', repeat('d', 64), repeat('e', 64)
   );
 insert into public.document_template_versions (
   id, workspace_id, document_type_id, version, locale, template_class,
   source_html, source_checksum, renderer_version, field_schema,
-  production_approved, watermark, status
+  production_approved, watermark, status, source_bundle_checksum,
+  field_schema_checksum
 )
 values
   (
@@ -197,7 +209,8 @@ values
     '91000000-0000-4000-8000-000000000001',
     1, 'en-CA', 'synthetic_non_production',
     '<html><body>{{ deal.id }}</body></html>', repeat('c', 64),
-    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active'
+    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active',
+    repeat('f', 64), repeat('d', 64)
   ),
   (
     '94000000-0000-4000-8000-000000000001',
@@ -205,7 +218,8 @@ values
     '92000000-0000-4000-8000-000000000001',
     1, 'en-CA', 'synthetic_non_production',
     '<html><body>{{ deal.id }}</body></html>', repeat('d', 64),
-    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active'
+    'synthetic-html-v1', '{}', false, 'DRAFT / NON-PRODUCTION', 'active',
+    repeat('f', 64), repeat('d', 64)
   );
 
 insert into public.parties (
@@ -249,11 +263,21 @@ create temporary table pg_temp.preview_results (
   document_id uuid,
   preview_status text,
   watermark text,
+  outbox_event_id uuid,
+  job_id uuid,
+  job_status text,
   replayed boolean,
   probe text
 );
+create temporary table pg_temp.claimed_preview_jobs (
+  job_id uuid,
+  workspace_id uuid,
+  lease_token uuid,
+  correlation_id uuid
+);
 grant all on pg_temp.inventory_results, pg_temp.party_results,
-  pg_temp.deal_results, pg_temp.preview_results to authenticated, service_role;
+  pg_temp.deal_results, pg_temp.preview_results,
+  pg_temp.claimed_preview_jobs to authenticated, service_role;
 
 select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001', 'aal2');
 set local role authenticated;
@@ -262,7 +286,7 @@ select extensions.throws_ok(
   $$
     select * from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '71000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000004',
       'invalid-vin-command', '1HGCM82633I004352', 2024, 'Example', 'Roadster',
       date '2026-07-16', 100, 'km', 'CAD', 2500000, null,
       'request-invalid-vin', pg_catalog.gen_random_uuid()
@@ -278,7 +302,7 @@ select extensions.lives_ok(
     select result.*, 'initial'
     from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '71000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000004',
       'inventory-command-001', '1hgcm82633a004352', 2024, 'Example', 'Roadster',
       date '2026-07-16', 12345, 'km', 'CAD', 2500000, 'Synthetic fixture',
       'request-inventory-001', 'a1000000-0000-4000-8000-000000000001'
@@ -327,7 +351,7 @@ select extensions.lives_ok(
     select result.*, 'replay'
     from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '71000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000004',
       'inventory-command-001', '1HGCM82633A004352', 2024, 'Example', 'Roadster',
       date '2026-07-16', 12345, 'km', 'CAD', 2500000, 'Synthetic fixture',
       'request-inventory-replay', 'a1000000-0000-4000-8000-000000000002'
@@ -349,7 +373,7 @@ select extensions.throws_ok(
   $$
     select * from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '71000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000004',
       'inventory-command-001', '1HGCM82633A004353', 2024, 'Example', 'Roadster',
       date '2026-07-16', 12345, 'km', 'CAD', 2500000, null,
       'request-inventory-conflict', pg_catalog.gen_random_uuid()
@@ -363,7 +387,7 @@ select extensions.throws_ok(
   $$
     select * from app.create_inventory_unit(
       '20000000-0000-4000-8000-000000000002',
-      '72000000-0000-4000-8000-000000000001',
+      '72000000-0000-4000-8000-000000000004',
       'cross-workspace-inventory', '1HGCM82633A004354', 2024, null, null,
       null, null, null, 'CAD', null, null, 'request-cross', pg_catalog.gen_random_uuid()
     )
@@ -421,7 +445,7 @@ select extensions.lives_ok(
         perform inventory_unit_id
         from app.create_inventory_unit(
           '10000000-0000-4000-8000-000000000001',
-          '71000000-0000-4000-8000-000000000001',
+          '71000000-0000-4000-8000-000000000004',
           'pgtap-concurrency-' || pg_catalog.lpad(sequence_number::text, 3, '0'),
           '1HGCM82633A' || pg_catalog.lpad(sequence_number::text, 6, '0'),
           2024, 'Example', 'Batch', null, null, null, 'CAD', null, null,
@@ -613,7 +637,7 @@ select extensions.lives_ok(
   $$
     insert into pg_temp.preview_results
     select result.*, 'initial'
-    from app.request_document_preview(
+    from app.request_document_preview_job(
       '10000000-0000-4000-8000-000000000001', 'preview-command-001',
       (select deal_id from pg_temp.deal_results where probe = 'initial'),
       '93000000-0000-4000-8000-000000000001', 'en-CA',
@@ -655,7 +679,7 @@ select extensions.lives_ok(
   $$
     insert into pg_temp.preview_results
     select result.*, 'replay'
-    from app.request_document_preview(
+    from app.request_document_preview_job(
       '10000000-0000-4000-8000-000000000001', 'preview-command-001',
       (select deal_id from pg_temp.deal_results where probe = 'initial'),
       '93000000-0000-4000-8000-000000000001', 'en-CA',
@@ -673,7 +697,7 @@ select extensions.ok(
 );
 select extensions.throws_ok(
   $$
-    select * from app.request_document_preview(
+    select * from app.request_document_preview_job(
       '10000000-0000-4000-8000-000000000001', 'preview-cross-template',
       (select deal_id from pg_temp.deal_results where probe = 'initial'),
       '94000000-0000-4000-8000-000000000001', 'en-CA',
@@ -684,15 +708,25 @@ select extensions.throws_ok(
   'active synthetic non-production template must belong to the workspace',
   'T-TEN-001 cross-workspace template use is denied'
 );
+reset role;
 select extensions.ok(
-  (
-    select metadata ->> 'outbox_enqueue_deferred' = 'true'
-    from public.audit_events
-    where action = 'document.preview_requested'
-      and entity_id = (select document_id from pg_temp.preview_results where probe = 'initial')
+  exists (
+    select 1
+    from pg_temp.preview_results result
+    join public.document_preview_jobs mapping
+      on mapping.document_id = result.document_id
+     and mapping.job_id = result.job_id
+     and mapping.outbox_event_id = result.outbox_event_id
+    join public.jobs job on job.id = result.job_id
+    join public.outbox_events event on event.id = result.outbox_event_id
+    where result.probe = 'initial'
+      and job.status = 'queued'
+      and event.event_name = 'document.preview_requested'
   ),
-  'queued preview records explicitly mark outbox enqueue as deferred integration work'
+  'queued preview commits canonical job and outbox lineage atomically'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001', 'aal2');
+set local role authenticated;
 
 select extensions.throws_ok(
   $$
@@ -720,13 +754,26 @@ select extensions.throws_ok(
 );
 
 set local role service_role;
+insert into pg_temp.claimed_preview_jobs
+select claimed.job_id, claimed.workspace_id, claimed.lease_token, claimed.correlation_id
+from app.claim_jobs(
+  'slice-preview-worker', 1, 300, array['documents.render_preview']
+) claimed;
 select extensions.lives_ok(
   $$
-    select app.complete_document_preview(
+    select * from app.complete_document_preview_artifact(
       '10000000-0000-4000-8000-000000000001',
       (select document_id from pg_temp.preview_results where probe = 'initial'),
-      true, repeat('f', 64), null, 'request-preview-complete',
-      'a4000000-0000-4000-8000-000000000003'
+      (select job_id from pg_temp.preview_results where probe = 'initial'),
+      'slice-preview-worker',
+      (select lease_token from pg_temp.claimed_preview_jobs),
+      'preview-artifacts',
+      '10000000-0000-4000-8000-000000000001/documents/'
+        || (select document_id from pg_temp.preview_results where probe = 'initial')::text
+        || '/preview/' || repeat('f', 64) || '.html',
+      'preview.html', 'text/html; charset=utf-8', 512, repeat('f', 64),
+      'synthetic-html-v1', 'request-preview-complete',
+      (select correlation_id from pg_temp.claimed_preview_jobs)
     )
   $$,
   'preview worker contract completes one queued record'
@@ -741,26 +788,45 @@ select extensions.results_eq(
   'preview completion stores terminal checksum state'
 );
 select extensions.is(
-  app.complete_document_preview(
-    '10000000-0000-4000-8000-000000000001',
-    (select document_id from pg_temp.preview_results where probe = 'initial'),
-    true, repeat('f', 64), null, 'request-preview-complete-replay',
-    'a4000000-0000-4000-8000-000000000004'
+  (
+    select result.document_status
+    from app.complete_document_preview_artifact(
+      '10000000-0000-4000-8000-000000000001',
+      (select document_id from pg_temp.preview_results where probe = 'initial'),
+      (select job_id from pg_temp.preview_results where probe = 'initial'),
+      'slice-preview-worker',
+      (select lease_token from pg_temp.claimed_preview_jobs),
+      'preview-artifacts',
+      '10000000-0000-4000-8000-000000000001/documents/'
+        || (select document_id from pg_temp.preview_results where probe = 'initial')::text
+        || '/preview/' || repeat('f', 64) || '.html',
+      'preview.html', 'text/html; charset=utf-8', 512, repeat('f', 64),
+      'synthetic-html-v1', 'request-preview-complete-replay',
+      (select correlation_id from pg_temp.claimed_preview_jobs)
+    ) result
   ),
   'generated'::text,
   'preview completion replay is idempotent'
 );
 select extensions.throws_ok(
   $$
-    select app.complete_document_preview(
+    select * from app.complete_document_preview_artifact(
       '10000000-0000-4000-8000-000000000001',
       (select document_id from pg_temp.preview_results where probe = 'initial'),
-      false, null, 'RENDER_FAILED', 'request-preview-conflict',
-      pg_catalog.gen_random_uuid()
+      (select job_id from pg_temp.preview_results where probe = 'initial'),
+      'slice-preview-worker',
+      (select lease_token from pg_temp.claimed_preview_jobs),
+      'preview-artifacts',
+      '10000000-0000-4000-8000-000000000001/documents/'
+        || (select document_id from pg_temp.preview_results where probe = 'initial')::text
+        || '/preview/' || repeat('e', 64) || '.html',
+      'preview.html', 'text/html; charset=utf-8', 512, repeat('e', 64),
+      'synthetic-html-v1', 'request-preview-conflict',
+      (select correlation_id from pg_temp.claimed_preview_jobs)
     )
   $$,
-  '55000',
-  'terminal preview result cannot be replaced',
+  '23505',
+  'preview artifact completion conflicts with the immutable result',
   'terminal preview result cannot be contradicted'
 );
 select extensions.is(
@@ -778,16 +844,17 @@ select extensions.throws_ok(
   $$
     insert into public.document_template_versions (
       workspace_id, document_type_id, version, locale, source_html,
-      source_checksum, renderer_version, production_approved
+      source_checksum, renderer_version, production_approved,
+      source_bundle_checksum, field_schema_checksum
     ) values (
       '10000000-0000-4000-8000-000000000001',
       '91000000-0000-4000-8000-000000000001', 2, 'en-CA',
       '<html>production is prohibited</html>', repeat('e', 64),
-      'synthetic-html-v1', true
+      'synthetic-html-v1', true, repeat('f', 64), repeat('d', 64)
     )
   $$,
   '23514',
-  'new row for relation "document_template_versions" violates check constraint "document_template_versions_production_approved_check"',
+  'new row for relation "document_template_versions" violates check constraint "document_template_versions_production_shape_check"',
   'T-DOC-001 even trusted writes cannot mark a synthetic template production-approved'
 );
 select extensions.throws_ok(
@@ -816,7 +883,7 @@ select extensions.throws_ok(
     where id = (select document_id from pg_temp.preview_results where probe = 'initial')
   $$,
   '55000',
-  'hard delete is prohibited for documents',
+  'documents is append-only',
   'preview history cannot be hard deleted'
 );
 select extensions.throws_ok(
@@ -830,9 +897,9 @@ select extensions.throws_ok(
       'buyer'
     )
   $$,
-  '23503',
-  'insert or update on table "deal_participants" violates foreign key constraint "deal_participants_workspace_id_party_id_fkey"',
-  'T-TEN-001 composite foreign key rejects a cross-workspace party link'
+  '23514',
+  'active workspace party is required',
+  'T-TEN-001 active-party guard rejects a cross-workspace party link'
 );
 
 -- Create workspace B records through the same commands so the final RLS probe
@@ -843,7 +910,7 @@ insert into pg_temp.inventory_results
 select result.*, 'workspace-b'
 from app.create_inventory_unit(
   '20000000-0000-4000-8000-000000000002',
-  '72000000-0000-4000-8000-000000000001',
+  '72000000-0000-4000-8000-000000000004',
   'workspace-b-inventory', '1HGCM82633A900001', 2024, 'Example', 'Harbour',
   null, null, null, 'CAD', null, null, 'request-b-inventory',
   'b4000000-0000-4000-8000-000000000001'
@@ -868,7 +935,7 @@ from app.create_deal_draft(
 ) result;
 insert into pg_temp.preview_results
 select result.*, 'workspace-b'
-from app.request_document_preview(
+from app.request_document_preview_job(
   '20000000-0000-4000-8000-000000000002', 'workspace-b-preview',
   (select deal_id from pg_temp.deal_results where probe = 'workspace-b'),
   '94000000-0000-4000-8000-000000000001', 'en-CA',

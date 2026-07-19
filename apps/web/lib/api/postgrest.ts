@@ -6,6 +6,11 @@ import {
   M2CostSearchApplicationService,
   M2InventoryApplicationService,
   M2MediaApplicationService,
+  M3ConfigurationApplicationService,
+  M3CrmApplicationService,
+  M3DealsApplicationService,
+  M3FinancePaymentsApplicationService,
+  M4ApplicationService,
   VerticalSliceApplicationService,
   VinDecodeApplicationService,
   VinInventoryIntakeApplicationService,
@@ -14,6 +19,8 @@ import {
 import { z } from "zod";
 import { SupabaseVerifiedMediaDownloadGrantPort } from "./media-download-grant.server";
 import { SupabaseDocumentPreviewDownloadGrantPort } from "./document-preview-download-grant.server";
+import { SupabaseM4DownloadGrantPort } from "./m4-download-grant.server";
+import { SupabaseM4RuntimeEvidencePort } from "./m4-runtime-evidence.server";
 import { PostgrestCommandError } from "./postgrest-error";
 
 export { PostgrestCommandError } from "./postgrest-error";
@@ -290,6 +297,109 @@ export function createM2MediaApplicationService(): M2MediaApplicationService {
       url: config.url,
     }),
   );
+}
+
+export function createM3ConfigurationApplicationService(): M3ConfigurationApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M3ConfigurationApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM3CrmApplicationService(): M3CrmApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M3CrmApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM3DealsApplicationService(): M3DealsApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M3DealsApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM3FinancePaymentsApplicationService(): M3FinancePaymentsApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M3FinancePaymentsApplicationService(
+    new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  );
+}
+
+export function createM4ApplicationService(): M4ApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.VYNLO_SUPABASE_SERVICE_ROLE_KEY;
+  return new M4ApplicationService({
+    gateway: new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+    ...(serviceRoleKey === undefined || serviceRoleKey === ""
+      ? {}
+      : {
+          runtimeEvidence: new SupabaseM4RuntimeEvidencePort({
+            publicKey: config.publicKey,
+            serviceRoleKey,
+            supabaseUrl: config.url,
+          }),
+        }),
+  });
+}
+
+export function createM4DownloadApplicationService(): M4ApplicationService {
+  const config = parsePostgrestConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+  return new M4ApplicationService({
+    downloadGrants: new SupabaseM4DownloadGrantPort({
+      serviceRoleKey:
+        process.env.SUPABASE_SERVICE_ROLE_KEY ??
+        process.env.VYNLO_SUPABASE_SERVICE_ROLE_KEY ??
+        "",
+      supabaseUrl: config.url,
+    }),
+    gateway: new PostgrestAuthenticatedRpcGateway({
+      publicKey: config.publicKey,
+      url: config.url,
+    }),
+  });
 }
 
 export function createLegalOriginalApplicationService(): LegalOriginalApplicationService {

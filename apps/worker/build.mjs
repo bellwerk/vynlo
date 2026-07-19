@@ -11,7 +11,7 @@ await rm(outputDirectory, { force: true, recursive: true });
 await build({
   bundle: true,
   entryPoints: [entryPoint],
-  external: ["sharp"],
+  external: ["playwright", "sharp"],
   format: "esm",
   logLevel: "info",
   outfile: fileURLToPath(outputFile),
@@ -27,16 +27,18 @@ const enabledMediaJobTypes = builtWorker.enabledWorkerJobTypes({
 });
 if (
   !Array.isArray(builtWorker.WORKER_JOB_TYPES) ||
-  builtWorker.WORKER_JOB_TYPES.length !== 9 ||
+  builtWorker.WORKER_JOB_TYPES.length !== 11 ||
   builtWorker.WORKER_JOB_TYPES[0] !== "documents.render_preview" ||
-  builtWorker.WORKER_JOB_TYPES[1] !== "auth.invitation.deliver" ||
-  builtWorker.WORKER_JOB_TYPES[2] !== "inventory.vin_decode" ||
-  builtWorker.WORKER_JOB_TYPES[3] !== "media.verify_vehicle_photo_upload" ||
-  builtWorker.WORKER_JOB_TYPES[4] !== "media.verify_legal_original" ||
-  builtWorker.WORKER_JOB_TYPES[5] !== "media.process_vehicle_photo" ||
-  builtWorker.WORKER_JOB_TYPES[6] !== "media.delete_retained_raw" ||
-  builtWorker.WORKER_JOB_TYPES[7] !== "media.delete_quarantine_upload" ||
-  builtWorker.WORKER_JOB_TYPES[8] !==
+  builtWorker.WORKER_JOB_TYPES[1] !== "documents.render_pdf" ||
+  builtWorker.WORKER_JOB_TYPES[2] !== "exports.generate" ||
+  builtWorker.WORKER_JOB_TYPES[3] !== "auth.invitation.deliver" ||
+  builtWorker.WORKER_JOB_TYPES[4] !== "inventory.vin_decode" ||
+  builtWorker.WORKER_JOB_TYPES[5] !== "media.verify_vehicle_photo_upload" ||
+  builtWorker.WORKER_JOB_TYPES[6] !== "media.verify_legal_original" ||
+  builtWorker.WORKER_JOB_TYPES[7] !== "media.process_vehicle_photo" ||
+  builtWorker.WORKER_JOB_TYPES[8] !== "media.delete_retained_raw" ||
+  builtWorker.WORKER_JOB_TYPES[9] !== "media.delete_quarantine_upload" ||
+  builtWorker.WORKER_JOB_TYPES[10] !==
     "media.delete_legal_original_quarantine" ||
   enabledMediaJobTypes.includes("media.delete_retained_raw") ||
   enabledMediaJobTypes.includes("media.delete_quarantine_upload") ||

@@ -291,39 +291,39 @@ declare
   normalized_idempotency_key text := pg_catalog.btrim(
     coalesce(p_idempotency_key, '')
   );
-  normalized_make text := pg_catalog.nullif(
+  normalized_make text := nullif(
     pg_catalog.btrim(coalesce(p_make, '')),
     ''
   );
-  normalized_model text := pg_catalog.nullif(
+  normalized_model text := nullif(
     pg_catalog.btrim(coalesce(p_model, '')),
     ''
   );
-  normalized_body_type text := pg_catalog.nullif(
+  normalized_body_type text := nullif(
     pg_catalog.btrim(coalesce(p_body_type, '')),
     ''
   );
-  normalized_drivetrain text := pg_catalog.nullif(
+  normalized_drivetrain text := nullif(
     pg_catalog.btrim(coalesce(p_drivetrain, '')),
     ''
   );
   normalized_engine_liters numeric(6, 3);
-  normalized_fuel_type text := pg_catalog.nullif(
+  normalized_fuel_type text := nullif(
     pg_catalog.btrim(coalesce(p_fuel_type, '')),
     ''
   );
-  normalized_transmission text := pg_catalog.nullif(
+  normalized_transmission text := nullif(
     pg_catalog.btrim(coalesce(p_transmission, '')),
     ''
   );
-  normalized_trim_name text := pg_catalog.nullif(
+  normalized_trim_name text := nullif(
     pg_catalog.btrim(coalesce(p_trim_name, '')),
     ''
   );
   normalized_currency text := pg_catalog.upper(
     pg_catalog.btrim(coalesce(p_currency_code, ''))
   );
-  normalized_public_notes text := pg_catalog.nullif(
+  normalized_public_notes text := nullif(
     pg_catalog.btrim(coalesce(p_public_notes, '')),
     ''
   );
@@ -453,7 +453,7 @@ begin
     into existing_intake
   from public.vin_inventory_intakes intake
   where intake.workspace_id = p_workspace_id
-    and intake.actor_user_id = actor_user_id
+    and intake.actor_user_id = app.current_user_id()
     and intake.idempotency_key = normalized_idempotency_key;
 
   if found then

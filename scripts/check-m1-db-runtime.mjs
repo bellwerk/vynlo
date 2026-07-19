@@ -10,6 +10,19 @@ function run(command, args, input) {
   }).trim();
 }
 
+function runPortablePsql(command, databaseUrl, args, input) {
+  try {
+    return execFileSync(command, ["--dbname", databaseUrl, ...args], {
+      encoding: "utf8",
+      env: { ...process.env },
+      input,
+      stdio: [input === undefined ? "ignore" : "pipe", "pipe", "inherit"],
+    }).trim();
+  } catch {
+    throw new Error("Portable PostgreSQL runtime command failed.");
+  }
+}
+
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const supabaseConfig = readFileSync(
   path.join(repositoryRoot, "supabase", "config.toml"),
@@ -20,43 +33,53 @@ const seedSql = readFileSync(
   path.join(repositoryRoot, "supabase", "seed.sql"),
   "utf8",
 );
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const psqlBin = process.env.PSQL_BIN?.trim() || "psql";
 
 if (!projectId) {
   throw new Error("supabase/config.toml must declare project_id.");
 }
 
-const containers = run("docker", [
-  "ps",
-  "--filter",
-  `name=supabase_db_${projectId}`,
-  "--format",
-  "{{.ID}}",
-])
-  .split(/\r?\n/u)
-  .filter(Boolean);
+let runPsql;
 
-if (containers.length !== 1) {
-  throw new Error(
-    `Expected one running database container for ${projectId}, found ${containers.length}.`,
-  );
+if (databaseUrl) {
+  runPsql = (args, input) => runPortablePsql(psqlBin, databaseUrl, args, input);
+} else {
+  const containers = run("docker", [
+    "ps",
+    "--filter",
+    `name=supabase_db_${projectId}`,
+    "--format",
+    "{{.ID}}",
+  ])
+    .split(/\r?\n/u)
+    .filter(Boolean);
+
+  if (containers.length !== 1) {
+    throw new Error(
+      `Expected one running database container for ${projectId}, found ${containers.length}.`,
+    );
+  }
+
+  runPsql = (args, input) =>
+    run(
+      "docker",
+      [
+        "exec",
+        "--interactive",
+        containers[0],
+        "psql",
+        "--username",
+        "postgres",
+        "--dbname",
+        "postgres",
+        ...args,
+      ],
+      input,
+    );
 }
 
-run(
-  "docker",
-  [
-    "exec",
-    "--interactive",
-    containers[0],
-    "psql",
-    "--username",
-    "postgres",
-    "--dbname",
-    "postgres",
-    "--set",
-    "ON_ERROR_STOP=1",
-  ],
-  seedSql,
-);
+runPsql(["--set", "ON_ERROR_STOP=1"], seedSql);
 
 const query = `
 select json_build_object(
@@ -88,19 +111,7 @@ select json_build_object(
 `;
 
 const result = JSON.parse(
-  run("docker", [
-    "exec",
-    containers[0],
-    "psql",
-    "--username",
-    "postgres",
-    "--dbname",
-    "postgres",
-    "--tuples-only",
-    "--no-align",
-    "--command",
-    query,
-  ]),
+  runPsql(["--tuples-only", "--no-align", "--command", query]),
 );
 
 const expected = {
@@ -109,7 +120,7 @@ const expected = {
   profile_count: 4,
   membership_count: 4,
   active_membership_count: 3,
-  platform_permission_count: 79,
+  platform_permission_count: 80,
   forced_rls_table_count: 11,
 };
 
@@ -122,5 +133,5 @@ for (const [key, expectedValue] of Object.entries(expected)) {
 }
 
 console.log(
-  "milestone1_supabase_runtime: pass (idempotent reseed, 2 isolated workspaces, 79 permissions, 11 forced-RLS tables)",
+  "milestone1_supabase_runtime: pass (idempotent reseed, 2 isolated workspaces, 80 permissions, 11 forced-RLS tables)",
 );

@@ -3,7 +3,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(20);
+select extensions.plan(21);
 
 create function pg_temp.authenticate_as(
   fixture_user_id uuid,
@@ -23,7 +23,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', 'totp',
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -225,6 +225,30 @@ set local role authenticated;
 select extensions.lives_ok(
   $$select id, document_id from public.document_preview_artifacts$$,
   'T-DOC-JOB-006 authorized users can read only safe artifact identity'
+);
+select extensions.ok(
+  exists (
+    select 1
+    from app.m4_list_documents(
+      '10000000-0000-4000-8000-000000000001'
+    ) listed
+    where listed.id = 'd7200000-0000-4000-8000-000000000001'
+      and listed.current_file_id is null
+      and listed.preview_artifact_id = 'd7600000-0000-4000-8000-000000000001'
+      and listed.generated_at is not null
+  )
+  and exists (
+    select 1
+    from app.m4_get_document_detail(
+      '10000000-0000-4000-8000-000000000001',
+      'd7200000-0000-4000-8000-000000000001'
+    ) detail
+    where detail.preview_artifact_id = 'd7600000-0000-4000-8000-000000000001'
+      and detail.generated_at is not null
+      and detail.files = '[]'::jsonb
+      and detail.jobs @> '[{"review_required": false}]'::jsonb
+  ),
+  'M4-DOC-AC-003 authenticated document queries expose safe preview artifact identity'
 );
 select extensions.throws_ok(
   $$select storage_bucket from public.document_preview_artifacts$$,

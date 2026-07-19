@@ -28,7 +28,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -84,7 +84,7 @@ select extensions.ok(
       and exists (
         select 1
         from pg_catalog.unnest(
-          pg_catalog.coalesce(proc.proconfig, array[]::text[])
+          coalesce(proc.proconfig, array[]::text[])
         ) setting
         where setting in ('search_path=', 'search_path=""')
       )
@@ -196,7 +196,7 @@ select extensions.lives_ok(
     select result.inventory_unit_id
     from app.create_inventory_unit(
       '10000000-0000-4000-8000-000000000001',
-      '73000000-0000-4000-8000-000000000001',
+      '71000000-0000-4000-8000-000000000001',
       'vehicle-storage-policy-create-022',
       '1HGCM82633A732022',
       2025,

@@ -31,7 +31,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -310,8 +310,8 @@ select extensions.throws_ok(
       pg_catalog.statement_timestamp()
     )
   $$,
-  '55000',
-  'media processing profiles must be created as draft',
+  '23514',
+  'media processing profile must start as a draft',
   'processing profiles cannot bypass draft review on insert'
 );
 select extensions.lives_ok(
@@ -529,7 +529,7 @@ select extensions.ok(
       and job.payload ? 'processing_run_id'
       and job.payload ? 'profile_checksum'
       and job.payload ? 'source'
-      and pg_catalog.jsonb_object_length(job.payload) = 4
+      and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(job.payload, '$.keyvalue()')) = 4
       and event.event_name = 'media.processing_queued'
   ),
   'M2-MEDIA-AC-002 verified quarantine completion atomically queues a reference-only job'
@@ -908,7 +908,7 @@ insert into public.deals (
 ) values (
   'a9300000-0000-4000-8000-000000000090',
   '10000000-0000-4000-8000-000000000001',
-  'synthetic.media', 'draft', 'CAD',
+  'retail.cash', 'draft', 'CAD',
   '41000000-0000-4000-8000-000000000001',
   'm2-media-legal-deal', repeat('3', 64),
   '31000000-0000-4000-8000-000000000001'
@@ -1353,8 +1353,8 @@ insert into public.media_files (
     'a9200000-0000-4000-8000-000000000001',
     '10000000-0000-4000-8000-000000000001',
     'a9100000-0000-4000-8000-000000000001',
-    'legal_document_original',
-    'legal_original',
+    'document_preview',
+    'preview',
     'media-private',
     'workspaces/10000000-0000-4000-8000-000000000001/documents/'
       || 'a9000000-0000-4000-8000-000000000099/files/'
@@ -1364,7 +1364,7 @@ insert into public.media_files (
     1024,
     repeat('7', 64),
     false,
-    'preserve_original',
+    'retain_until_archive',
     pg_catalog.jsonb_build_object(
       'schemaVersion', 1,
       'verifier', pg_catalog.jsonb_build_object('name', 'fixture-verifier', 'version', '1.0.0'),
@@ -1414,7 +1414,7 @@ insert into public.media_files (
 
 insert into storage.objects (id, bucket_id, name)
 select
-  'b9000000-0000-4000-8000-000000000001',
+  'b9000000-0000-4000-8000-000000000001'::uuid,
   file.storage_bucket,
   file.storage_object_key
 from public.media_files file
@@ -1425,21 +1425,21 @@ where file.id = (
 )
 union all
 select
-  'b9000000-0000-4000-8000-000000000002',
+  'b9000000-0000-4000-8000-000000000002'::uuid,
   file.storage_bucket,
   file.storage_object_key
 from public.media_files file
 where file.id = (select media_file_id from pg_temp.legal_original_results)
 union all
 select
-  'b9000000-0000-4000-8000-000000000003',
+  'b9000000-0000-4000-8000-000000000003'::uuid,
   file.storage_bucket,
   file.storage_object_key
 from public.media_files file
 where file.id = 'a9200000-0000-4000-8000-000000000001'
 union all
 select
-  'b9000000-0000-4000-8000-000000000004',
+  'b9000000-0000-4000-8000-000000000004'::uuid,
   file.storage_bucket,
   file.storage_object_key
 from public.media_files file
@@ -1465,7 +1465,7 @@ select extensions.results_eq(
   $$values ('vehicle_photo'::text)$$,
   'media-only role sees vehicle-photo assets and no document-like asset kind'
 );
-select extensions.results_eq(
+select extensions.throws_ok(
   $$
     select distinct asset.media_kind
     from public.media_files file
@@ -1474,8 +1474,9 @@ select extensions.results_eq(
      and asset.id = file.media_id
     order by asset.media_kind
   $$,
-  $$values ('vehicle_photo'::text)$$,
-  'media-only role sees vehicle-photo file metadata and no document-like file metadata'
+  '42501',
+  'permission denied for table media_files',
+  'media-only role cannot bypass the managed download boundary through file metadata'
 );
 select extensions.throws_ok(
   $$
@@ -1551,7 +1552,7 @@ select extensions.results_eq(
   $$,
   'documents-only role sees every non-vehicle asset kind and no vehicle photos'
 );
-select extensions.results_eq(
+select extensions.throws_ok(
   $$
     select distinct asset.media_kind
     from public.media_files file
@@ -1560,13 +1561,9 @@ select extensions.results_eq(
      and asset.id = file.media_id
     order by asset.media_kind
   $$,
-  $$
-    values
-      ('attachment'::text),
-      ('legal_document'::text),
-      ('signed_document'::text)
-  $$,
-  'documents-only role sees every non-vehicle file kind and no vehicle-photo file metadata'
+  '42501',
+  'permission denied for table media_files',
+  'documents-only role cannot bypass the managed download boundary through file metadata'
 );
 select extensions.throws_ok(
   $$
@@ -1643,17 +1640,23 @@ select extensions.ok(
   ),
   'download authorization replay returns the original audited grant decision'
 );
+create temporary table pg_temp.admin_legal_download_authorization
+on commit drop
+as
+select result.*
+from app.authorize_managed_media_download(
+  '10000000-0000-4000-8000-000000000001',
+  'm2-download-admin-legal-001',
+  (select media_file_id from pg_temp.legal_original_results),
+  60,
+  'request-download-admin-legal-001',
+  'a9000000-0000-4000-8000-000000000037'
+) result;
+reset role;
 select extensions.ok(
   exists (
     select 1
-    from app.authorize_managed_media_download(
-      '10000000-0000-4000-8000-000000000001',
-      'm2-download-admin-legal-001',
-      (select media_file_id from pg_temp.legal_original_results),
-      60,
-      'request-download-admin-legal-001',
-      'a9000000-0000-4000-8000-000000000037'
-    ) result
+    from pg_temp.admin_legal_download_authorization result
     join public.audit_events audit on audit.id = result.audit_event_id
     where result.media_file_id = (
         select media_file_id from pg_temp.legal_original_results
@@ -1670,6 +1673,8 @@ select extensions.ok(
   ),
   'download authorization returns exact immutable metadata without provider coordinates'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.throws_ok(
   $$
     select * from app.authorize_managed_media_download(
@@ -1701,8 +1706,8 @@ select extensions.throws_ok(
     )
   $$,
   '42501',
-  'recent strong authentication is required',
-  'legal original download authorization requires recent strong authentication'
+  'managed media download is not authorized',
+  'AAL1 administrator is denied before legal-original authorization'
 );
 reset role;
 

@@ -86,7 +86,7 @@ declare
 begin
   actor_user_id := auth.uid();
   normalized_idempotency_key := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
 
   if actor_user_id is null
@@ -144,12 +144,12 @@ begin
     )
   );
 
-  select authorization.*
+  select download_authorization.*
     into existing_authorization
-  from public.document_preview_download_authorizations authorization
-  where authorization.workspace_id = p_workspace_id
-    and authorization.actor_user_id = actor_user_id
-    and authorization.idempotency_key = normalized_idempotency_key;
+  from public.document_preview_download_authorizations download_authorization
+  where download_authorization.workspace_id = p_workspace_id
+    and download_authorization.actor_user_id = app.current_user_id()
+    and download_authorization.idempotency_key = normalized_idempotency_key;
 
   if found then
     if existing_authorization.request_fingerprint <> request_fingerprint then
@@ -185,7 +185,7 @@ begin
     p_actor_type => 'user',
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'authorization_id', new_authorization_id,
       'document_id', target_artifact.document_id,
@@ -271,8 +271,8 @@ begin
 
   return query
   select
-    authorization.id,
-    authorization.workspace_id,
+    download_authorization.id,
+    download_authorization.workspace_id,
     artifact.id,
     artifact.document_id,
     artifact.storage_bucket,
@@ -281,14 +281,14 @@ begin
     artifact.mime_type,
     artifact.byte_size,
     artifact.checksum,
-    authorization.signed_url_ttl_seconds,
-    authorization.expires_at
-  from public.document_preview_download_authorizations authorization
+    download_authorization.signed_url_ttl_seconds,
+    download_authorization.expires_at
+  from public.document_preview_download_authorizations download_authorization
   join public.document_preview_artifacts artifact
-    on artifact.workspace_id = authorization.workspace_id
-   and artifact.id = authorization.artifact_id
-  where authorization.id = p_authorization_id
-    and authorization.expires_at > pg_catalog.statement_timestamp();
+    on artifact.workspace_id = download_authorization.workspace_id
+   and artifact.id = download_authorization.artifact_id
+  where download_authorization.id = p_authorization_id
+    and download_authorization.expires_at > pg_catalog.statement_timestamp();
 
   if not found then
     raise exception using
@@ -335,4 +335,4 @@ comment on function app.authorize_document_preview_download(
 ) is
   'Audits one visible immutable preview artifact and returns no provider coordinates.';
 comment on function app.load_document_preview_download_authorization(uuid) is
-  'Service-only exact provider metadata load for one unexpired audited preview authorization.';
+  'Service-only exact provider metadata load for one unexpired audited preview download_authorization.';

@@ -4,6 +4,11 @@ export interface WorkerRuntimeConfig {
   readonly batchSize: number;
   readonly errorBackoffBaseMs: number;
   readonly errorBackoffMaximumMs: number;
+  readonly documentBucket: string;
+  readonly exportBucket: string;
+  readonly exportGeneration: Readonly<{
+    readonly maximumConcurrentJobs: number;
+  }>;
   readonly heartbeatIntervalMs: number;
   readonly leaseSeconds: number;
   readonly mediaProcessing:
@@ -16,6 +21,11 @@ export interface WorkerRuntimeConfig {
         readonly enabled: true;
         readonly maximumConcurrentMediaJobs: number;
       }>;
+  readonly pdfRendering: Readonly<{
+    readonly maximumConcurrentJobs: number;
+    readonly renderer: "playwright";
+    readonly timeoutMs: number;
+  }>;
   readonly pollIntervalMs: number;
   readonly previewBucket: string;
   readonly serviceRoleKey: string;
@@ -133,6 +143,18 @@ export function readWorkerRuntimeConfig(
   if (!/^[a-z0-9][a-z0-9_-]{2,62}$/u.test(previewBucket)) {
     throw new TypeError("VYNLO_PREVIEW_BUCKET is invalid.");
   }
+  const documentBucket = required(environment, "VYNLO_DOCUMENT_BUCKET");
+  if (!/^[a-z0-9][a-z0-9_-]{2,62}$/u.test(documentBucket)) {
+    throw new TypeError("VYNLO_DOCUMENT_BUCKET is invalid.");
+  }
+  const exportBucket = required(environment, "VYNLO_EXPORT_BUCKET");
+  if (!/^[a-z0-9][a-z0-9_-]{2,62}$/u.test(exportBucket)) {
+    throw new TypeError("VYNLO_EXPORT_BUCKET is invalid.");
+  }
+  const pdfRenderer = required(environment, "PDF_RENDERER");
+  if (pdfRenderer !== "playwright") {
+    throw new TypeError("PDF_RENDERER must be playwright.");
+  }
 
   const leaseSeconds = integer(
     environment,
@@ -207,11 +229,39 @@ export function readWorkerRuntimeConfig(
       30_000,
     ),
     batchSize: integer(environment, "VYNLO_WORKER_BATCH_SIZE", 10, 1, 100),
+    documentBucket,
     errorBackoffBaseMs,
     errorBackoffMaximumMs,
     heartbeatIntervalMs,
     leaseSeconds,
+    exportBucket,
+    exportGeneration: {
+      maximumConcurrentJobs: integer(
+        environment,
+        "VYNLO_EXPORT_JOB_CONCURRENCY",
+        2,
+        1,
+        4,
+      ),
+    },
     mediaProcessing,
+    pdfRendering: {
+      maximumConcurrentJobs: integer(
+        environment,
+        "VYNLO_PDF_JOB_CONCURRENCY",
+        2,
+        1,
+        4,
+      ),
+      renderer: "playwright",
+      timeoutMs: integer(
+        environment,
+        "VYNLO_PDF_RENDER_TIMEOUT_MS",
+        60_000,
+        1_000,
+        120_000,
+      ),
+    },
     pollIntervalMs: integer(
       environment,
       "VYNLO_WORKER_POLL_INTERVAL_MS",

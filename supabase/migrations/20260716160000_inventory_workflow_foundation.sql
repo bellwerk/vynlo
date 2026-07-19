@@ -127,7 +127,7 @@ create table public.workflow_states (
     check (canonical_category in ('draft', 'active', 'pending', 'closed', 'archived')),
   labels jsonb not null check (
     pg_catalog.jsonb_typeof(labels) = 'object'
-    and pg_catalog.jsonb_object_length(labels) > 0
+    and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(labels, '$.keyvalue()')) > 0
   ),
   behavior_flags jsonb not null default '{}'::jsonb
     check (pg_catalog.jsonb_typeof(behavior_flags) = 'object'),
@@ -1116,22 +1116,22 @@ begin
     'inventory.update'
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
-  normalized_condition_key := pg_catalog.nullif(
+  normalized_condition_key := nullif(
     pg_catalog.lower(pg_catalog.btrim(coalesce(p_condition_key, ''))),
     ''
   );
-  normalized_expected_currency := pg_catalog.nullif(
+  normalized_expected_currency := nullif(
     pg_catalog.upper(
       pg_catalog.btrim(coalesce(p_expected_sale_price_currency_code, ''))
     ),
     ''
   );
-  normalized_public_notes := pg_catalog.nullif(
+  normalized_public_notes := nullif(
     pg_catalog.btrim(coalesce(p_public_notes, '')),
     ''
   );
   normalized_internal_notes := case
-    when p_update_internal_notes then pg_catalog.nullif(
+    when p_update_internal_notes then nullif(
       pg_catalog.btrim(coalesce(p_internal_notes, '')),
       ''
     )
@@ -1153,7 +1153,7 @@ begin
       message = 'internal-note update presence flag is required';
   end if;
   if not p_update_internal_notes
-    and pg_catalog.nullif(pg_catalog.btrim(coalesce(p_internal_notes, '')), '') is not null then
+    and nullif(pg_catalog.btrim(coalesce(p_internal_notes, '')), '') is not null then
     raise exception using
       errcode = '22023',
       message = 'internal notes require the explicit update presence flag';
@@ -1479,7 +1479,7 @@ begin
     'inventory.update'
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
-  normalized_reason := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
+  normalized_reason := nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
 
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200 then
     raise exception using errcode = '22023', message = 'invalid inventory idempotency key';
@@ -1756,7 +1756,7 @@ begin
   normalized_transition_key := pg_catalog.lower(
     pg_catalog.btrim(coalesce(p_transition_key, ''))
   );
-  normalized_reason := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
+  normalized_reason := nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
 
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200 then
     raise exception using errcode = '22023', message = 'invalid inventory idempotency key';

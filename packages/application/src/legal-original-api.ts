@@ -34,6 +34,7 @@ const intentBodySchema = z
     ]),
   })
   .strict();
+const signedIntentBodySchema = intentBodySchema.omit({ mediaKind: true });
 const verificationBodySchema = z
   .object({ uploadSessionId: uuidSchema })
   .strict();
@@ -228,6 +229,59 @@ export class LegalOriginalApplicationService {
     let intent;
     try {
       intent = normalizeLegalOriginalIntent(parsed.data);
+    } catch (error) {
+      if (error instanceof MediaPolicyError) {
+        throw new LegalOriginalValidationError("invalid_request_body");
+      }
+      throw error;
+    }
+    const row = single(
+      intentRowSchema,
+      await this.#gateway.invoke({
+        accessToken: input.metadata.accessToken,
+        functionName: "create_legal_original_upload_session",
+        parameters: {
+          p_correlation_id: input.metadata.correlationId,
+          p_document_id: documentId(input.documentId),
+          p_expected_byte_size: intent.byteSize,
+          p_expected_checksum_sha256: intent.checksumSha256,
+          p_expected_mime_type: intent.mimeType,
+          p_idempotency_key: input.metadata.idempotencyKey,
+          p_media_kind: intent.mediaKind,
+          p_original_filename: intent.filename,
+          p_request_id: input.metadata.requestId,
+          p_workspace_id: input.metadata.workspaceId,
+        },
+      }),
+    );
+    return Object.freeze({
+      auditEventId: row.audit_event_id,
+      documentId: row.document_id,
+      expiresAt: row.expires_at,
+      mediaKind: row.media_kind,
+      replayed: row.replayed,
+      upload: Object.freeze({
+        bucket: row.upload_bucket,
+        objectKey: row.upload_object_key,
+      }),
+      uploadSessionId: row.upload_session_id,
+    });
+  }
+
+  /** M4-DOC-AC-007: force the signed-document preservation policy. */
+  async createSignedUploadIntent(
+    input: VerticalSliceCommandInput & { readonly documentId: string },
+  ) {
+    const parsed = signedIntentBodySchema.safeParse(input.body);
+    if (!parsed.success) {
+      throw new LegalOriginalValidationError("invalid_request_body");
+    }
+    let intent;
+    try {
+      intent = normalizeLegalOriginalIntent({
+        ...parsed.data,
+        mediaKind: "signed_document",
+      });
     } catch (error) {
       if (error instanceof MediaPolicyError) {
         throw new LegalOriginalValidationError("invalid_request_body");

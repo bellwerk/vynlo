@@ -84,7 +84,7 @@ create table public.media_assets (
     references public.deals (workspace_id, id) on delete restrict,
   foreign key (workspace_id, processing_profile_id)
     references public.media_processing_profiles (workspace_id, id) on delete restrict,
-  constraint media_assets_owner_shape_check check (pg_catalog.coalesce((
+  constraint media_assets_owner_shape_check check (coalesce((
     (
       media_kind = 'vehicle_photo'
       and inventory_unit_id is not null
@@ -403,7 +403,7 @@ create table public.media_files (
   foreign key (workspace_id, retention_delete_job_id)
     references public.jobs (workspace_id, id) on delete restrict,
   constraint media_files_dimension_pair_check check ((width is null) = (height is null)),
-  constraint media_files_retention_shape_check check (pg_catalog.coalesce((
+  constraint media_files_retention_shape_check check (coalesce((
     (
       file_class = 'vehicle_photo_raw'
       and variant = 'raw_original'
@@ -855,7 +855,7 @@ begin
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_filename := pg_catalog.btrim(coalesce(p_filename, ''));
   normalized_mime_type := pg_catalog.lower(pg_catalog.btrim(coalesce(p_mime_type, '')));
-  normalized_checksum := pg_catalog.nullif(
+  normalized_checksum := nullif(
     pg_catalog.lower(pg_catalog.btrim(coalesce(p_checksum_sha256, ''))),
     ''
   );
@@ -3261,11 +3261,11 @@ begin
 
   if p_storage_object_key not like
     'workspaces/' || p_workspace_id::text || '/'
-      || case p_owner_entity_type
+      || (case p_owner_entity_type
         when 'document' then 'documents'
         when 'deal' then 'deals'
         else 'inventory-units'
-      end || '/' || p_owner_entity_id::text || '/%' then
+      end) || '/' || p_owner_entity_id::text || '/%' then
     raise exception using errcode = '22023', message = 'invalid preserved legal original';
   end if;
 
@@ -3723,7 +3723,7 @@ begin
     raise exception using errcode = '22023', message = 'invalid managed media download request';
   end if;
 
-  select file, asset into target_file, target_asset
+  select file.* into target_file
   from public.media_files file
   join public.media_assets asset
     on asset.workspace_id = file.workspace_id
@@ -3731,6 +3731,11 @@ begin
   where file.workspace_id = p_workspace_id
     and file.id = p_media_file_id
     and file.deleted_at is null;
+
+  select asset.* into target_asset
+  from public.media_assets asset
+  where asset.workspace_id = target_file.workspace_id
+    and asset.id = target_file.media_id;
 
   if not found
     or (

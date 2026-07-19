@@ -17,10 +17,10 @@ stable
 security definer
 set search_path = ''
 as $$
-  select pg_catalog.coalesce(
+  select coalesce(
     p_bucket_id = 'media-private'
       and pg_catalog.char_length(
-        pg_catalog.coalesce(p_object_name, '')
+        coalesce(p_object_name, '')
       ) between 1 and 1000
       and pg_catalog.jsonb_typeof(p_metadata) = 'object'
       and exists (
@@ -41,7 +41,7 @@ as $$
           end
           and pg_catalog.lower(
             pg_catalog.btrim(
-              pg_catalog.coalesce(p_metadata ->> 'mimetype', '')
+              coalesce(p_metadata ->> 'mimetype', '')
             )
           ) = upload.expected_mime_type
           and app.has_permission(upload.workspace_id, 'media.create')

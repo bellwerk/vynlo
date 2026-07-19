@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_COMMAND_BODY_BYTES,
   parseCommandMetadata,
+  parseStrictQueryParameters,
   readCommandJson,
 } from "./command-route";
 
@@ -82,5 +83,26 @@ describe("command request boundary", () => {
     await expect(
       readCommandJson(requestWith(`"${"x".repeat(MAX_COMMAND_BODY_BYTES)}"`)),
     ).rejects.toMatchObject({ code: "request_body_too_large", status: 400 });
+  });
+
+  it("rejects unknown or repeated query parameters", () => {
+    expect(
+      parseStrictQueryParameters(
+        new Request("http://localhost/api/v1/documents?limit=25"),
+        ["limit"],
+      ).get("limit"),
+    ).toBe("25");
+    expect(() =>
+      parseStrictQueryParameters(
+        new Request("http://localhost/api/v1/documents?unexpected=true"),
+        ["limit"],
+      ),
+    ).toThrow(expect.objectContaining({ code: "invalid_query" }));
+    expect(() =>
+      parseStrictQueryParameters(
+        new Request("http://localhost/api/v1/documents?limit=10&limit=20"),
+        ["limit"],
+      ),
+    ).toThrow(expect.objectContaining({ code: "invalid_query" }));
   });
 });

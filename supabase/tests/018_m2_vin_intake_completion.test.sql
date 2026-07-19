@@ -27,7 +27,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -296,28 +296,28 @@ select extensions.ok(
   (
     select
       pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'for update'
       ) > 0
       and pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'if target_request.consumed_at is not null'
       ) > pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'for update'
       )
       and pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'if target_request.consumed_at is not null'
       ) < pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'into existing_retry_job'
       )
       and pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'if target_request.consumed_at is not null'
       ) < pg_catalog.strpos(
-        pg_catalog.lower(definition.function_definition),
+        pg_catalog.lower(definition.routine_definition),
         'from app.enqueue_outbox_job('
       )
     from information_schema.routines definition
@@ -474,6 +474,7 @@ select extensions.is(
   9223372036854775807::bigint,
   'manual intake preserves exact PostgreSQL bigint minor units'
 );
+reset role;
 select extensions.ok(
   (
     select request.consumed_at is not null
@@ -539,6 +540,8 @@ select extensions.ok(
   'manual intake audit truthfully records approval and terminal lineage'
 );
 
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.manual_results
@@ -606,8 +609,8 @@ select extensions.throws_ok(
     )
   $$,
   '42501',
-  'recent strong authentication is required for duplicate override',
-  'M2-INV-AC-010 AAL1 cannot authorize manual linkage to an open holding'
+  'active workspace membership and permission are required',
+  'M2-INV-AC-010 AAL1 cannot authorize an administrator-only duplicate override'
 );
 select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
 select extensions.throws_ok(
@@ -700,6 +703,7 @@ select extensions.ok(
   ),
   'independent open-duplicate request returns the existing unit and stock'
 );
+reset role;
 select extensions.ok(
   (
     select pg_catalog.count(distinct link.vin_decode_request_id) = 2
@@ -716,6 +720,8 @@ select extensions.ok(
   'two request receipts reference one open unit and one permanent allocation'
 );
 
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 insert into pg_temp.failed_requests
 select prepared.*, 'consumed-after-retry'
 from pg_temp.prepare_retried_dead_letter_decode(
@@ -785,6 +791,7 @@ select extensions.throws_ok(
   'consumed VIN requests cannot be retried',
   'M2-INV-AC-004 a consumed request rejects a fresh retry command'
 );
+reset role;
 select extensions.ok(
   (
     select pg_catalog.count(*) = 2
@@ -825,6 +832,8 @@ select extensions.ok(
   'consumed retry rejection creates no job, audit, or outbox side effects'
 );
 
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 insert into pg_temp.failed_requests (
   vin_decode_request_id, aggregate_version, terminal_job_id, probe
 )

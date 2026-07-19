@@ -33,17 +33,18 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'totp',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
+      )
       else pg_catalog.jsonb_build_array(
         pg_catalog.jsonb_build_object(
           'method', 'password',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
-      end
+      )
     end
   );
 
@@ -497,6 +498,7 @@ select extensions.ok(
   ),
   'cost posting returns matching aggregate, audit, and outbox evidence'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -511,6 +513,8 @@ select extensions.ok(
   ),
   'minor-unit audit and outbox boundaries preserve values above JS safe integer as text'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.is(
   (
     select metric.posted_cost_minor
@@ -899,8 +903,8 @@ select extensions.throws_ok(
     )
   $$,
   '42501',
-  'recent strong authentication is required',
-  'M2-INV-AC-007 cost reversal requires recent step-up authentication'
+  'active workspace membership and permission are required',
+  'M2-INV-AC-007 AAL1 administrator is denied before cost reversal'
 );
 
 select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001', 'aal2');
@@ -1138,6 +1142,7 @@ select extensions.lives_ok(
   $$,
   'the second workspace user replays only their own private command'
 );
+reset role;
 select extensions.ok(
   (
     select
@@ -1146,7 +1151,7 @@ select extensions.ok(
       and second_replay.saved_view_id = second_created.saved_view_id
       and second_replay.audit_event_id = second_created.audit_event_id
       and second_created.saved_view_id <> first_created.saved_view_id
-      and saved_view.owner_user_id = auth.uid()
+      and saved_view.owner_user_id = '31000000-0000-4000-8000-000000000002'
       and (
         select pg_catalog.count(*) = 2
           and pg_catalog.count(distinct receipt.actor_user_id) = 2

@@ -31,7 +31,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -116,14 +116,14 @@ select extensions.ok(
      and exists (
        select 1
        from pg_catalog.unnest(
-         pg_catalog.coalesce(status_fn.proconfig, array[]::text[])
+         coalesce(status_fn.proconfig, array[]::text[])
        ) setting
        where setting in ('search_path=', 'search_path=""')
      )
      and exists (
        select 1
        from pg_catalog.unnest(
-         pg_catalog.coalesce(retry_fn.proconfig, array[]::text[])
+         coalesce(retry_fn.proconfig, array[]::text[])
        ) setting
        where setting in ('search_path=', 'search_path=""')
      )
@@ -321,10 +321,6 @@ select extensions.is(
   'two equally permitted owners create three exact vehicle upload intents'
 );
 
-update public.jobs job
-set max_attempts = 1
-where job.id in (select request.job_id from pg_temp.vehicle_retry_requests request);
-
 set local role service_role;
 insert into pg_temp.vehicle_retry_claims
 select claim.*, request.probe
@@ -359,12 +355,12 @@ select failed.*, claim.probe
 from pg_temp.vehicle_retry_claims claim
 cross join lateral app.fail_job(
   claim.job_id, 'vehicle-retry.fixture-024', claim.lease_token,
-  case when claim.probe = 'rejected' then 'validation' else 'transient' end,
+  case when claim.probe = 'rejected' then 'validation' else 'permanent' end,
   case
     when claim.probe = 'rejected' then 'media.malware_detected'
-    else 'media.fixture_retry_exhausted'
+    else 'media.fixture_provider_failure'
   end,
-  'Synthetic bounded vehicle verification failure.'
+  'Synthetic terminal vehicle verification failure.'
 ) failed;
 select extensions.ok(
   (select pg_catalog.bool_and(
@@ -372,7 +368,7 @@ select extensions.ok(
    )
    from pg_temp.vehicle_retry_failures failure
    where failure.probe in ('actor-a', 'actor-b')),
-  'transient verification exhaustion becomes visible dead letter'
+  'terminal verification failure becomes visible dead letter'
 );
 select extensions.ok(
   exists (
@@ -400,9 +396,9 @@ select extensions.ok(
     select 1 from pg_temp.vehicle_retry_statuses status_row
     where status_row.probe = 'dead-letter'
       and status_row.status = 'dead_letter' and status_row.retryable
-      and status_row.attempt_count = 1 and status_row.maximum_attempts = 1
-      and status_row.error_classification = 'transient'
-      and status_row.error_code = 'media.fixture_retry_exhausted'
+      and status_row.attempt_count = 1 and status_row.maximum_attempts = 6
+      and status_row.error_classification = 'permanent'
+      and status_row.error_code = 'media.fixture_provider_failure'
       and status_row.completed_at is null
   ),
   'owner sees bounded dead-letter status and explicit retry eligibility'
@@ -506,6 +502,7 @@ select extensions.ok(
   ),
   'owner queues one fresh audited job from the exact dead letter'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -571,6 +568,8 @@ select extensions.ok(
   'retry records the explicit reason and actor in audit and outbox'
 );
 
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 insert into pg_temp.vehicle_retry_statuses
 select status_row.*, 'queued-after-retry'
 from app.get_vehicle_photo_upload_status(
@@ -712,6 +711,7 @@ from app.retry_vehicle_photo_upload_verification(
   'request-vehicle-retry-command-b',
   'c4000000-0000-4000-8000-000000000016'
 ) result;
+reset role;
 select extensions.ok(
   exists (
     select 1 from pg_temp.vehicle_retries retry

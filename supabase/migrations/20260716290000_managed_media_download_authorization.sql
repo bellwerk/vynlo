@@ -84,7 +84,7 @@ declare
   target_asset public.media_assets%rowtype;
   existing_authorization public.managed_media_download_authorizations%rowtype;
   normalized_idempotency_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
   request_fingerprint text;
   new_authorization_id uuid := pg_catalog.gen_random_uuid();
@@ -108,8 +108,8 @@ begin
       message = 'invalid managed media download authorization';
   end if;
 
-  select file, asset
-    into target_file, target_asset
+  select file.*
+    into target_file
   from public.media_files file
   join public.media_assets asset
     on asset.workspace_id = file.workspace_id
@@ -129,6 +129,11 @@ begin
           and processing_run.status = 'succeeded'
       )
     );
+
+  select asset.* into target_asset
+  from public.media_assets asset
+  where asset.workspace_id = target_file.workspace_id
+    and asset.id = target_file.media_id;
 
   if not found
     or (
@@ -168,12 +173,12 @@ begin
     )
   );
 
-  select authorization.*
+  select download_authorization.*
     into existing_authorization
-  from public.managed_media_download_authorizations authorization
-  where authorization.workspace_id = p_workspace_id
-    and authorization.actor_user_id = actor_user_id
-    and authorization.idempotency_key = normalized_idempotency_key;
+  from public.managed_media_download_authorizations download_authorization
+  where download_authorization.workspace_id = p_workspace_id
+    and download_authorization.actor_user_id = app.current_user_id()
+    and download_authorization.idempotency_key = normalized_idempotency_key;
 
   if found then
     if existing_authorization.request_fingerprint <> request_fingerprint then
@@ -213,7 +218,7 @@ begin
     ),
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'authorization_id', new_authorization_id,
       'signed_url_ttl_seconds', p_expires_in_seconds,
@@ -296,8 +301,8 @@ begin
 
   return query
   select
-    authorization.id,
-    authorization.workspace_id,
+    download_authorization.id,
+    download_authorization.workspace_id,
     file.id,
     asset.media_kind,
     file.storage_bucket,
@@ -306,17 +311,17 @@ begin
     file.mime_type,
     file.byte_size,
     file.checksum_sha256,
-    authorization.signed_url_ttl_seconds,
-    authorization.expires_at
-  from public.managed_media_download_authorizations authorization
+    download_authorization.signed_url_ttl_seconds,
+    download_authorization.expires_at
+  from public.managed_media_download_authorizations download_authorization
   join public.media_files file
-    on file.workspace_id = authorization.workspace_id
-   and file.id = authorization.media_file_id
+    on file.workspace_id = download_authorization.workspace_id
+   and file.id = download_authorization.media_file_id
   join public.media_assets asset
     on asset.workspace_id = file.workspace_id
    and asset.id = file.media_id
-  where authorization.id = p_authorization_id
-    and authorization.expires_at > pg_catalog.statement_timestamp()
+  where download_authorization.id = p_authorization_id
+    and download_authorization.expires_at > pg_catalog.statement_timestamp()
     and file.deleted_at is null
     and (
       asset.media_kind <> 'vehicle_photo'

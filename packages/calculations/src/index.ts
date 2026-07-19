@@ -1,4 +1,3 @@
-import Decimal from "decimal.js";
+export * from "./runtime";
 
-export { Decimal };
 export const packageName = "@vynlo/calculations" as const;

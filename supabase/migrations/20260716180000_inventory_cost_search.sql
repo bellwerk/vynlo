@@ -13,7 +13,7 @@ create table public.inventory_cost_category_definitions (
   version integer not null check (version > 0),
   labels jsonb not null check (
     pg_catalog.jsonb_typeof(labels) = 'object'
-    and pg_catalog.jsonb_object_length(labels) > 0
+    and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(labels, '$.keyvalue()')) > 0
   ),
   status text not null default 'draft'
     check (status in ('draft', 'active', 'retired')),
@@ -624,7 +624,7 @@ begin
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_currency := pg_catalog.upper(pg_catalog.btrim(coalesce(p_currency_code, '')));
-  normalized_description := pg_catalog.nullif(
+  normalized_description := nullif(
     pg_catalog.btrim(coalesce(p_description, '')),
     ''
   );
@@ -706,7 +706,7 @@ begin
       and event.aggregate_id = existing_entry.inventory_unit_id
       and event.aggregate_version = existing_entry.aggregate_version
       and event.event_name = 'inventory_cost.posted'
-    order by event.created_at, event.id
+    order by event.occurred_at, event.id
     limit 1;
     if new_audit_event_id is null or new_outbox_event_id is null then
       raise exception using errcode = '55000', message = 'cost command receipt is incomplete';
@@ -997,7 +997,7 @@ begin
       and event.aggregate_id = existing_reversal.inventory_unit_id
       and event.aggregate_version = existing_reversal.aggregate_version
       and event.event_name = 'inventory_cost.reversed'
-    order by event.created_at, event.id
+    order by event.occurred_at, event.id
     limit 1;
     if new_audit_event_id is null or new_outbox_event_id is null then
       raise exception using errcode = '55000', message = 'reversal command receipt is incomplete';
@@ -1298,7 +1298,7 @@ begin
 
   if p_sort is null
     or pg_catalog.jsonb_typeof(p_sort) <> 'object'
-    or pg_catalog.jsonb_object_length(p_sort) <> 2
+    or pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(p_sort, '$.keyvalue()')) <> 2
     or pg_catalog.jsonb_typeof(p_sort -> 'key') <> 'string'
     or pg_catalog.jsonb_typeof(p_sort -> 'direction') <> 'string'
     or p_sort ->> 'key' not in (
@@ -1438,7 +1438,7 @@ begin
     into existing_receipt
   from public.inventory_saved_view_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
     if existing_receipt.command_fingerprint <> request_fingerprint then
@@ -1601,7 +1601,7 @@ declare
   can_read_costs boolean;
 begin
   perform app.require_vertical_slice_permission(p_workspace_id, 'inventory.read');
-  normalized_query := pg_catalog.nullif(
+  normalized_query := nullif(
     pg_catalog.lower(pg_catalog.btrim(coalesce(p_query, ''))),
     ''
   );
@@ -1685,7 +1685,7 @@ begin
       unit.updated_at,
       case
         when normalized_query is null then 0::real
-        else pg_catalog.greatest(
+        else greatest(
           pg_catalog.ts_rank_cd(
             document.search_vector,
             pg_catalog.websearch_to_tsquery('simple'::regconfig, normalized_query)

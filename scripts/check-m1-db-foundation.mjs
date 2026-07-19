@@ -17,6 +17,13 @@ const migrations = await Promise.all(
   ),
 );
 const migrationSql = migrations.join("\n");
+
+if (/\.actor_user_id\s*=\s*actor_user_id\b/u.test(migrationSql)) {
+  throw new Error(
+    "Actor-scoped SQL predicates must disambiguate the authenticated actor explicitly.",
+  );
+}
+
 const seedSql = await readFile(path.join(root, "supabase", "seed.sql"), "utf8");
 const databaseTestsDirectory = path.join(root, "supabase", "tests");
 const databaseTestNames = (await readdir(databaseTestsDirectory))
@@ -500,9 +507,9 @@ function assertSameKeys(label, actual) {
   }
 }
 
-if (catalogKeys.size !== 79) {
+if (catalogKeys.size !== 80) {
   throw new Error(
-    `Expected 79 stable platform permission keys, found ${catalogKeys.size}.`,
+    `Expected 80 stable platform permission keys, found ${catalogKeys.size}.`,
   );
 }
 assertSameKeys("Migration", migrationKeys);
@@ -537,7 +544,7 @@ if (
 }
 
 if (
-  !/insert\s+into\s+public\.document_template_versions[\s\S]*?false[\s\S]*?true[\s\S]*?'active'/iu.test(
+  !/insert\s+into\s+public\.document_template_versions[\s\S]*?'synthetic_non_production'[\s\S]*?false[\s\S]*?'DRAFT \/ NON-PRODUCTION'[\s\S]*?'active'/iu.test(
     seedSql,
   )
 ) {

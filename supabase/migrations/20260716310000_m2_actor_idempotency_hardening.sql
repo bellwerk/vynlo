@@ -98,10 +98,10 @@ set search_path = ''
 as $$
 declare
   normalized_domain text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_domain, '')
+    coalesce(p_domain, '')
   );
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
 begin
   if p_actor_user_id is null then
@@ -135,7 +135,7 @@ set search_path = ''
 as $$
 declare
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
 begin
   return app.actor_idempotency_storage_key(
@@ -161,7 +161,7 @@ set search_path = ''
 as $$
 declare
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
 begin
   return app.actor_idempotency_storage_key(
@@ -187,7 +187,7 @@ set search_path = ''
 as $$
 declare
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
 begin
   return app.actor_idempotency_storage_key(
@@ -1308,22 +1308,22 @@ begin
     'inventory.update'
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
-  normalized_condition_key := pg_catalog.nullif(
+  normalized_condition_key := nullif(
     pg_catalog.lower(pg_catalog.btrim(coalesce(p_condition_key, ''))),
     ''
   );
-  normalized_expected_currency := pg_catalog.nullif(
+  normalized_expected_currency := nullif(
     pg_catalog.upper(
       pg_catalog.btrim(coalesce(p_expected_sale_price_currency_code, ''))
     ),
     ''
   );
-  normalized_public_notes := pg_catalog.nullif(
+  normalized_public_notes := nullif(
     pg_catalog.btrim(coalesce(p_public_notes, '')),
     ''
   );
   normalized_internal_notes := case
-    when p_update_internal_notes then pg_catalog.nullif(
+    when p_update_internal_notes then nullif(
       pg_catalog.btrim(coalesce(p_internal_notes, '')),
       ''
     )
@@ -1345,7 +1345,7 @@ begin
       message = 'internal-note update presence flag is required';
   end if;
   if not p_update_internal_notes
-    and pg_catalog.nullif(pg_catalog.btrim(coalesce(p_internal_notes, '')), '') is not null then
+    and nullif(pg_catalog.btrim(coalesce(p_internal_notes, '')), '') is not null then
     raise exception using
       errcode = '22023',
       message = 'internal notes require the explicit update presence flag';
@@ -1411,7 +1411,7 @@ begin
     into existing_receipt
   from public.inventory_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'update_inventory_unit_details'
     and receipt.idempotency_key = normalized_idempotency_key;
 
@@ -1554,7 +1554,7 @@ begin
       actor_user_id,
       actor_user_id
     )
-    on conflict (workspace_id, inventory_unit_id) do update
+    on conflict on constraint inventory_unit_internal_details_pkey do update
     set internal_notes = excluded.internal_notes,
         version = public.inventory_unit_internal_details.version + 1,
         updated_by = excluded.updated_by;
@@ -1673,7 +1673,7 @@ begin
     'inventory.update'
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
-  normalized_reason := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
+  normalized_reason := nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
 
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200 then
     raise exception using errcode = '22023', message = 'invalid inventory idempotency key';
@@ -1712,7 +1712,7 @@ begin
     into existing_receipt
   from public.inventory_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'transfer_inventory_unit_location'
     and receipt.idempotency_key = normalized_idempotency_key;
 
@@ -1952,7 +1952,7 @@ begin
   normalized_transition_key := pg_catalog.lower(
     pg_catalog.btrim(coalesce(p_transition_key, ''))
   );
-  normalized_reason := pg_catalog.nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
+  normalized_reason := nullif(pg_catalog.btrim(coalesce(p_reason, '')), '');
 
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200 then
     raise exception using errcode = '22023', message = 'invalid inventory idempotency key';
@@ -1994,7 +1994,7 @@ begin
     into existing_receipt
   from public.inventory_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'transition_inventory_workflow'
     and receipt.idempotency_key = normalized_idempotency_key;
 
@@ -2315,7 +2315,7 @@ begin
   );
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_currency := pg_catalog.upper(pg_catalog.btrim(coalesce(p_currency_code, '')));
-  normalized_description := pg_catalog.nullif(
+  normalized_description := nullif(
     pg_catalog.btrim(coalesce(p_description, '')),
     ''
   );
@@ -2400,7 +2400,7 @@ begin
       and event.aggregate_id = existing_entry.inventory_unit_id
       and event.aggregate_version = existing_entry.aggregate_version
       and event.event_name = 'inventory_cost.posted'
-    order by event.created_at, event.id
+    order by event.occurred_at, event.id
     limit 1;
     if new_audit_event_id is null or new_outbox_event_id is null then
       raise exception using errcode = '55000', message = 'cost command receipt is incomplete';
@@ -2694,7 +2694,7 @@ begin
       and event.aggregate_id = existing_reversal.inventory_unit_id
       and event.aggregate_version = existing_reversal.aggregate_version
       and event.event_name = 'inventory_cost.reversed'
-    order by event.created_at, event.id
+    order by event.occurred_at, event.id
     limit 1;
     if new_audit_event_id is null or new_outbox_event_id is null then
       raise exception using errcode = '55000', message = 'reversal command receipt is incomplete';
@@ -2917,7 +2917,7 @@ begin
   normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_filename := pg_catalog.btrim(coalesce(p_filename, ''));
   normalized_mime_type := pg_catalog.lower(pg_catalog.btrim(coalesce(p_mime_type, '')));
-  normalized_checksum := pg_catalog.nullif(
+  normalized_checksum := nullif(
     pg_catalog.lower(pg_catalog.btrim(coalesce(p_checksum_sha256, ''))),
     ''
   );
@@ -2979,7 +2979,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.create_upload'
     and receipt.idempotency_key = normalized_idempotency_key;
 
@@ -3515,7 +3515,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.reprocess'
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
@@ -3759,7 +3759,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.reorder'
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
@@ -3940,7 +3940,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.set_cover'
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
@@ -4165,11 +4165,11 @@ begin
 
   if p_storage_object_key not like
     'workspaces/' || p_workspace_id::text || '/'
-      || case p_owner_entity_type
+      || (case p_owner_entity_type
         when 'document' then 'documents'
         when 'deal' then 'deals'
         else 'inventory-units'
-      end || '/' || p_owner_entity_id::text || '/%' then
+      end) || '/' || p_owner_entity_id::text || '/%' then
     raise exception using errcode = '22023', message = 'invalid preserved legal original';
   end if;
 
@@ -4429,7 +4429,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.retention_hold'
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
@@ -4657,7 +4657,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.request_upload_verification'
     and receipt.idempotency_key = normalized_idempotency_key;
 
@@ -4923,7 +4923,7 @@ begin
       || actor_user_id::text || E'\x1f' || normalized_key, 0));
   select receipt.* into existing from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.create_legal_upload'
     and receipt.idempotency_key = normalized_key;
   if found then
@@ -5037,7 +5037,7 @@ begin
       || actor_user_id::text || E'\x1f' || normalized_key, 0));
   select receipt.* into existing from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.request_legal_verify'
     and receipt.idempotency_key = normalized_key;
   if found then
@@ -5143,7 +5143,7 @@ declare
   result_payload jsonb;
 begin
   actor_user_id := app.require_media_permission(p_workspace_id, 'media.update');
-  normalized_idempotency_key := pg_catalog.btrim(pg_catalog.coalesce(p_idempotency_key, ''));
+  normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
   normalized_caption := case
     when p_caption is null then null
     else pg_catalog.btrim(p_caption)
@@ -5182,7 +5182,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.update_caption'
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
@@ -5255,7 +5255,7 @@ begin
     ),
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'inventory_unit_id', target_media.inventory_unit_id,
       'outbox_event_id', new_outbox_event_id
@@ -5325,8 +5325,8 @@ declare
   result_payload jsonb;
 begin
   actor_user_id := app.require_media_permission(p_workspace_id, 'media.archive');
-  normalized_idempotency_key := pg_catalog.btrim(pg_catalog.coalesce(p_idempotency_key, ''));
-  normalized_reason := pg_catalog.btrim(pg_catalog.coalesce(p_reason, ''));
+  normalized_idempotency_key := pg_catalog.btrim(coalesce(p_idempotency_key, ''));
+  normalized_reason := pg_catalog.btrim(coalesce(p_reason, ''));
   if pg_catalog.char_length(normalized_idempotency_key) not between 8 and 200
     or p_media_id is null
     or p_expected_media_version is null or p_expected_media_version < 1
@@ -5358,7 +5358,7 @@ begin
   select receipt.* into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.archive'
     and receipt.idempotency_key = normalized_idempotency_key;
   if found then
@@ -5520,7 +5520,7 @@ begin
     p_reason => normalized_reason,
     p_request_id => p_request_id,
     p_correlation_id => p_correlation_id,
-    p_auth_assurance => pg_catalog.coalesce(auth.jwt() ->> 'aal', 'unknown'),
+    p_auth_assurance => coalesce(auth.jwt() ->> 'aal', 'unknown'),
     p_metadata => pg_catalog.jsonb_build_object(
       'inventory_unit_id', target_media.inventory_unit_id,
       'outbox_event_id', new_outbox_event_id

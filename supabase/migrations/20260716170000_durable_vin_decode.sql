@@ -874,16 +874,16 @@ begin
     p_raw_response,
     normalized_warnings,
     p_model_year,
-    pg_catalog.nullif(pg_catalog.btrim(p_make), ''),
-    pg_catalog.nullif(pg_catalog.btrim(p_model), ''),
-    pg_catalog.nullif(pg_catalog.btrim(p_body_type), ''),
+    nullif(pg_catalog.btrim(p_make), ''),
+    nullif(pg_catalog.btrim(p_model), ''),
+    nullif(pg_catalog.btrim(p_body_type), ''),
     p_cylinders,
-    pg_catalog.nullif(pg_catalog.btrim(p_drivetrain), ''),
+    nullif(pg_catalog.btrim(p_drivetrain), ''),
     normalized_engine_liters,
-    pg_catalog.nullif(pg_catalog.btrim(p_fuel_type), ''),
+    nullif(pg_catalog.btrim(p_fuel_type), ''),
     p_horsepower,
-    pg_catalog.nullif(pg_catalog.btrim(p_transmission), ''),
-    pg_catalog.nullif(pg_catalog.btrim(p_trim_name), ''),
+    nullif(pg_catalog.btrim(p_transmission), ''),
+    nullif(pg_catalog.btrim(p_trim_name), ''),
     result_fingerprint,
     new_audit_event_id,
     new_outbox_event_id
@@ -1131,7 +1131,7 @@ begin
   where job.workspace_id = p_workspace_id
     and job.job_type = 'inventory.vin_decode'
     and job.idempotency_key = pg_catalog.btrim(p_idempotency_key)
-    and event.actor_user_id = actor_user_id;
+    and event.actor_user_id = app.current_user_id();
 
   if found then
     select audit.*
@@ -1346,7 +1346,7 @@ begin
     into existing_review
   from public.vin_duplicate_reviews review
   where review.workspace_id = p_workspace_id
-    and review.actor_user_id = actor_user_id
+    and review.actor_user_id = app.current_user_id()
     and review.idempotency_key = normalized_idempotency_key;
 
   if found then

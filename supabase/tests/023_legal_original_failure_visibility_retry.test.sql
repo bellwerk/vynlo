@@ -24,7 +24,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -50,24 +50,26 @@ insert into public.membership_roles (
 );
 
 insert into public.document_types (
-  id, workspace_id, type_key, version, name, field_schema,
-  production_enabled, status
+  id, workspace_id, key, version, display_name, field_schema,
+  production_enabled, status, labels, field_schema_checksum, checksum
 ) values (
   'f5100000-0000-4000-8000-000000000023',
   '10000000-0000-4000-8000-000000000001',
-  'legal_retry_fixture', 1, 'Legal retry fixture', '{}', false, 'active'
+  'legal_retry_fixture', 1, 'Legal retry fixture', '{}', false, 'active',
+  '{"en":"Legal retry fixture","fr":"Nouvel essai legal fictif"}', repeat('d', 64), repeat('e', 64)
 );
 insert into public.document_template_versions (
   id, workspace_id, document_type_id, version, locale, template_class,
   source_html, source_checksum, renderer_version, field_schema,
-  production_approved, watermark, status
+  production_approved, watermark, status, source_bundle_checksum,
+  field_schema_checksum
 ) values (
   'f5200000-0000-4000-8000-000000000023',
   '10000000-0000-4000-8000-000000000001',
   'f5100000-0000-4000-8000-000000000023', 1, 'en-CA',
   'synthetic_non_production', '<html><body>fixture</body></html>',
   repeat('1', 64), 'synthetic-html-v1', '{}', false,
-  'DRAFT / NON-PRODUCTION', 'active'
+  'DRAFT / NON-PRODUCTION', 'active', repeat('f', 64), repeat('d', 64)
 );
 insert into public.deals (
   id, workspace_id, deal_type_key, status, currency_code,
@@ -80,18 +82,61 @@ insert into public.deals (
   'legal-retry-fixture-deal', repeat('2', 64),
   '31000000-0000-4000-8000-000000000001'
 );
+insert into public.numbering_definitions (
+  id, workspace_id, key, labels
+) values (
+  'f5500000-0000-4000-8000-000000000023',
+  '10000000-0000-4000-8000-000000000001',
+  'legal_retry_fixture',
+  '{"en":"Legal retry fixture","fr":"Fixture de nouvelle tentative legale"}'
+);
+insert into public.numbering_definition_versions (
+  id, workspace_id, numbering_definition_id, version, semantic_version,
+  status, scope_type, prefix, suffix, numeric_width, starting_value,
+  increment_by, reset_policy, timezone_name, format_pattern,
+  import_policy, reuse_policy, allocation_event, checksum, created_by
+) values (
+  'f5510000-0000-4000-8000-000000000023',
+  '10000000-0000-4000-8000-000000000001',
+  'f5500000-0000-4000-8000-000000000023',
+  1, '1.0.0', 'draft', 'workspace', 'LR-', '', 6, 1, 1,
+  'never', 'UTC', '{{prefix}}{{sequence}}{{suffix}}',
+  'authorized_reservation', 'never', 'official_document_created',
+  repeat('5', 64), '31000000-0000-4000-8000-000000000001'
+);
+insert into public.number_allocations (
+  id, workspace_id, numbering_version_id, scope_key, period_key,
+  sequence_value, formatted_value, entity_type, entity_id,
+  idempotency_key, allocation_reason, allocated_by
+) values (
+  'f5520000-0000-4000-8000-000000000023',
+  '10000000-0000-4000-8000-000000000001',
+  'f5510000-0000-4000-8000-000000000023',
+  'workspace', 'never', 1, 'LR-000001', 'document',
+  'f5400000-0000-4000-8000-000000000023',
+  'legal-retry-number-allocation', 'Legal retry signed-file fixture',
+  '31000000-0000-4000-8000-000000000001'
+);
 insert into public.documents (
   id, workspace_id, document_type_id, template_version_id, deal_id,
-  locale, render_input_snapshot, render_input_checksum,
-  idempotency_key, command_fingerprint, created_by
+  mode, official_number, status, locale, watermark,
+  render_input_snapshot, render_input_checksum, generated_checksum,
+  idempotency_key, command_fingerprint, created_by, number_allocation_id,
+  numbering_version_id, renderer_version, version_snapshot,
+  version_snapshot_checksum
 ) values (
   'f5400000-0000-4000-8000-000000000023',
   '10000000-0000-4000-8000-000000000001',
   'f5100000-0000-4000-8000-000000000023',
   'f5200000-0000-4000-8000-000000000023',
   'f5300000-0000-4000-8000-000000000023',
-  'en-CA', '{}', repeat('3', 64), 'legal-retry-fixture-document',
-  repeat('4', 64), '31000000-0000-4000-8000-000000000001'
+  'official', 'LR-000001', 'generated', 'en-CA', null,
+  '{}', repeat('3', 64), repeat('6', 64),
+  'legal-retry-fixture-document', repeat('4', 64),
+  '31000000-0000-4000-8000-000000000001',
+  'f5520000-0000-4000-8000-000000000023',
+  'f5510000-0000-4000-8000-000000000023',
+  'fixture-renderer-v1', '{}', repeat('7', 64)
 );
 
 create temporary table pg_temp.legal_retry_intents (
@@ -156,7 +201,7 @@ select extensions.ok(
      and exists (
        select 1
        from pg_catalog.unnest(
-         pg_catalog.coalesce(function_row.proconfig, array[]::text[])
+         coalesce(function_row.proconfig, array[]::text[])
        ) setting
        where setting in ('search_path=', 'search_path=""')
      )
@@ -285,12 +330,6 @@ select result.*, 'actor-b' from app.request_legal_original_upload_verification(
   'request-legal-retry-verify-b',
   'f6000000-0000-4000-8000-000000000008'
 ) result;
-reset role;
-
-update public.jobs job
-set max_attempts = 1
-where job.id in (select request.job_id from pg_temp.legal_retry_requests request);
-
 set local role service_role;
 insert into pg_temp.legal_retry_claims
 select claim.*, request.probe
@@ -308,14 +347,14 @@ select failed.*, claim.probe
 from pg_temp.legal_retry_claims claim
 cross join lateral app.fail_job(
   claim.job_id, 'legal-retry.fixture-01', claim.lease_token,
-  'transient', 'media.fixture_retry_exhausted',
-  'Synthetic verification exhausted its bounded policy.'
+  'permanent', 'media.fixture_provider_failure',
+  'Synthetic verification reached a terminal provider failure.'
 ) failed;
 select extensions.ok(
   (select pg_catalog.bool_and(
     failure.job_status = 'dead_letter' and failure.review_required
   ) from pg_temp.legal_retry_failures failure),
-  'bounded exhaustion makes every source verification job visible as dead letter'
+  'terminal failure makes every source verification job visible as dead letter'
 );
 reset role;
 
@@ -350,9 +389,9 @@ select extensions.ok(
       and status_row.status = 'dead_letter'
       and status_row.retryable
       and status_row.attempt_count = 1
-      and status_row.maximum_attempts = 1
-      and status_row.error_classification = 'transient'
-      and status_row.error_code = 'media.fixture_retry_exhausted'
+      and status_row.maximum_attempts = 6
+      and status_row.error_classification = 'permanent'
+      and status_row.error_code = 'media.fixture_provider_failure'
       and status_row.completed_at is null
   ),
   'owner sees only bounded safe dead-letter status and retry eligibility'
@@ -378,8 +417,8 @@ select extensions.throws_ok(
       (select upload_session_id from pg_temp.legal_retry_intents where probe = 'signed')
     )
   $$,
-  '42501', 'recent strong authentication is required',
-  'signed-original status requires recent strong authentication'
+  '42501', 'active workspace membership and permission are required',
+  'AAL1 administrator is denied before signed-original status'
 );
 select extensions.throws_ok(
   $$
@@ -392,8 +431,8 @@ select extensions.throws_ok(
       'f6000000-0000-4000-8000-000000000009'
     )
   $$,
-  '42501', 'recent strong authentication is required',
-  'signed-original manual retry requires recent strong authentication'
+  '42501', 'active workspace membership and permission are required',
+  'AAL1 administrator is denied before signed-original retry'
 );
 
 select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
@@ -416,6 +455,7 @@ select extensions.ok(
   ),
   'owner queues one fresh audited verification job from dead letter'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -481,6 +521,8 @@ select extensions.ok(
   ),
   'manual retry records the explicit reason and actor in audit and outbox'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 insert into pg_temp.legal_retries
 select result.*, 'actor-a-replay'
 from app.retry_legal_original_upload_verification(
@@ -607,6 +649,7 @@ from app.retry_legal_original_upload_verification(
   'request-legal-retry-command-b',
   'f6000000-0000-4000-8000-000000000015'
 ) result;
+reset role;
 select extensions.ok(
   exists (
     select 1 from pg_temp.legal_retries retry
@@ -801,6 +844,7 @@ from app.reject_legal_original_upload_verification(
   'job:legal-retry-terminal-rejection',
   (select correlation_id from pg_temp.legal_retry_claims where probe = 'actor-a-retry-terminal')
 ) result;
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -815,6 +859,7 @@ select extensions.ok(
   'a retried verification can terminate without colliding with retry event versioning'
 );
 
+set local role service_role;
 insert into pg_temp.legal_retry_cleanup_schedules
 select scheduled.*, 'after-retry-terminal'
 from app.enqueue_due_legal_original_quarantine_cleanup(

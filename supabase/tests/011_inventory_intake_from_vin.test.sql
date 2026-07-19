@@ -26,7 +26,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -401,6 +401,7 @@ select extensions.results_eq(
   $$values (3::bigint, false, false)$$,
   'M2-INV-AC-011 new intake advances once and reports that it allocated a holding'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -467,6 +468,8 @@ select extensions.is(
   'T-NUM-001 confirmed intake advances the transactional stock counter once'
 );
 
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.intake_results
@@ -586,9 +589,9 @@ from app.create_inventory_unit(
   'historical-fixture-001', '1HGCM82633A900013', 2004, 'HONDA', 'Civic',
   date '2026-01-01', 50000, 'km', 'CAD', 1000000, null,
   'request-historical-fixture', pg_catalog.gen_random_uuid()
-);
+) result;
 update public.workflow_instances instance
-set current_state_key = 'closed',
+set current_state_key = 'sold',
     canonical_status = 'closed',
     lifecycle_status = 'completed',
     version = 2,
@@ -600,7 +603,7 @@ where fixture.probe = 'historical'
 update public.inventory_units unit
 set status = 'closed',
     workflow_state_key = case
-      when unit.workflow_instance_id is null then null else 'closed'
+      when unit.workflow_instance_id is null then null else 'sold'
     end,
     version = 2,
     closed_at = pg_catalog.statement_timestamp()
@@ -703,7 +706,7 @@ from app.create_inventory_unit(
   'open-fixture-001', '1HGCM82633A900014', 2005, 'HONDA', 'CR-V',
   date '2026-02-01', 60000, 'km', 'CAD', 1200000, null,
   'request-open-fixture', pg_catalog.gen_random_uuid()
-);
+) result;
 update public.inventory_units unit
 set location_id = '73000000-0000-4000-8000-000000000001',
     condition_key = 'used.ready'

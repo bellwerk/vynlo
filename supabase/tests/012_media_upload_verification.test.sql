@@ -31,7 +31,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint
       )
     )
@@ -310,6 +310,7 @@ select extensions.ok(
   ),
   'upload completion request atomically queues durable verification'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1 from pg_temp.verification_fixture verification
@@ -318,7 +319,7 @@ select extensions.ok(
       and job.job_type = 'media.verify_vehicle_photo_upload'
       and job.entity_type = 'media_upload_session'
       and job.entity_id = verification.upload_session_id
-      and pg_catalog.jsonb_object_length(job.payload) = 2
+      and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(job.payload, '$.keyvalue()')) = 2
       and job.payload ? 'media_id'
       and job.payload ? 'upload_session_id'
       and not app.job_payload_contains_forbidden_key(job.payload)
@@ -511,17 +512,19 @@ select extensions.ok(
   ),
   'trusted completion persists server-derived metadata and clean scan receipt'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1 from pg_temp.verified_completion completion
     join public.jobs job on job.id = completion.job_id
     where job.job_type = 'media.process_vehicle_photo'
       and job.status = 'queued'
-      and pg_catalog.jsonb_object_length(job.payload) = 4
+      and pg_catalog.jsonb_array_length(pg_catalog.jsonb_path_query_array(job.payload, '$.keyvalue()')) = 4
       and not app.job_payload_contains_forbidden_key(job.payload)
   ),
   'verified completion atomically queues minimized image processing work'
 );
+set local role service_role;
 select extensions.lives_ok(
   $$
     select app.complete_job(

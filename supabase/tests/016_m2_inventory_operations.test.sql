@@ -31,7 +31,7 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'totp',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
       )
@@ -39,7 +39,7 @@ begin
         pg_catalog.jsonb_build_object(
           'method', 'password',
           'timestamp', pg_catalog.floor(
-            pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+            pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
           )::bigint
         )
       )
@@ -860,6 +860,7 @@ select extensions.ok(
   ),
   'immutable history preserves exact before/after facts and reason'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -880,6 +881,8 @@ select extensions.ok(
   ),
   'audit and reference-only outbox evidence commit with the correction'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001', 'aal2');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.operations_facts_result

@@ -569,7 +569,7 @@ begin
   if target.status <> 'verification_requested' then
     raise exception using errcode = '55000', message = 'legal upload cannot be rejected';
   end if;
-  select pg_catalog.coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
+  select coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
     into next_aggregate_version
   from public.outbox_events event
   where event.workspace_id = p_workspace_id
@@ -747,7 +747,7 @@ begin
       if not found then continue; end if;
     end if;
     new_cleanup_id := pg_catalog.gen_random_uuid();
-    select pg_catalog.coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
+    select coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
       into next_aggregate_version
     from public.outbox_events event
     where event.workspace_id = due.workspace_id
@@ -944,7 +944,7 @@ begin
     raise exception using errcode = '55000', message = 'legal quarantine cleanup is no longer safe';
   end if;
   new_status := p_storage_result;
-  select pg_catalog.coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
+  select coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
     into next_aggregate_version
   from public.outbox_events event
   where event.workspace_id = p_workspace_id

@@ -15,6 +15,8 @@ describe("worker entrypoint", () => {
   it("declares core and gated media job types", () => {
     expect(WORKER_JOB_TYPES).toEqual([
       "documents.render_preview",
+      "documents.render_pdf",
+      "exports.generate",
       "auth.invitation.deliver",
       "inventory.vin_decode",
       "media.verify_vehicle_photo_upload",
@@ -35,6 +37,8 @@ describe("worker entrypoint", () => {
       } as never),
     ).toEqual([
       "documents.render_preview",
+      "documents.render_pdf",
+      "exports.generate",
       "auth.invitation.deliver",
       "inventory.vin_decode",
     ]);
@@ -50,6 +54,8 @@ describe("worker entrypoint", () => {
       } as never),
     ).toEqual([
       "documents.render_preview",
+      "documents.render_pdf",
+      "exports.generate",
       "auth.invitation.deliver",
       "inventory.vin_decode",
       "media.verify_vehicle_photo_upload",
@@ -81,13 +87,17 @@ describe("worker entrypoint", () => {
     expect(
       workerExecutionLanes(
         {
+          exportGeneration: { maximumConcurrentJobs: 2 },
           mediaProcessing: {
             enabled: true,
             maximumConcurrentMediaJobs: 1,
           },
+          pdfRendering: { maximumConcurrentJobs: 2 },
         } as never,
         [
           "documents.render_preview",
+          "documents.render_pdf",
+          "exports.generate",
           "inventory.vin_decode",
           "media.verify_vehicle_photo_upload",
           "media.verify_legal_original",
@@ -102,6 +112,14 @@ describe("worker entrypoint", () => {
           "media.process_vehicle_photo",
         ],
         maximumConcurrency: 1,
+      },
+      {
+        jobTypes: ["documents.render_pdf"],
+        maximumConcurrency: 2,
+      },
+      {
+        jobTypes: ["exports.generate"],
+        maximumConcurrency: 2,
       },
       {
         jobTypes: ["documents.render_preview", "inventory.vin_decode"],

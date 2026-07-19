@@ -7,6 +7,12 @@ import {
   M2InventoryValidationError,
   M2MediaRpcContractError,
   M2MediaValidationError,
+  M3ConfigurationRpcContractError,
+  M3ConfigurationValidationError,
+  M3ApplicationValidationError,
+  M3RpcContractError,
+  M4ApplicationValidationError,
+  M4RpcContractError,
   LegalOriginalRpcContractError,
   LegalOriginalValidationError,
   type VerticalSliceApplicationService,
@@ -135,6 +141,20 @@ export function parseAuthenticatedWorkspaceMetadata(
   };
 }
 
+export function parseStrictQueryParameters(
+  request: Request,
+  allowedKeys: readonly string[],
+): URLSearchParams {
+  const parameters = new URL(request.url).searchParams;
+  const allowed = new Set(allowedKeys);
+  for (const key of parameters.keys()) {
+    if (!allowed.has(key) || parameters.getAll(key).length !== 1) {
+      throw new M4ApplicationValidationError("invalid_query");
+    }
+  }
+  return parameters;
+}
+
 export function parseCommandMetadata(
   request: Request,
 ): VerticalSliceCommandMetadata {
@@ -219,10 +239,23 @@ const safeMessages: Readonly<Record<string, string>> = Object.freeze({
   invalid_correlation_id: "The correlation identifier is invalid.",
   invalid_idempotency_key: "The idempotency key is invalid.",
   invalid_json: "The JSON request body is invalid.",
+  invalid_custom_field_definition_id:
+    "The custom-field definition identifier is invalid.",
+  invalid_custom_field_entity_type: "The custom-field entity type is invalid.",
+  invalid_custom_field_version_id:
+    "The custom-field version identifier is invalid.",
+  invalid_entity_id: "The entity identifier is invalid.",
+  invalid_file_id: "The file identifier is invalid.",
+  invalid_version_id: "The version identifier is invalid.",
+  invalid_definition_key: "The definition key is invalid.",
+  invalid_query: "The query parameters are invalid.",
   invalid_request: "The request is invalid.",
   invalid_request_body: "The command body is invalid.",
   invalid_request_id: "The request identifier is invalid.",
   invalid_workspace: "The workspace selection is invalid.",
+  invalid_workflow_definition_id:
+    "The workflow definition identifier is invalid.",
+  invalid_workflow_version_id: "The workflow version identifier is invalid.",
   not_found: "The requested resource is unavailable.",
   permission_denied: "The command is not permitted.",
   rate_limited: "The command service is temporarily rate limited.",
@@ -282,6 +315,15 @@ function mapError(request: Request, error: unknown): Response {
   if (error instanceof M2MediaValidationError) {
     return errorResponse(request, error.code, 422);
   }
+  if (error instanceof M3ConfigurationValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof M3ApplicationValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
+  if (error instanceof M4ApplicationValidationError) {
+    return errorResponse(request, error.code, 422);
+  }
   if (error instanceof LegalOriginalValidationError) {
     return errorResponse(request, error.code, 422);
   }
@@ -300,6 +342,9 @@ function mapError(request: Request, error: unknown): Response {
     error instanceof M2CostSearchRpcContractError ||
     error instanceof M2InventoryRpcContractError ||
     error instanceof M2MediaRpcContractError ||
+    error instanceof M3ConfigurationRpcContractError ||
+    error instanceof M3RpcContractError ||
+    error instanceof M4RpcContractError ||
     error instanceof LegalOriginalRpcContractError ||
     error instanceof VinDecodeRpcContractError ||
     error instanceof VinInventoryIntakeRpcContractError ||
@@ -324,7 +369,7 @@ export interface ApplicationCommandRouteOptions<TService, TResult> {
     service: TService,
     input: VerticalSliceCommandInput,
   ) => Promise<TResult>;
-  readonly successStatus: (result: TResult) => 200 | 201 | 202;
+  readonly successStatus: (result: TResult) => 200 | 201 | 202 | 204;
 }
 
 export interface ApplicationQueryRouteOptions<TService, TResult> {
@@ -362,11 +407,18 @@ export async function handleApplicationCommandRoute<TService, TResult>(
       body,
       metadata,
     });
+    const status = options.successStatus(result);
+    if (status === 204) {
+      return new Response(null, {
+        headers: responseHeaders(request),
+        status,
+      });
+    }
     return Response.json(
       { data: result },
       {
         headers: responseHeaders(request),
-        status: options.successStatus(result),
+        status,
       },
     );
   } catch (error) {

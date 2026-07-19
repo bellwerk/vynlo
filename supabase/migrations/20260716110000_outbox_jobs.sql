@@ -82,7 +82,7 @@ begin
       message = 'invalid retry-backoff input';
   end if;
 
-  delay_cap := pg_catalog.least(
+  delay_cap := least(
     maximum_delay_seconds::numeric,
     base_delay_seconds::numeric
       * pg_catalog.power(2::numeric, (failed_attempt_number - 1)::numeric)
@@ -90,7 +90,7 @@ begin
 
   -- Equal jitter keeps at least half the exponential delay while preventing a
   -- synchronized retry wave. The final value never exceeds the configured cap.
-  return pg_catalog.greatest(
+  return greatest(
     1,
     pg_catalog.floor((delay_cap / 2) + ((delay_cap / 2) * jitter_unit))::integer
   );
@@ -1118,7 +1118,7 @@ begin
       pg_catalog.random()
     );
     if p_retry_after_seconds is not null then
-      retry_delay := pg_catalog.greatest(retry_delay, p_retry_after_seconds);
+      retry_delay := greatest(retry_delay, p_retry_after_seconds);
     end if;
     next_retry_at := finished_at + pg_catalog.make_interval(secs => retry_delay);
     next_status := 'retry_wait';

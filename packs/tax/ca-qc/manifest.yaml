@@ -8,6 +8,15 @@ contexts:
 - taxable_service_fee
 effective_from: '2026-07-15'
 effective_to: null
+sources:
+- key: revenu_quebec_basic_gst_qst
+  authority: Revenu Québec
+  url: https://www.revenuquebec.ca/en/businesses/consumption-taxes/gsthst-and-qst/basic-rules-for-applying-the-gsthst-and-qst/
+  accessed_on: '2026-07-15'
+- key: revenu_quebec_used_vehicle_trade_ins
+  authority: Revenu Québec
+  url: https://www.revenuquebec.ca/en/businesses/consumption-taxes/gsthst-and-qst/special-cases-gsthst-and-qst/transportation-applying-the-gst-and-qst/road-vehicles-businesses/trade-ins-of-used-road-vehicles/purchaser-not-required-to-collect-the-gst-or-calculate-or-collect-the-qst/
+  accessed_on: '2026-07-15'
 rules:
   currency: CAD
   rounding:
@@ -21,6 +30,7 @@ rules:
       fr: TPS
     rate: '0.05'
     taxable_base: eligible_taxable_consideration
+    source_ref: revenu_quebec_basic_gst_qst
   - key: qst
     labels:
       en: QST
@@ -28,6 +38,7 @@ rules:
     rate: '0.09975'
     taxable_base: eligible_taxable_consideration
     gst_included_in_base: false
+    source_ref: revenu_quebec_basic_gst_qst
   trade_in:
     strategy: conditional_credit_reduces_taxable_consideration
     requires_explicit_eligibility_inputs: true
@@ -39,6 +50,7 @@ rules:
   - multiple_tax_jurisdictions
 golden_tests:
 - tests/vehicle-sale-no-trade-in.json
+- tests/taxable-discount.json
 - tests/eligible-trade-in.json
 activation_status: draft
 approval_refs: []

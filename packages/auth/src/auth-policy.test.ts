@@ -263,7 +263,7 @@ describe("effective permission policy", () => {
   });
 
   it("T-RBAC-001 exposes the complete unique stable platform permission catalogue", () => {
-    expect(PLATFORM_PERMISSION_KEYS).toHaveLength(79);
+    expect(PLATFORM_PERMISSION_KEYS).toHaveLength(80);
     expect(new Set(PLATFORM_PERMISSION_KEYS).size).toBe(
       PLATFORM_PERMISSION_KEYS.length,
     );

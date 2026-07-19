@@ -6,6 +6,11 @@ import { NhtsaVpicVinDecoderAdapter } from "@vynlo/integrations";
 import { ClamdMediaMalwareScanner } from "./clamd-media-malware-scanner";
 import { GoTrueInvitationDeliveryProvider } from "./gotrue-invitation-delivery-provider";
 import {
+  createExportGenerationJobHandler,
+  EXPORT_GENERATION_JOB_TYPE,
+} from "./export-handler";
+import { PostgrestExportRunRepository } from "./export-repository";
+import {
   createInvitationDeliveryJobHandler,
   INVITATION_DELIVERY_JOB_TYPE,
 } from "./invitation-delivery-handler";
@@ -21,6 +26,7 @@ import {
   LEGAL_ORIGINAL_UPLOAD_VERIFICATION_JOB_TYPE,
 } from "./legal-original-upload-verification-handler";
 import { LEGAL_ORIGINAL_QUARANTINE_CLEANUP_JOB_TYPE } from "./legal-original-quarantine-cleanup-handler";
+import { SupabaseImmutableArtifactStorage } from "./immutable-artifact-storage";
 import { SupabaseManagedMediaStorage } from "./managed-media-storage";
 import {
   createVehiclePhotoJobHandler,
@@ -34,6 +40,12 @@ import {
   MEDIA_UPLOAD_VERIFICATION_JOB_TYPE,
 } from "./media-upload-verification-handler";
 import { SupabasePrivateArtifactStorage } from "./private-artifact-storage";
+import { createOfficialDocumentJobHandler } from "./official-document-handler";
+import { PostgrestOfficialDocumentRepository } from "./official-document-repository";
+import {
+  OFFICIAL_DOCUMENT_JOB_TYPE,
+  OfficialDocumentRenderer,
+} from "./official-document-renderer";
 import { PostgrestPreviewDocumentRepository } from "./preview-document-repository";
 import { createPreviewJobHandler } from "./preview-handler";
 import { PREVIEW_JOB_TYPE } from "./preview-renderer";
@@ -54,6 +66,8 @@ import { WorkerService } from "./worker-service";
 
 export const WORKER_JOB_TYPES = [
   PREVIEW_JOB_TYPE,
+  OFFICIAL_DOCUMENT_JOB_TYPE,
+  EXPORT_GENERATION_JOB_TYPE,
   INVITATION_DELIVERY_JOB_TYPE,
   VIN_DECODE_JOB_TYPE,
   MEDIA_UPLOAD_VERIFICATION_JOB_TYPE,
@@ -91,8 +105,17 @@ export function workerExecutionLanes(
   jobTypes: readonly string[],
 ): readonly JobExecutionLane[] {
   const media = jobTypes.filter((jobType) => jobType.startsWith("media."));
+  const pdf = jobTypes.filter(
+    (jobType) => jobType === OFFICIAL_DOCUMENT_JOB_TYPE,
+  );
+  const exports = jobTypes.filter(
+    (jobType) => jobType === EXPORT_GENERATION_JOB_TYPE,
+  );
   const lightweight = jobTypes.filter(
-    (jobType) => !jobType.startsWith("media."),
+    (jobType) =>
+      !jobType.startsWith("media.") &&
+      jobType !== OFFICIAL_DOCUMENT_JOB_TYPE &&
+      jobType !== EXPORT_GENERATION_JOB_TYPE,
   );
   return [
     ...(media.length === 0
@@ -105,6 +128,22 @@ export function workerExecutionLanes(
               : 1,
           },
         ]),
+    ...(pdf.length === 0
+      ? []
+      : [
+          {
+            jobTypes: pdf,
+            maximumConcurrency: config.pdfRendering.maximumConcurrentJobs,
+          },
+        ]),
+    ...(exports.length === 0
+      ? []
+      : [
+          {
+            jobTypes: exports,
+            maximumConcurrency: config.exportGeneration.maximumConcurrentJobs,
+          },
+        ]),
     ...(lightweight.length === 0
       ? []
       : [{ jobTypes: lightweight, maximumConcurrency: 100 }]),
@@ -114,6 +153,12 @@ export function workerExecutionLanes(
 export async function assertWorkerRuntimeReadiness(
   config: WorkerRuntimeConfig,
 ): Promise<void> {
+  const { chromium } = await import("playwright");
+  if (typeof chromium.launch !== "function") {
+    throw new TypeError("The Playwright Chromium PDF runtime is unavailable.");
+  }
+  const browser = await chromium.launch({ headless: true });
+  await browser.close();
   if (!config.mediaProcessing.enabled) return;
   assertSharpMediaRuntimeReady();
   await new ClamdMediaMalwareScanner({
@@ -143,6 +188,10 @@ export function createWorkerService(input: {
         };
   const store = new PostgrestJobStore(commonOptions);
   const documents = new PostgrestPreviewDocumentRepository(commonOptions);
+  const officialDocuments = new PostgrestOfficialDocumentRepository(
+    commonOptions,
+  );
+  const exports = new PostgrestExportRunRepository(commonOptions);
   const invitations = new PostgrestInvitationDeliveryRepository(commonOptions);
   const vinResults = new PostgrestVinDecodeResultRepository(commonOptions);
   const vinDecoder = new NhtsaVpicVinDecoderAdapter(
@@ -164,6 +213,34 @@ export function createWorkerService(input: {
     storage,
     workerId: input.config.workerId,
   });
+  const officialDocumentStorage = new SupabaseImmutableArtifactStorage({
+    ...commonOptions,
+    allowedContentTypes: ["application/pdf"],
+    bucket: input.config.documentBucket,
+    maximumBytes: 52_428_800,
+  });
+  const exportStorage = new SupabaseImmutableArtifactStorage({
+    ...commonOptions,
+    allowedContentTypes: [
+      "text/csv; charset=utf-8",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ],
+    bucket: input.config.exportBucket,
+    maximumBytes: 104_857_600,
+  });
+  const officialDocumentHandler = createOfficialDocumentJobHandler({
+    documents: officialDocuments,
+    renderer: new OfficialDocumentRenderer({
+      timeoutMs: input.config.pdfRendering.timeoutMs,
+    }),
+    storage: officialDocumentStorage,
+    workerId: input.config.workerId,
+  });
+  const exportHandler = createExportGenerationJobHandler({
+    exports,
+    storage: exportStorage,
+    workerId: input.config.workerId,
+  });
   const invitationHandler = createInvitationDeliveryJobHandler({
     provider: invitationProvider,
     repository: invitations,
@@ -176,6 +253,8 @@ export function createWorkerService(input: {
   });
   const handlers = new Map<string, JobHandler>([
     [PREVIEW_JOB_TYPE, previewHandler],
+    [OFFICIAL_DOCUMENT_JOB_TYPE, officialDocumentHandler],
+    [EXPORT_GENERATION_JOB_TYPE, exportHandler],
     [INVITATION_DELIVERY_JOB_TYPE, invitationHandler],
     [VIN_DECODE_JOB_TYPE, vinDecodeHandler],
   ]);
@@ -255,6 +334,8 @@ export async function runWorkerProcess(
     maximumConcurrentMediaJobs: config.mediaProcessing.enabled
       ? config.mediaProcessing.maximumConcurrentMediaJobs
       : 0,
+    maximumConcurrentPdfJobs: config.pdfRendering.maximumConcurrentJobs,
+    maximumConcurrentExportJobs: config.exportGeneration.maximumConcurrentJobs,
     workerId: config.workerId,
   });
   try {

@@ -96,6 +96,7 @@ formula.read
 formula.activate
 tax.read
 tax.activate
+tax.override
 template.read
 template.activate
 workflow.read

@@ -238,7 +238,7 @@ begin
    and job.id = command.job_id
   where command.workspace_id = p_workspace_id
     and command.command_kind = 'create'
-    and command.actor_user_id = actor_user_id
+    and command.actor_user_id = app.current_user_id()
     and command.idempotency_key = normalized_idempotency_key;
 
   if found then
@@ -492,7 +492,7 @@ begin
   from public.workspace_invitation_commands command
   where command.workspace_id = p_workspace_id
     and command.command_kind = 'accept'
-    and command.actor_user_id = actor_user_id
+    and command.actor_user_id = app.current_user_id()
     and command.idempotency_key = normalized_idempotency_key;
 
   if found then

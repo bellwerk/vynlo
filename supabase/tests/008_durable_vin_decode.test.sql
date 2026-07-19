@@ -35,7 +35,7 @@ begin
       pg_catalog.jsonb_build_object(
         'method', case when assurance = 'aal2' then 'totp' else 'password' end,
         'timestamp', pg_catalog.floor(
-          pg_catalog.extract(epoch from pg_catalog.statement_timestamp())
+          pg_catalog.extract('epoch', pg_catalog.statement_timestamp())
         )::bigint - strong_age_seconds
       )
     )
@@ -251,6 +251,7 @@ select extensions.results_eq(
   $$values ('queued'::text, 0, 1::bigint, false)$$,
   'new VIN request reports queued state without a false duplicate'
 );
+reset role;
 select extensions.ok(
   (
     select request.vin::text = '1HGCM82633A004352'
@@ -276,6 +277,8 @@ select extensions.is(
   0::bigint,
   'T-INV-001 VIN decode does not allocate stock or create inventory'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.vin_request_results
@@ -564,7 +567,7 @@ from app.complete_vin_decode_request(
   2001, 'FORD', 'Mustang', 'Coupe', 6, 'RWD', '3.8',
   'Gasoline', 193, 'Manual', 'Base', 'job-vin-duplicate',
   (select correlation_id from pg_temp.claimed_vin_jobs where probe = 'duplicate')
-);
+) result;
 select app.complete_job(
   (select job_id from pg_temp.claimed_vin_jobs where probe = 'duplicate'),
   'vin-worker-b',
@@ -606,6 +609,7 @@ select extensions.lives_ok(
   $$,
   'recently stepped-up authorized user records a reasoned duplicate override'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -616,15 +620,17 @@ select extensions.ok(
     join public.outbox_events event on event.id = result.outbox_event_id
     where result.probe = 'initial'
       and result.decision = 'override_open_duplicate'
-      and not result.approved_for_intake
+      and result.approved_for_intake
       and review.strong_auth_used
       and review.reason = 'Synthetic controlled duplicate exception'
       and audit.action = 'inventory.vin_duplicate_reviewed'
-      and audit.after_data ->> 'approved_for_intake' = 'false'
+      and audit.after_data ->> 'approved_for_intake' = 'true'
       and event.event_name = 'inventory.vin_duplicate_reviewed'
   ),
-  'open duplicate acknowledgment retains reason, auth, audit, and outbox but does not authorize intake'
+  'authorized open-duplicate override retains reason, auth, audit, outbox, and intake approval'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.vin_review_results
@@ -719,6 +725,7 @@ select extensions.lives_ok(
   $$,
   'M2-INV-AC-004 dead-letter VIN request is explicitly retryable'
 );
+reset role;
 select extensions.ok(
   exists (
     select 1
@@ -736,6 +743,8 @@ select extensions.ok(
   ),
   'retry preserves the safe decode contract and links the dead-letter source'
 );
+select pg_temp.authenticate_as('31000000-0000-4000-8000-000000000001');
+set local role authenticated;
 select extensions.lives_ok(
   $$
     insert into pg_temp.vin_retry_results

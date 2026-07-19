@@ -3,49 +3,237 @@ roles:
   - key: owner_admin
     names: { en: Owner / administrator, fr: Propriétaire / administrateur }
     permissions:
+      - workspace.read
       - workspace.manage
+      - users.read
       - users.manage
-      - integrations.manage
+      - roles.manage
+      - configuration.read
       - configuration.manage
-      - inventory.*
-      - crm.*
-      - deals.*
-      - documents.*
-      - exports.*
+      - approvals.read
+      - approvals.create
+      - integrations.read
+      - integrations.manage
+      - jobs.read
+      - jobs.manage
       - audit.read
+      - inventory.read
+      - inventory.create
+      - inventory.update
+      - inventory.transition
+      - inventory.archive
+      - inventory.duplicate_override
+      - inventory.facts_override
+      - inventory.read_internal
+      - inventory.update_internal
+      - costs.read
+      - costs.create
+      - costs.reverse
+      - media.read
+      - media.create
+      - media.update
+      - media.archive
+      - listings.read
+      - listings.publish
+      - listings.unpublish
+      - listings.reconcile
+      - crm.read
+      - crm.create
+      - crm.update
+      - crm.assign
+      - deals.read
+      - deals.create
+      - deals.update
+      - deals.transition
+      - deals.cancel
+      - deals.close
+      - finance_applications.read
+      - finance_applications.create
+      - finance_applications.update
+      - payments.read
+      - payments.record
+      - payments.settle
+      - payments.reverse
+      - payments.refund
+      - documents.read
+      - documents.preview
+      - documents.generate_approved
+      - documents.print
+      - documents.upload_signed
+      - documents.mark_signed
+      - documents.void
+      - documents.void_signed
+      - documents.supersede
+      - formula.read
+      - formula.activate
+      - tax.read
+      - tax.activate
+      - tax.override
+      - template.read
+      - template.activate
+      - workflow.read
+      - workflow.activate
+      - numbering.read
+      - numbering.activate
+      - reports.read
+      - exports.read
+      - exports.run
+      - exports.run_sensitive
+      - identifiers.read_restricted
+      - identifiers.manage
+      - files.read_restricted
   - key: manager
     names: { en: Manager, fr: Gestionnaire }
     permissions:
-      - inventory.*
-      - crm.*
-      - deals.*
-      - documents.generate
+      - workspace.read
+      - users.read
+      - configuration.read
+      - approvals.read
+      - approvals.create
+      - integrations.read
+      - jobs.read
+      - jobs.manage
+      - audit.read
+      - inventory.read
+      - inventory.create
+      - inventory.update
+      - inventory.transition
+      - inventory.archive
+      - inventory.read_internal
+      - inventory.update_internal
+      - costs.read
+      - costs.create
+      - costs.reverse
+      - media.read
+      - media.create
+      - media.update
+      - media.archive
+      - listings.read
+      - listings.publish
+      - listings.unpublish
+      - listings.reconcile
+      - crm.read
+      - crm.create
+      - crm.update
+      - crm.assign
+      - deals.read
+      - deals.create
+      - deals.update
+      - deals.transition
+      - deals.cancel
+      - deals.close
+      - finance_applications.read
+      - finance_applications.create
+      - finance_applications.update
+      - payments.read
+      - payments.record
+      - payments.settle
+      - payments.reverse
+      - payments.refund
       - documents.read
+      - documents.preview
+      - documents.generate_approved
+      - documents.print
       - documents.upload_signed
-      - exports.run
+      - documents.mark_signed
+      - documents.void
+      - documents.void_signed
+      - documents.supersede
+      - formula.read
+      - tax.read
+      - template.read
+      - workflow.read
+      - numbering.read
       - reports.read
+      - exports.read
+      - exports.run
+      - exports.run_sensitive
+      - identifiers.read_restricted
+      - files.read_restricted
   - key: sales
     names: { en: Sales, fr: Ventes }
     permissions:
+      - workspace.read
+      - configuration.read
       - inventory.read
-      - crm.*
-      - deals.create
+      - media.read
+      - listings.read
+      - crm.read
+      - crm.create
+      - crm.update
+      - crm.assign
       - deals.read
-      - deals.update_owned
+      - deals.create
+      - deals.update
+      - deals.transition
+      - deals.cancel
+      - deals.close
+      - finance_applications.read
+      - finance_applications.create
+      - finance_applications.update
+      - payments.read
+      - payments.record
+      - payments.settle
+      - documents.read
       - documents.preview
       - documents.generate_approved
+      - documents.print
       - documents.upload_signed
+      - documents.mark_signed
+      - documents.supersede
+      - workflow.read
+      - reports.read
+      - identifiers.read_restricted
+      - files.read_restricted
   - key: inventory
     names: { en: Inventory, fr: Inventaire }
     permissions:
-      - inventory.*
-      - media.*
-      - listings.*
+      - workspace.read
+      - configuration.read
+      - inventory.read
+      - inventory.create
+      - inventory.update
+      - inventory.transition
+      - inventory.archive
+      - inventory.read_internal
+      - inventory.update_internal
+      - costs.read
+      - costs.create
+      - media.read
+      - media.create
+      - media.update
+      - media.archive
+      - listings.read
+      - listings.publish
+      - listings.unpublish
+      - listings.reconcile
+      - workflow.read
+      - identifiers.read_restricted
+      - identifiers.manage
+      - files.read_restricted
   - key: read_only
     names: { en: Read only, fr: Lecture seule }
     permissions:
+      - workspace.read
+      - configuration.read
+      - jobs.read
+      - audit.read
       - inventory.read
+      - inventory.read_internal
+      - costs.read
+      - media.read
+      - listings.read
       - crm.read
       - deals.read
+      - finance_applications.read
+      - payments.read
       - documents.read
+      - formula.read
+      - tax.read
+      - template.read
+      - workflow.read
+      - numbering.read
       - reports.read
+      - exports.read
+      - identifiers.read_restricted
+      - files.read_restricted

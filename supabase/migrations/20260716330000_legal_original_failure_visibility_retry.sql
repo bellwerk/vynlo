@@ -108,7 +108,7 @@ begin
     target_upload.media_kind,
     projected_status,
     target_job.id,
-    pg_catalog.coalesce(target_job.attempts_started, 0),
+    coalesce(target_job.attempts_started, 0),
     target_job.max_attempts,
     case
       when target_job.status = 'retry_wait' then target_job.available_at
@@ -173,9 +173,9 @@ declare
   existing_receipt public.media_command_receipts%rowtype;
   existing_job public.jobs%rowtype;
   normalized_key text := pg_catalog.btrim(
-    pg_catalog.coalesce(p_idempotency_key, '')
+    coalesce(p_idempotency_key, '')
   );
-  normalized_reason text := pg_catalog.btrim(pg_catalog.coalesce(p_reason, ''));
+  normalized_reason text := pg_catalog.btrim(coalesce(p_reason, ''));
   fingerprint text;
   aggregate_version bigint;
   queued record;
@@ -253,7 +253,7 @@ begin
     into existing_receipt
   from public.media_command_receipts receipt
   where receipt.workspace_id = p_workspace_id
-    and receipt.actor_user_id = actor_user_id
+    and receipt.actor_user_id = app.current_user_id()
     and receipt.command_type = 'media.retry_legal_verify'
     and receipt.idempotency_key = normalized_key;
 
@@ -314,7 +314,7 @@ begin
       message = 'only a dead-letter legal verification job can be manually retried';
   end if;
 
-  select pg_catalog.coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
+  select coalesce(pg_catalog.max(event.aggregate_version), 0) + 1
     into aggregate_version
   from public.outbox_events event
   where event.workspace_id = p_workspace_id
