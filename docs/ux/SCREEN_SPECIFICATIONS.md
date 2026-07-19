@@ -150,7 +150,29 @@ Publish/update/unpublish queues a job. Confirmation lists external effects. Conf
 
 ### List/board
 
-Filters by state, assignee, source, location, interest, next action, created date. Mobile list; optional desktop board derives from configured workflow.
+Desktop offers Board and List modes. Board columns derive from the selected
+workspace pipeline's active immutable workflow version; application code never
+hard-codes stage names or order. Non-terminal states are columns. Converted and
+Lost are outcome targets and filters. Cards show prospect/lead, interested
+vehicle, assignee, source, next action, and overdue/age attention without
+decorative badges or dense nested cards.
+
+Filters cover state, assignee, source, inventory interest, next-action window,
+created date, and search. Location is offered only when the lead or interested
+inventory has authoritative location context. Filters, selected pipeline, and
+Board/List mode persist as safe URL state. Every column is independently bounded
+and cursor-paginated.
+
+Pointer drag, touch, keyboard, and a `Move to…` menu are equivalent ways to call
+the existing permissioned transition command. Only allowed destinations are
+presented. Stale or concurrent moves roll back visually, announce the conflict,
+and refresh affected columns. Lost requires its configured reason; Converted
+opens the existing deal-conversion flow rather than silently changing state.
+
+At 320–414 px, use a stage picker/tabs and one vertical card list; never compress
+the desktop board or introduce horizontal page scrolling. Empty, no-match,
+loading, partial failure, offline, stale, permission-denied, success, and retry
+states are explicit. See `implementation/LEAD_PIPELINE_BOARD_SCOPE.md`.
 
 ### Detail
 

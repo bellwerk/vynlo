@@ -22,6 +22,8 @@
 ## CRM and deals
 
 - leads and sources, parties, activities, notes, tasks, appointments;
+- workflow-derived lead pipelines with an accessible desktop board, dense list,
+  bounded filters, and phone-usable stage views;
 - lead-to-deal conversion;
 - cash retail, third-party-financed retail, wholesale, vehicle purchase, and trade-in records;
 - one-time deposits, payments, refunds, and lender proceeds.
