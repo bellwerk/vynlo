@@ -64,6 +64,61 @@ function makeDefinitionInput() {
   };
 }
 
+function makeLeadDefinitionInput() {
+  return {
+    checksum: CHECKSUM,
+    entityType: "lead",
+    initialStateKey: "review_ready",
+    key: "configured_lead",
+    states: [
+      {
+        category: "active",
+        flags: { conversion_eligible: true, terminal: false },
+        key: "review_ready",
+        labels: { en: "Ready", fr: "Prêt" },
+        requiredFields: [],
+      },
+      {
+        category: "closed",
+        flags: { conversion_target: true, terminal: true },
+        key: "won",
+        labels: { en: "Won", fr: "Gagné" },
+        requiredFields: [],
+      },
+      {
+        category: "closed",
+        flags: { loss_terminal: true, terminal: true },
+        key: "deferred",
+        labels: { en: "Deferred", fr: "Reporté" },
+        requiredFields: [],
+      },
+    ],
+    transitions: [
+      {
+        effectKeys: [],
+        fromStateKey: "review_ready",
+        guardKey: "lead_conversion_requirements_met",
+        key: "complete_conversion",
+        permissionKey: "deals.create",
+        reasonRequired: false,
+        requiredFields: [],
+        toStateKey: "won",
+      },
+      {
+        effectKeys: [],
+        fromStateKey: "review_ready",
+        guardKey: null,
+        key: "defer_lead",
+        permissionKey: "crm.update",
+        reasonRequired: true,
+        requiredFields: [],
+        toStateKey: "deferred",
+      },
+    ],
+    version: "1.0.0",
+  };
+}
+
 function expectPolicyError(
   operation: () => unknown,
   code: InstanceType<typeof WorkflowPolicyError>["code"],
@@ -215,6 +270,35 @@ describe("T-CFG-004 / T-INV-004 M2 immutable versioned workflow contracts", () =
     );
   });
 
+  it("M3-WF-AC-001 validates configured lead semantics without state-name coupling", () => {
+    expect(defineVersionedWorkflow(makeLeadDefinitionInput())).toMatchObject({
+      entityType: "lead",
+      initialStateKey: "review_ready",
+    });
+
+    const nonTerminalTarget = makeLeadDefinitionInput();
+    nonTerminalTarget.states[1]!.category = "active";
+    nonTerminalTarget.states[1]!.flags.terminal = false;
+    expectPolicyError(
+      () => defineVersionedWorkflow(nonTerminalTarget),
+      "invalid_definition",
+    );
+
+    const ineligibleSource = makeLeadDefinitionInput();
+    ineligibleSource.states[0]!.flags.conversion_eligible = false;
+    expectPolicyError(
+      () => defineVersionedWorkflow(ineligibleSource),
+      "invalid_definition",
+    );
+
+    const unreasonedLoss = makeLeadDefinitionInput();
+    unreasonedLoss.transitions[1]!.reasonRequired = false;
+    expectPolicyError(
+      () => defineVersionedWorkflow(unreasonedLoss),
+      "invalid_definition",
+    );
+  });
+
   it("M2-WF-AC-003 enforces permission, required fields, guards and expected version", () => {
     const definition = defineVersionedWorkflow(makeDefinitionInput());
     const command = {
@@ -313,6 +397,15 @@ describe("T-CFG-004 / T-INV-004 M2 immutable versioned workflow contracts", () =
         toCategory: "active",
         actorId: "user-001",
         reason: null,
+        inputSnapshot: {
+          requiredFieldKeys: ["vin", "location_id"],
+          guardKey: "required_fields_complete",
+          guardSatisfied: true,
+          reasonProvided: false,
+        },
+        effectSnapshot: {
+          effectKeys: ["listing.publish", "listing.refresh"],
+        },
         previousVersion: 3,
         resultingVersion: 4,
         correlationId: "correlation-001",
@@ -336,6 +429,14 @@ describe("T-CFG-004 / T-INV-004 M2 immutable versioned workflow contracts", () =
     });
     expect(INSTANCE).toMatchObject({ currentStateKey: "draft", version: 3 });
     expect(Object.isFrozen(first.outboxEvent.effectKeys)).toBe(true);
+    expect(Object.isFrozen(first.workflowEvent.inputSnapshot)).toBe(true);
+    expect(
+      Object.isFrozen(first.workflowEvent.inputSnapshot.requiredFieldKeys),
+    ).toBe(true);
+    expect(Object.isFrozen(first.workflowEvent.effectSnapshot)).toBe(true);
+    expect(Object.isFrozen(first.workflowEvent.effectSnapshot.effectKeys)).toBe(
+      true,
+    );
   });
 
   it("M2-WF-AC-005 requires a reason and explicit successful sale guard", () => {
@@ -427,6 +528,120 @@ describe("T-CFG-004 / T-INV-004 M2 immutable versioned workflow contracts", () =
           instance: { ...INSTANCE, canonicalCategory: "active" },
         }),
       "instance_state_unknown",
+    );
+  });
+});
+
+describe("T-WF-001 / T-WF-002 M3 workflow definition compatibility", () => {
+  it("M3-WF-AC-001 accepts dotted definition keys but keeps graph keys simple", () => {
+    const dotted = makeDefinitionInput();
+    dotted.key = "retail.inventory.standard";
+    expect(defineVersionedWorkflow(dotted).key).toBe(
+      "retail.inventory.standard",
+    );
+
+    const dottedState = makeDefinitionInput();
+    dottedState.states[0]!.key = "inventory.draft";
+    dottedState.initialStateKey = "inventory.draft";
+    expectPolicyError(
+      () => defineVersionedWorkflow(dottedState),
+      "invalid_definition",
+    );
+
+    const tooLong = makeDefinitionInput();
+    tooLong.key = `a.${"b".repeat(64)}.${"c".repeat(64)}`;
+    expectPolicyError(
+      () => defineVersionedWorkflow(tooLong),
+      "invalid_definition_key",
+    );
+  });
+
+  it("M3-WF-AC-002 accepts only trusted lead/deal guards and inert effects", () => {
+    const definition = makeDefinitionInput();
+    definition.transitions[0]!.guardKey = "lender_approval_recorded";
+    definition.transitions[0]!.effectKeys = [
+      "deal.document_readiness_review",
+      "deal.inventory_release_review",
+    ];
+
+    expect(defineVersionedWorkflow(definition).transitions[0]).toMatchObject({
+      guardKey: "lender_approval_recorded",
+      effectKeys: [
+        "deal.document_readiness_review",
+        "deal.inventory_release_review",
+      ],
+    });
+  });
+
+  it("M3-WF-AC-003 aligns the transition reason limit with SQL at 2,000 characters", () => {
+    const definition = defineVersionedWorkflow(makeDefinitionInput());
+    const instance: WorkflowInstanceSnapshot = {
+      ...INSTANCE,
+      currentStateKey: "ready",
+      canonicalCategory: "active",
+      version: 4,
+    };
+    const command = {
+      definition,
+      instance,
+      transitionKey: "complete_sale",
+      expectedVersion: 4,
+      effectivePermissionKeys: ["inventory.transition"],
+      fields: {},
+      guardResults: { sale_completion_requirements_met: true },
+      eventId: "workflow-event-reason-limit",
+      actorId: "user-001",
+      correlationId: "correlation-reason-limit",
+      occurredAt: "2026-07-16T15:00:00Z",
+    } as const;
+
+    expect(
+      executeWorkflowTransition({ ...command, reason: "a".repeat(2_000) })
+        .workflowEvent.reason,
+    ).toHaveLength(2_000);
+    expectPolicyError(
+      () =>
+        executeWorkflowTransition({
+          ...command,
+          reason: "a".repeat(2_001),
+        }),
+      "invalid_reason",
+    );
+  });
+
+  it("M3-WF-AC-004 snapshots decision inputs and inert effects without entity values", () => {
+    const result = executeWorkflowTransition({
+      definition: defineVersionedWorkflow(makeDefinitionInput()),
+      instance: INSTANCE,
+      transitionKey: "mark_ready",
+      expectedVersion: 3,
+      effectivePermissionKeys: ["inventory.transition"],
+      fields: {
+        vin: "1HGCM82633A004352",
+        location_id: "location-001",
+        customer_private_note: "must never be copied into workflow events",
+      },
+      guardResults: { required_fields_complete: true },
+      eventId: "workflow-event-snapshot",
+      actorId: "user-001",
+      correlationId: "correlation-snapshot",
+      occurredAt: "2026-07-16T15:00:00Z",
+    });
+
+    expect(result.workflowEvent.inputSnapshot).toEqual({
+      requiredFieldKeys: ["vin", "location_id"],
+      guardKey: "required_fields_complete",
+      guardSatisfied: true,
+      reasonProvided: false,
+    });
+    expect(result.workflowEvent.effectSnapshot).toEqual({
+      effectKeys: ["listing.publish", "listing.refresh"],
+    });
+    expect(JSON.stringify(result.workflowEvent)).not.toContain(
+      "customer_private_note",
+    );
+    expect(JSON.stringify(result.workflowEvent)).not.toContain(
+      "must never be copied",
     );
   });
 });

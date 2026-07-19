@@ -9,25 +9,35 @@ export const WORKFLOW_CANONICAL_CATEGORIES = [
 export type WorkflowCanonicalCategory =
   (typeof WORKFLOW_CANONICAL_CATEGORIES)[number];
 
-/** Milestone 2 guard identifiers implemented by trusted application services. */
+/** M3-WF-AC-002 trusted guard identifiers implemented by application services. */
 export const WORKFLOW_GUARD_KEYS = [
   "required_fields_complete",
   "sale_completion_requirements_met",
+  "lead_conversion_requirements_met",
+  "lender_approval_recorded",
+  "required_documents_generated",
+  "completion_requirements_met",
 ] as const;
 
 export type WorkflowGuardKey = (typeof WORKFLOW_GUARD_KEYS)[number];
 
-/** Milestone 2 effects are inert outbox declarations, never direct calls. */
+/** M3-WF-AC-002 effects are inert outbox declarations, never direct calls. */
 export const WORKFLOW_EFFECT_KEYS = [
   "listing.publish",
   "listing.unpublish",
   "listing.refresh",
   "media.retention_review",
+  "lead.follow_up_review",
+  "lead.conversion_review",
+  "deal.document_readiness_review",
+  "deal.inventory_release_review",
 ] as const;
 
 export type WorkflowEffectKey = (typeof WORKFLOW_EFFECT_KEYS)[number];
 
-const DEFINITION_KEY_PATTERN = /^[a-z][a-z0-9_]{0,127}$/u;
+const DEFINITION_KEY_PATTERN =
+  /^[a-z][a-z0-9_]{0,63}(?:\.[a-z][a-z0-9_]{0,63})*$/u;
+const SIMPLE_KEY_PATTERN = /^[a-z][a-z0-9_]{0,127}$/u;
 const FIELD_KEY_PATTERN = /^[a-z][a-z0-9_.-]{0,127}$/u;
 const PERMISSION_KEY_PATTERN =
   /^[a-z][a-z0-9_]{0,63}(?:\.[a-z][a-z0-9_]{0,63})+$/u;
@@ -36,7 +46,7 @@ const SEMANTIC_VERSION_PATTERN =
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 const RFC3339_INSTANT_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
-const MAX_REASON_LENGTH = 1_000;
+const MAX_REASON_LENGTH = 2_000;
 
 const PROHIBITED_EXECUTION_KEYS = new Set([
   "command",
@@ -163,10 +173,28 @@ export interface WorkflowTransitionEvent {
   readonly toCategory: WorkflowCanonicalCategory;
   readonly actorId: string;
   readonly reason: string | null;
+  readonly inputSnapshot: Readonly<WorkflowTransitionInputSnapshot>;
+  readonly effectSnapshot: Readonly<WorkflowTransitionEffectSnapshot>;
   readonly previousVersion: number;
   readonly resultingVersion: number;
   readonly correlationId: string;
   readonly occurredAt: string;
+}
+
+/**
+ * M3-WF-AC-004 records only transition-decision metadata. Entity fields and
+ * their potentially sensitive values remain in their authoritative aggregate.
+ */
+export interface WorkflowTransitionInputSnapshot {
+  readonly requiredFieldKeys: readonly string[];
+  readonly guardKey: WorkflowGuardKey | null;
+  readonly guardSatisfied: boolean | null;
+  readonly reasonProvided: boolean;
+}
+
+/** M3-WF-AC-004 captures the inert effects declared at transition time. */
+export interface WorkflowTransitionEffectSnapshot {
+  readonly effectKeys: readonly WorkflowEffectKey[];
 }
 
 export interface WorkflowOutboxEvent {
@@ -240,7 +268,21 @@ function requireDefinitionKey(
   value: unknown,
   code: WorkflowPolicyErrorCode,
 ): string {
-  if (typeof value !== "string" || !DEFINITION_KEY_PATTERN.test(value)) {
+  if (
+    typeof value !== "string" ||
+    value.length > 128 ||
+    !DEFINITION_KEY_PATTERN.test(value)
+  ) {
+    throw new WorkflowPolicyError(code);
+  }
+  return value;
+}
+
+function requireSimpleKey(
+  value: unknown,
+  code: WorkflowPolicyErrorCode,
+): string {
+  if (typeof value !== "string" || !SIMPLE_KEY_PATTERN.test(value)) {
     throw new WorkflowPolicyError(code);
   }
   return value;
@@ -291,7 +333,7 @@ function normalizeFlags(value: unknown): Readonly<Record<string, boolean>> {
   const record = requirePlainRecord(value, "invalid_definition");
   const flags = Object.create(null) as Record<string, boolean>;
   for (const [key, enabled] of Object.entries(record)) {
-    requireDefinitionKey(key, "invalid_definition");
+    requireSimpleKey(key, "invalid_definition");
     if (typeof enabled !== "boolean") {
       throw new WorkflowPolicyError("invalid_definition");
     }
@@ -316,7 +358,7 @@ function normalizeState(value: unknown): WorkflowStateDefinition {
     throw new WorkflowPolicyError("invalid_definition");
   }
   return Object.freeze({
-    key: requireDefinitionKey(record.key, "invalid_definition"),
+    key: requireSimpleKey(record.key, "invalid_definition"),
     category: record.category as WorkflowCanonicalCategory,
     labels: normalizeLabels(record.labels),
     flags: normalizeFlags(record.flags),
@@ -382,12 +424,9 @@ function normalizeTransition(value: unknown): WorkflowTransitionDefinition {
     throw new WorkflowPolicyError("invalid_definition");
   }
   return Object.freeze({
-    key: requireDefinitionKey(record.key, "invalid_definition"),
-    fromStateKey: requireDefinitionKey(
-      record.fromStateKey,
-      "invalid_definition",
-    ),
-    toStateKey: requireDefinitionKey(record.toStateKey, "invalid_definition"),
+    key: requireSimpleKey(record.key, "invalid_definition"),
+    fromStateKey: requireSimpleKey(record.fromStateKey, "invalid_definition"),
+    toStateKey: requireSimpleKey(record.toStateKey, "invalid_definition"),
     permissionKey: record.permissionKey,
     guardKey: normalizeGuardKey(record.guardKey),
     reasonRequired: record.reasonRequired,
@@ -419,10 +458,7 @@ export function defineVersionedWorkflow(
     "invalid_definition",
   );
   const key = requireDefinitionKey(record.key, "invalid_definition_key");
-  const entityType = requireDefinitionKey(
-    record.entityType,
-    "invalid_entity_type",
-  );
+  const entityType = requireSimpleKey(record.entityType, "invalid_entity_type");
   if (
     typeof record.version !== "string" ||
     !SEMANTIC_VERSION_PATTERN.test(record.version)
@@ -451,7 +487,7 @@ export function defineVersionedWorkflow(
     }
     stateByKey.set(state.key, state);
   }
-  const initialStateKey = requireDefinitionKey(
+  const initialStateKey = requireSimpleKey(
     record.initialStateKey,
     "initial_state_missing",
   );
@@ -481,6 +517,72 @@ export function defineVersionedWorkflow(
         "terminal_state_has_transition",
         transition.key,
       );
+    }
+  }
+
+  const isTerminal = (state: WorkflowStateDefinition): boolean =>
+    state.flags.terminal === true ||
+    state.category === "closed" ||
+    state.category === "archived";
+  for (const state of states) {
+    const conversionEligible = state.flags.conversion_eligible === true;
+    const conversionTarget = state.flags.conversion_target === true;
+    const lossTerminal = state.flags.loss_terminal === true;
+    const cancellation = state.flags.cancellation === true;
+    if (
+      ((conversionEligible || conversionTarget || lossTerminal) &&
+        entityType !== "lead") ||
+      (cancellation && entityType !== "deal") ||
+      (conversionEligible && isTerminal(state)) ||
+      ((conversionTarget || lossTerminal || cancellation) &&
+        !isTerminal(state)) ||
+      (conversionTarget && lossTerminal)
+    ) {
+      throw new WorkflowPolicyError("invalid_definition", state.key);
+    }
+  }
+  if (entityType === "lead") {
+    const conversionTargets = states.filter(
+      (state) => state.flags.conversion_target === true,
+    );
+    if (conversionTargets.length > 1) {
+      throw new WorkflowPolicyError("invalid_definition", "conversion_target");
+    }
+    const conversionTargetKey = conversionTargets[0]?.key;
+    for (const state of states) {
+      if (state.flags.conversion_eligible !== true) continue;
+      if (
+        conversionTargetKey === undefined ||
+        transitions.filter(
+          (transition) =>
+            transition.fromStateKey === state.key &&
+            transition.toStateKey === conversionTargetKey,
+        ).length !== 1
+      ) {
+        throw new WorkflowPolicyError("invalid_definition", state.key);
+      }
+    }
+    for (const transition of transitions) {
+      const fromState = stateByKey.get(transition.fromStateKey)!;
+      const toState = stateByKey.get(transition.toStateKey)!;
+      if (
+        (toState.flags.conversion_target === true &&
+          fromState.flags.conversion_eligible !== true) ||
+        (toState.flags.loss_terminal === true && !transition.reasonRequired)
+      ) {
+        throw new WorkflowPolicyError("invalid_definition", transition.key);
+      }
+    }
+  }
+  if (entityType === "deal") {
+    for (const transition of transitions) {
+      const targetState = stateByKey.get(transition.toStateKey)!;
+      if (
+        targetState.flags.cancellation === true &&
+        !transition.reasonRequired
+      ) {
+        throw new WorkflowPolicyError("invalid_definition", transition.key);
+      }
     }
   }
 
@@ -654,11 +756,13 @@ export function executeWorkflowTransition(input: {
     ...transition.requiredFields,
     ...targetState.requiredFields,
   ];
-  for (const field of new Set(requiredFields)) {
+  const requiredFieldKeys = Object.freeze([...new Set(requiredFields)]);
+  for (const field of requiredFieldKeys) {
     if (!hasOwn(fields, field) || !isPresent(fields[field])) {
       throw new WorkflowPolicyError("required_field_missing", field);
     }
   }
+  let guardSatisfied: boolean | null = null;
   if (transition.guardKey !== null) {
     const guardResults = requirePlainRecord(
       input.guardResults ?? {},
@@ -677,6 +781,7 @@ export function executeWorkflowTransition(input: {
     if (guardResults[transition.guardKey] !== true) {
       throw new WorkflowPolicyError("guard_rejected", transition.guardKey);
     }
+    guardSatisfied = true;
   }
 
   const eventId = requireOpaqueIdentifier(input.eventId);
@@ -692,6 +797,14 @@ export function executeWorkflowTransition(input: {
     canonicalCategory: targetState.category,
     version: resultingVersion,
   });
+  const effectKeys = Object.freeze([...transition.effectKeys]);
+  const inputSnapshot = Object.freeze({
+    requiredFieldKeys,
+    guardKey: transition.guardKey,
+    guardSatisfied,
+    reasonProvided: reason !== null,
+  });
+  const effectSnapshot = Object.freeze({ effectKeys });
   const workflowEvent = Object.freeze({
     id: eventId,
     instanceId,
@@ -707,12 +820,13 @@ export function executeWorkflowTransition(input: {
     toCategory: targetState.category,
     actorId,
     reason,
+    inputSnapshot,
+    effectSnapshot,
     previousVersion: instanceVersion,
     resultingVersion,
     correlationId,
     occurredAt,
   });
-  const effectKeys = Object.freeze([...transition.effectKeys]);
   const outboxEvent = Object.freeze({
     idempotencyKey: `${eventId}:transitioned`,
     eventType: `${definition.entityType}.transitioned`,

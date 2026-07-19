@@ -7,6 +7,7 @@ workflow:
   states:
   - key: draft
     category: draft
+    order: 10
     labels:
       en: Draft
       fr: Brouillon
@@ -14,6 +15,7 @@ workflow:
       terminal: false
   - key: preparing
     category: active
+    order: 20
     labels:
       en: Preparing
       fr: En préparation
@@ -21,6 +23,7 @@ workflow:
       terminal: false
   - key: awaiting_customer
     category: pending
+    order: 30
     labels:
       en: Awaiting customer
       fr: En attente du client
@@ -28,6 +31,7 @@ workflow:
       terminal: false
   - key: awaiting_lender
     category: pending
+    order: 40
     labels:
       en: Awaiting lender
       fr: En attente du prêteur
@@ -35,6 +39,7 @@ workflow:
       terminal: false
   - key: approved
     category: active
+    order: 50
     labels:
       en: Approved
       fr: Approuvé
@@ -42,6 +47,7 @@ workflow:
       terminal: false
   - key: ready_for_delivery
     category: active
+    order: 60
     labels:
       en: Ready for delivery
       fr: Prêt pour la livraison
@@ -49,6 +55,7 @@ workflow:
       terminal: false
   - key: completed
     category: closed
+    order: 70
     labels:
       en: Completed
       fr: Terminé
@@ -56,11 +63,13 @@ workflow:
       terminal: true
   - key: cancelled
     category: closed
+    order: 80
     labels:
       en: Cancelled
       fr: Annulé
     flags:
       terminal: true
+      cancellation: true
   transitions:
   - from: draft
     to: preparing

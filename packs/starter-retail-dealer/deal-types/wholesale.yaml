@@ -1,0 +1,45 @@
+schema_version: "1.0"
+deal_type:
+  key: wholesale.sale
+  version: "1.0.0"
+  labels:
+    en: Wholesale sale
+    fr: Vente en gros
+  option_labels:
+    participant_roles:
+      buyer: { en: Buyer, fr: Acheteur }
+      seller: { en: Seller, fr: Vendeur }
+      authorized_representative: { en: Authorized representative, fr: Représentant autorisé }
+    inventory_roles:
+      wholesale: { en: Wholesale vehicle, fr: Véhicule de gros }
+    one_time_event_types:
+      deposit: { en: Deposit, fr: Dépôt }
+      receipt: { en: Receipt, fr: Encaissement }
+      balance_received: { en: Balance received, fr: Solde reçu }
+  workflow:
+    key: retail_deal_standard
+    version: "1.0.0"
+    checksum: 0855356701f9c095a7683a7e9813bc1cb55cd20f58376055e610b96d4b209214
+  allowed_participant_roles:
+    - buyer
+    - seller
+    - authorized_representative
+  allowed_inventory_roles:
+    - wholesale
+  fields:
+    required:
+      - buyer_party_id
+      - wholesale_inventory_unit_id
+      - currency_code
+    optional:
+      - authorized_representative_party_id
+      - notes
+  behavior:
+    inventory_direction: outbound
+    inventory_creation: none
+    finance_mode: none
+    money_mode: one_time
+    one_time_event_types:
+      - deposit
+      - receipt
+      - balance_received
