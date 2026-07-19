@@ -5,15 +5,21 @@ export default defineConfig({
   fullyParallel: true,
   workers: process.env.CI ? 2 : 4,
   reporter: [["list"], ["html", { open: "never" }]],
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}{ext}",
   use: {
     baseURL: "http://127.0.0.1:3000",
+    colorScheme: "light",
+    locale: "en-US",
+    timezoneId: "UTC",
     trace: "retain-on-failure",
   },
   projects: [
     {
-      name: "mobile-360",
+      name: "mobile-touch-360",
       use: {
         ...devices["Desktop Chrome"],
+        hasTouch: true,
+        isMobile: true,
         viewport: { width: 360, height: 800 },
       },
     },

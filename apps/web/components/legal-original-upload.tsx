@@ -1,6 +1,13 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
+import { NativeSelect } from "@vynlo/ui-web/components/native-select";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@vynlo/ui-web/components/radio-group";
+import { Textarea } from "@vynlo/ui-web/components/textarea";
 import {
   Check,
   CircleAlert,
@@ -609,7 +616,7 @@ export function LegalOriginalUpload({
       <form onSubmit={submit}>
         <label>
           <span>{copy.documentLabel}</span>
-          <select
+          <NativeSelect
             disabled={busy || documents.length === 0}
             onChange={(event) => {
               resetPipeline();
@@ -622,44 +629,36 @@ export function LegalOriginalUpload({
                 {document.watermark} · {document.id.slice(0, 8)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
 
         <fieldset>
           <legend>{copy.mediaKindLabel}</legend>
-          <div className="legal-original-upload__kinds">
+          <RadioGroup
+            className="legal-original-upload__kinds"
+            disabled={busy}
+            name="media-kind"
+            orientation="horizontal"
+            onValueChange={(value) => {
+              resetPipeline();
+              setMediaKind(value as MediaKind);
+            }}
+            value={mediaKind}
+          >
             <label>
-              <input
-                checked={mediaKind === "legal_document"}
-                disabled={busy}
-                name="media-kind"
-                onChange={() => {
-                  resetPipeline();
-                  setMediaKind("legal_document");
-                }}
-                type="radio"
-              />
+              <RadioGroupItem value="legal_document" />
               <span>{copy.legalKind}</span>
             </label>
             <label>
-              <input
-                checked={mediaKind === "signed_document"}
-                disabled={busy}
-                name="media-kind"
-                onChange={() => {
-                  resetPipeline();
-                  setMediaKind("signed_document");
-                }}
-                type="radio"
-              />
+              <RadioGroupItem value="signed_document" />
               <span>{copy.signedKind}</span>
             </label>
-          </div>
+          </RadioGroup>
         </fieldset>
 
         <label className="legal-original-upload__file">
           <span>{copy.fileLabel}</span>
-          <input
+          <Input
             accept={LEGAL_ORIGINAL_ACCEPT}
             aria-describedby={hintId}
             disabled={busy || !effectiveDocumentId || !permitted}
@@ -863,7 +862,7 @@ export function LegalOriginalUpload({
         >
           <label>
             <span>{copy.retryReasonLabel}</span>
-            <textarea
+            <Textarea
               aria-invalid={retryReasonError !== null}
               disabled={retryingVerification}
               maxLength={2_000}

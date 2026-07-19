@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { AuthAccess } from "../../components/auth-access";
+import { ThemeSwitcher } from "../../components/theme-switcher";
 import { messages } from "../../i18n/messages";
 import { getRequestLocale } from "../../i18n/server";
 import { parseWorkspaceInvitationContext } from "../../lib/workspace-invitation-client";
@@ -18,9 +19,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="access-page" id="main">
-      <a className="back-link" href="/">
-        <ArrowLeft aria-hidden="true" size={17} /> {copy.backAction}
-      </a>
+      <div className="flex min-h-11 items-center justify-between gap-4">
+        <a className="back-link" href="/">
+          <ArrowLeft aria-hidden="true" size={17} /> {copy.backAction}
+        </a>
+        <ThemeSwitcher locale={locale} />
+      </div>
       <section aria-labelledby="access-title" className="access-panel">
         <header>
           <p className="eyebrow">

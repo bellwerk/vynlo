@@ -2,6 +2,8 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
+import { Textarea } from "@vynlo/ui-web/components/textarea";
 import {
   ArrowDown,
   ArrowLeft,
@@ -20,7 +22,6 @@ import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
   type FormEvent,
@@ -39,7 +40,7 @@ import {
   type VehicleMediaCollection,
   type VehicleMediaStatus,
 } from "../lib/vehicle-media-manager";
-import { LocaleSwitcher } from "./locale-switcher";
+import { OperatorShell, type OperatorWorkspaceOption } from "./operator-shell";
 import { VehiclePhotoUpload } from "./vehicle-photo-upload";
 
 interface ThumbnailGrant {
@@ -66,6 +67,10 @@ const PREVIEW_MEDIA_IDS = [
 ] as const;
 const PREVIEW_PROFILE_ID = "00000000-0000-4000-8000-000000000453";
 const PREVIEW_WORKSPACE_ID = "00000000-0000-4000-8000-000000000201";
+const PREVIEW_WORKSPACE: OperatorWorkspaceOption = Object.freeze({
+  id: PREVIEW_WORKSPACE_ID,
+  name: "Sample workspace",
+});
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
@@ -181,7 +186,6 @@ export function VehicleMediaManager({
   workspaceId,
 }: Readonly<VehicleMediaManagerProps>) {
   const router = useRouter();
-  const headingId = useId();
   const dirtyCaptions = useRef(new Set<string>());
   const idempotency = useRef(new Map<string, string>());
   const loadSequence = useRef(0);
@@ -602,367 +606,344 @@ export function VehicleMediaManager({
   }
 
   const items = collection?.items ?? [];
-  const returnTo = `/inventory/${inventoryUnitId}/media${
-    previewEnabled
-      ? "?preview=inventory"
-      : `?workspace=${encodeURIComponent(workspaceId)}`
-  }`;
+  const inventoryQuery = previewEnabled
+    ? "?preview=inventory"
+    : `?workspace=${encodeURIComponent(workspaceId)}`;
 
   return (
-    <>
-      <a className="skip-link" href="#vehicle-media-main">
-        {copy.skipToContent}
-      </a>
-      <main
-        aria-labelledby={headingId}
-        className="vehicle-media-manager"
-        data-preview={previewEnabled}
-        id="vehicle-media-main"
-        tabIndex={-1}
-      >
-        <header className="vehicle-media-manager__header">
-          <a
-            className="vehicle-media-manager__back"
-            href={`/inventory/${inventoryUnitId}${previewEnabled ? "?preview=inventory" : ""}`}
+    <div
+      aria-label={copy.heading}
+      className="vehicle-media-manager"
+      data-preview={previewEnabled}
+    >
+      <header className="vehicle-media-manager__header">
+        <a
+          className="vehicle-media-manager__back"
+          href={`/inventory/${inventoryUnitId}${inventoryQuery}`}
+        >
+          <ArrowLeft aria-hidden="true" size={17} />
+          {copy.backAction}
+        </a>
+        <div className="vehicle-media-manager__summary">
+          <strong>
+            {interpolate(copy.countLabel, { count: items.length })}
+          </strong>
+          <Button
+            disabled={loading || busy !== null}
+            onClick={() => void load()}
+            type="button"
+            variant="outline"
           >
-            <ArrowLeft aria-hidden="true" size={17} />
-            {copy.backAction}
-          </a>
+            <RefreshCcw aria-hidden="true" size={16} />
+            {copy.refreshAction}
+          </Button>
+        </div>
+      </header>
+
+      <p aria-live="polite" className="vehicle-media-manager__live">
+        {liveMessage}
+      </p>
+
+      {errorMessage ? (
+        <div className="vehicle-media-manager__error" role="alert">
+          <CircleAlert aria-hidden="true" size={20} />
+          <p>{errorMessage}</p>
+          <Button onClick={() => void load()} type="button" variant="outline">
+            {copy.retryAction}
+          </Button>
+        </div>
+      ) : null}
+
+      {loading && !collection ? (
+        <div className="vehicle-media-manager__loading" role="status">
+          <LoaderCircle aria-hidden="true" size={21} />
+          {copy.loading}
+        </div>
+      ) : null}
+
+      {!loading && collection && items.length === 0 ? (
+        <div className="vehicle-media-manager__empty">
+          <ImageIcon aria-hidden="true" size={34} strokeWidth={1.4} />
           <div>
-            <p>{copy.eyebrow}</p>
-            <h1 id={headingId}>{copy.heading}</h1>
-            <p>{copy.description}</p>
+            <h2>{copy.emptyHeading}</h2>
+            <p>{copy.emptyDescription}</p>
           </div>
-          <div className="vehicle-media-manager__summary">
-            <strong>
-              {interpolate(copy.countLabel, { count: items.length })}
-            </strong>
-            <LocaleSwitcher
-              activeLocale={locale}
-              label={uploadCopy.localeLabel}
-              localeNames={uploadCopy.localeNames}
-              returnTo={returnTo}
-            />
-            <Button
-              disabled={loading || busy !== null}
-              onClick={() => void load()}
-              type="button"
-              variant="outline"
-            >
-              <RefreshCcw aria-hidden="true" size={16} />
-              {copy.refreshAction}
-            </Button>
-          </div>
-        </header>
+        </div>
+      ) : null}
 
-        <p aria-live="polite" className="vehicle-media-manager__live">
-          {liveMessage}
-        </p>
-
-        {errorMessage ? (
-          <div className="vehicle-media-manager__error" role="alert">
-            <CircleAlert aria-hidden="true" size={20} />
-            <p>{errorMessage}</p>
-            <Button onClick={() => void load()} type="button" variant="outline">
-              {copy.retryAction}
-            </Button>
-          </div>
-        ) : null}
-
-        {loading && !collection ? (
-          <div className="vehicle-media-manager__loading" role="status">
-            <LoaderCircle aria-hidden="true" size={21} />
-            {copy.loading}
-          </div>
-        ) : null}
-
-        {!loading && collection && items.length === 0 ? (
-          <div className="vehicle-media-manager__empty">
-            <ImageIcon aria-hidden="true" size={34} strokeWidth={1.4} />
-            <div>
-              <h2>{copy.emptyHeading}</h2>
-              <p>{copy.emptyDescription}</p>
-            </div>
-          </div>
-        ) : null}
-
-        {items.length > 0 ? (
-          <ol aria-label={copy.heading} className="vehicle-media-manager__list">
-            {items.map((media, index) => {
-              const thumbnail = thumbnails[media.id];
-              const itemBusy = busy?.mediaId === media.id;
-              const label = interpolate(copy.photoLabel, {
-                position: index + 1,
-              });
-              const captionSuffix = media.caption ? ` · ${media.caption}` : "";
-              return (
-                <li key={media.id}>
-                  <article
-                    aria-label={label}
-                    className="vehicle-media-manager__item"
-                  >
-                    <div className="vehicle-media-manager__visual">
-                      {thumbnail ? (
-                        <img
-                          alt={interpolate(copy.thumbnailAlt, {
-                            caption: captionSuffix,
-                            position: index + 1,
-                          })}
-                          decoding="async"
-                          height={320}
-                          onError={() =>
-                            setThumbnails((current) => {
-                              const next = { ...current };
-                              delete next[media.id];
-                              return Object.freeze(next);
-                            })
-                          }
-                          src={thumbnail.url}
-                          width={320}
+      {items.length > 0 ? (
+        <ol aria-label={copy.heading} className="vehicle-media-manager__list">
+          {items.map((media, index) => {
+            const thumbnail = thumbnails[media.id];
+            const itemBusy = busy?.mediaId === media.id;
+            const label = interpolate(copy.photoLabel, {
+              position: index + 1,
+            });
+            const captionSuffix = media.caption ? ` · ${media.caption}` : "";
+            return (
+              <li key={media.id}>
+                <article
+                  aria-label={label}
+                  className="vehicle-media-manager__item"
+                >
+                  <div className="vehicle-media-manager__visual">
+                    {thumbnail ? (
+                      <img
+                        alt={interpolate(copy.thumbnailAlt, {
+                          caption: captionSuffix,
+                          position: index + 1,
+                        })}
+                        decoding="async"
+                        height={320}
+                        onError={() =>
+                          setThumbnails((current) => {
+                            const next = { ...current };
+                            delete next[media.id];
+                            return Object.freeze(next);
+                          })
+                        }
+                        src={thumbnail.url}
+                        width={320}
+                      />
+                    ) : (
+                      <div className="vehicle-media-manager__placeholder">
+                        <span aria-hidden="true">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <p>{copy.thumbnailUnavailable}</p>
+                      </div>
+                    )}
+                    {media.isCover ? (
+                      <strong className="vehicle-media-manager__cover">
+                        <Star
+                          aria-hidden="true"
+                          fill="currentColor"
+                          size={14}
                         />
-                      ) : (
-                        <div className="vehicle-media-manager__placeholder">
-                          <span aria-hidden="true">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <p>{copy.thumbnailUnavailable}</p>
-                        </div>
-                      )}
-                      {media.isCover ? (
-                        <strong className="vehicle-media-manager__cover">
-                          <Star
-                            aria-hidden="true"
-                            fill="currentColor"
-                            size={14}
-                          />
-                          {copy.coverLabel}
-                        </strong>
-                      ) : null}
-                    </div>
+                        {copy.coverLabel}
+                      </strong>
+                    ) : null}
+                  </div>
 
-                    <div className="vehicle-media-manager__details">
-                      <header>
-                        <div>
-                          <span>{label}</span>
-                          <strong data-status={media.status}>
-                            {vehicleMediaIsTransient(media.status) ? (
-                              <LoaderCircle aria-hidden="true" size={14} />
-                            ) : media.status === "failed" ? (
-                              <CircleAlert aria-hidden="true" size={14} />
-                            ) : (
-                              <Check aria-hidden="true" size={14} />
-                            )}
-                            {statusLabel(copy, media.status)}
-                          </strong>
-                        </div>
-                        <div className="vehicle-media-manager__order">
-                          <Button
-                            aria-label={`${copy.moveUpAction}: ${label}`}
-                            disabled={itemBusy || busy !== null || index === 0}
-                            onClick={() => void move(media, -1)}
-                            title={copy.moveUpAction}
-                            type="button"
-                            variant="outline"
-                          >
-                            <ArrowUp aria-hidden="true" size={17} />
-                          </Button>
-                          <Button
-                            aria-label={`${copy.moveDownAction}: ${label}`}
-                            disabled={
-                              itemBusy ||
-                              busy !== null ||
-                              index === items.length - 1
-                            }
-                            onClick={() => void move(media, 1)}
-                            title={copy.moveDownAction}
-                            type="button"
-                            variant="outline"
-                          >
-                            <ArrowDown aria-hidden="true" size={17} />
-                          </Button>
-                        </div>
-                      </header>
-
-                      {vehicleMediaIsTransient(media.status) ? (
-                        <p
-                          className="vehicle-media-manager__hint"
-                          role="status"
-                        >
-                          {copy.transientHint}
-                        </p>
-                      ) : null}
-                      {media.status === "failed" ? (
-                        <p className="vehicle-media-manager__hint">
-                          {copy.failedHint}
-                        </p>
-                      ) : null}
-
-                      <form
-                        className="vehicle-media-manager__caption"
-                        onSubmit={(event) => void saveCaption(event, media)}
-                      >
-                        <label>
-                          <span>{copy.captionLabel}</span>
-                          <input
-                            disabled={itemBusy}
-                            maxLength={500}
-                            onChange={(event) => {
-                              dirtyCaptions.current.add(media.id);
-                              setCaptionDrafts((current) =>
-                                Object.freeze({
-                                  ...current,
-                                  [media.id]: event.target.value,
-                                }),
-                              );
-                            }}
-                            placeholder={copy.captionPlaceholder}
-                            value={captionDrafts[media.id] ?? ""}
-                          />
-                        </label>
-                        <Button
-                          disabled={itemBusy || busy !== null}
-                          type="submit"
-                          variant="outline"
-                        >
-                          {busy?.action === "caption" && itemBusy ? (
-                            <LoaderCircle aria-hidden="true" size={16} />
+                  <div className="vehicle-media-manager__details">
+                    <header>
+                      <div>
+                        <span>{label}</span>
+                        <strong data-status={media.status}>
+                          {vehicleMediaIsTransient(media.status) ? (
+                            <LoaderCircle aria-hidden="true" size={14} />
+                          ) : media.status === "failed" ? (
+                            <CircleAlert aria-hidden="true" size={14} />
                           ) : (
-                            <Save aria-hidden="true" size={16} />
+                            <Check aria-hidden="true" size={14} />
                           )}
-                          {copy.saveCaptionAction}
-                        </Button>
-                      </form>
-
-                      <div className="vehicle-media-manager__actions">
-                        {!media.isCover ? (
-                          <Button
-                            disabled={itemBusy || busy !== null}
-                            onClick={() => void setCover(media)}
-                            type="button"
-                            variant="outline"
-                          >
-                            <Star aria-hidden="true" size={16} />
-                            {copy.coverAction}
-                          </Button>
-                        ) : null}
-                        {media.status === "failed" ? (
-                          <Button
-                            disabled={itemBusy || busy !== null}
-                            onClick={() => void reprocess(media)}
-                            type="button"
-                            variant="outline"
-                          >
-                            <RotateCcw aria-hidden="true" size={16} />
-                            {copy.reprocessAction}
-                          </Button>
-                        ) : null}
+                          {statusLabel(copy, media.status)}
+                        </strong>
+                      </div>
+                      <div className="vehicle-media-manager__order">
                         <Button
-                          disabled={itemBusy || busy !== null}
-                          onClick={() => {
-                            setArchiveReason("");
-                            setArchiveTargetId(media.id);
-                          }}
+                          aria-label={`${copy.moveUpAction}: ${label}`}
+                          disabled={itemBusy || busy !== null || index === 0}
+                          onClick={() => void move(media, -1)}
+                          title={copy.moveUpAction}
                           type="button"
                           variant="outline"
                         >
-                          <Trash2 aria-hidden="true" size={16} />
-                          {copy.archiveAction}
+                          <ArrowUp aria-hidden="true" size={17} />
+                        </Button>
+                        <Button
+                          aria-label={`${copy.moveDownAction}: ${label}`}
+                          disabled={
+                            itemBusy ||
+                            busy !== null ||
+                            index === items.length - 1
+                          }
+                          onClick={() => void move(media, 1)}
+                          title={copy.moveDownAction}
+                          type="button"
+                          variant="outline"
+                        >
+                          <ArrowDown aria-hidden="true" size={17} />
                         </Button>
                       </div>
+                    </header>
 
-                      {archiveTargetId === media.id ? (
-                        <div
-                          aria-labelledby={`archive-${media.id}`}
-                          className="vehicle-media-manager__archive"
+                    {vehicleMediaIsTransient(media.status) ? (
+                      <p className="vehicle-media-manager__hint" role="status">
+                        {copy.transientHint}
+                      </p>
+                    ) : null}
+                    {media.status === "failed" ? (
+                      <p className="vehicle-media-manager__hint">
+                        {copy.failedHint}
+                      </p>
+                    ) : null}
+
+                    <form
+                      className="vehicle-media-manager__caption"
+                      onSubmit={(event) => void saveCaption(event, media)}
+                    >
+                      <label>
+                        <span>{copy.captionLabel}</span>
+                        <Input
+                          disabled={itemBusy}
+                          maxLength={500}
+                          onChange={(event) => {
+                            dirtyCaptions.current.add(media.id);
+                            setCaptionDrafts((current) =>
+                              Object.freeze({
+                                ...current,
+                                [media.id]: event.target.value,
+                              }),
+                            );
+                          }}
+                          placeholder={copy.captionPlaceholder}
+                          value={captionDrafts[media.id] ?? ""}
+                        />
+                      </label>
+                      <Button
+                        disabled={itemBusy || busy !== null}
+                        type="submit"
+                        variant="outline"
+                      >
+                        {busy?.action === "caption" && itemBusy ? (
+                          <LoaderCircle aria-hidden="true" size={16} />
+                        ) : (
+                          <Save aria-hidden="true" size={16} />
+                        )}
+                        {copy.saveCaptionAction}
+                      </Button>
+                    </form>
+
+                    <div className="vehicle-media-manager__actions">
+                      {!media.isCover ? (
+                        <Button
+                          disabled={itemBusy || busy !== null}
+                          onClick={() => void setCover(media)}
+                          type="button"
+                          variant="outline"
                         >
-                          <h3 id={`archive-${media.id}`}>
-                            {copy.archiveHeading}
-                          </h3>
-                          <label>
-                            <span>{copy.archiveReasonLabel}</span>
-                            <textarea
-                              maxLength={1_000}
-                              onChange={(event) =>
-                                setArchiveReason(event.target.value)
-                              }
-                              placeholder={copy.archiveReasonPlaceholder}
-                              value={archiveReason}
-                            />
-                          </label>
-                          <div>
-                            <Button
-                              disabled={!archiveReason.trim() || itemBusy}
-                              onClick={() => void archive(media)}
-                              type="button"
-                            >
-                              {busy?.action === "archive" && itemBusy ? (
-                                <LoaderCircle aria-hidden="true" size={16} />
-                              ) : (
-                                <Trash2 aria-hidden="true" size={16} />
-                              )}
-                              {copy.archiveConfirm}
-                            </Button>
-                            <Button
-                              disabled={itemBusy}
-                              onClick={() => setArchiveTargetId(null)}
-                              type="button"
-                              variant="outline"
-                            >
-                              {copy.archiveCancel}
-                            </Button>
-                          </div>
-                        </div>
+                          <Star aria-hidden="true" size={16} />
+                          {copy.coverAction}
+                        </Button>
                       ) : null}
+                      {media.status === "failed" ? (
+                        <Button
+                          disabled={itemBusy || busy !== null}
+                          onClick={() => void reprocess(media)}
+                          type="button"
+                          variant="outline"
+                        >
+                          <RotateCcw aria-hidden="true" size={16} />
+                          {copy.reprocessAction}
+                        </Button>
+                      ) : null}
+                      <Button
+                        disabled={itemBusy || busy !== null}
+                        onClick={() => {
+                          setArchiveReason("");
+                          setArchiveTargetId(media.id);
+                        }}
+                        type="button"
+                        variant="outline"
+                      >
+                        <Trash2 aria-hidden="true" size={16} />
+                        {copy.archiveAction}
+                      </Button>
                     </div>
-                  </article>
-                </li>
-              );
-            })}
-          </ol>
-        ) : null}
 
-        <div className="vehicle-media-manager__upload">
-          <VehiclePhotoUpload
-            copy={uploadCopy}
-            description={copy.addHint}
-            heading={copy.addHeading}
-            inventoryUnitId={inventoryUnitId}
-            locale={locale}
-            onVerificationQueued={(receipt) => {
-              if (previewEnabled) {
-                setCollection((current) => {
-                  if (
-                    !current ||
-                    current.items.some((item) => item.id === receipt.mediaId)
-                  ) {
-                    return current;
-                  }
-                  const next = Object.freeze({
-                    ...previewAsset(
-                      inventoryUnitId,
-                      receipt.mediaId,
-                      current.items.length,
-                    ),
-                    caption: null,
-                    collectionVersion: current.collectionVersion + 1,
-                    isCover: current.items.length === 0,
-                    status: "quarantined" as const,
-                  });
-                  return updatePreviewCollection(current, [
-                    ...current.items,
-                    next,
-                  ]);
+                    {archiveTargetId === media.id ? (
+                      <div
+                        aria-labelledby={`archive-${media.id}`}
+                        className="vehicle-media-manager__archive"
+                      >
+                        <h3 id={`archive-${media.id}`}>
+                          {copy.archiveHeading}
+                        </h3>
+                        <label>
+                          <span>{copy.archiveReasonLabel}</span>
+                          <Textarea
+                            maxLength={1_000}
+                            onChange={(event) =>
+                              setArchiveReason(event.target.value)
+                            }
+                            placeholder={copy.archiveReasonPlaceholder}
+                            value={archiveReason}
+                          />
+                        </label>
+                        <div>
+                          <Button
+                            disabled={!archiveReason.trim() || itemBusy}
+                            onClick={() => void archive(media)}
+                            type="button"
+                          >
+                            {busy?.action === "archive" && itemBusy ? (
+                              <LoaderCircle aria-hidden="true" size={16} />
+                            ) : (
+                              <Trash2 aria-hidden="true" size={16} />
+                            )}
+                            {copy.archiveConfirm}
+                          </Button>
+                          <Button
+                            disabled={itemBusy}
+                            onClick={() => setArchiveTargetId(null)}
+                            type="button"
+                            variant="outline"
+                          >
+                            {copy.archiveCancel}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+
+      <div className="vehicle-media-manager__upload">
+        <VehiclePhotoUpload
+          copy={uploadCopy}
+          description={copy.addHint}
+          heading={copy.addHeading}
+          inventoryUnitId={inventoryUnitId}
+          locale={locale}
+          onVerificationQueued={(receipt) => {
+            if (previewEnabled) {
+              setCollection((current) => {
+                if (
+                  !current ||
+                  current.items.some((item) => item.id === receipt.mediaId)
+                ) {
+                  return current;
+                }
+                const next = Object.freeze({
+                  ...previewAsset(
+                    inventoryUnitId,
+                    receipt.mediaId,
+                    current.items.length,
+                  ),
+                  caption: null,
+                  collectionVersion: current.collectionVersion + 1,
+                  isCover: current.items.length === 0,
+                  status: "quarantined" as const,
                 });
-              } else {
-                void load();
-              }
-            }}
-            previewEnabled={previewEnabled}
-            workspaceId={workspaceId}
-          />
-        </div>
-      </main>
-    </>
+                return updatePreviewCollection(current, [
+                  ...current.items,
+                  next,
+                ]);
+              });
+            } else {
+              void load();
+            }
+          }}
+          previewEnabled={previewEnabled}
+          workspaceId={workspaceId}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -978,6 +959,9 @@ export function VehicleMediaManagerWorkspace({
   const [workspaceId, setWorkspaceId] = useState<string | null>(
     previewEnabled ? PREVIEW_WORKSPACE_ID : null,
   );
+  const [workspaces, setWorkspaces] = useState<
+    readonly OperatorWorkspaceOption[]
+  >(previewEnabled ? [PREVIEW_WORKSPACE] : []);
   const [resolutionFailed, setResolutionFailed] = useState(false);
 
   useEffect(() => {
@@ -995,36 +979,39 @@ export function VehicleMediaManagerWorkspace({
         }
         const memberships = await client
           .from("workspace_memberships")
-          .select("id,workspaces!inner(id)")
+          .select("id,workspaces!inner(id,name)")
           .eq("user_id", session.user.id)
           .eq("status", "active");
         if (memberships.error || !Array.isArray(memberships.data)) {
           throw new MediaManagerRequestError();
         }
-        const authorizedWorkspaceIds = memberships.data.flatMap(
-          (membership) => {
-            if (typeof membership !== "object" || membership === null)
-              return [];
-            const relation = (membership as Record<string, unknown>).workspaces;
-            const workspace = Array.isArray(relation) ? relation[0] : relation;
-            if (typeof workspace !== "object" || workspace === null) return [];
-            const id = (workspace as Record<string, unknown>).id;
-            return typeof id === "string" && UUID_PATTERN.test(id)
-              ? [id.toLowerCase()]
-              : [];
-          },
-        );
+        const authorizedWorkspaces = memberships.data.flatMap((membership) => {
+          if (typeof membership !== "object" || membership === null) return [];
+          const relation = (membership as Record<string, unknown>).workspaces;
+          const workspace = Array.isArray(relation) ? relation[0] : relation;
+          if (typeof workspace !== "object" || workspace === null) return [];
+          const id = (workspace as Record<string, unknown>).id;
+          const name = (workspace as Record<string, unknown>).name;
+          return typeof id === "string" &&
+            UUID_PATTERN.test(id) &&
+            typeof name === "string" &&
+            name.trim()
+            ? [{ id: id.toLowerCase(), name: name.trim() }]
+            : [];
+        });
         const requested =
           typeof requestedWorkspaceId === "string" &&
           UUID_PATTERN.test(requestedWorkspaceId)
             ? requestedWorkspaceId.toLowerCase()
             : null;
         const resolved =
-          requested && authorizedWorkspaceIds.includes(requested)
+          requested &&
+          authorizedWorkspaces.some((workspace) => workspace.id === requested)
             ? requested
-            : authorizedWorkspaceIds[0];
+            : authorizedWorkspaces[0]?.id;
         if (!resolved) throw new MediaManagerRequestError();
         if (active) {
+          setWorkspaces(authorizedWorkspaces);
           setWorkspaceId(resolved);
           setResolutionFailed(false);
         }
@@ -1038,34 +1025,77 @@ export function VehicleMediaManagerWorkspace({
     };
   }, [previewEnabled, requestedWorkspaceId, router]);
 
-  if (resolutionFailed) {
-    return (
-      <main className="vehicle-media-manager" id="vehicle-media-main">
-        <div className="vehicle-media-manager__error" role="alert">
-          <CircleAlert aria-hidden="true" size={20} />
-          <p>{copy.loadError}</p>
-        </div>
-      </main>
+  function chooseWorkspace(nextWorkspaceId: string): void {
+    if (
+      previewEnabled ||
+      !workspaces.some((workspace) => workspace.id === nextWorkspaceId)
+    ) {
+      return;
+    }
+    setResolutionFailed(false);
+    setWorkspaceId(nextWorkspaceId);
+    router.replace(
+      `/inventory/${inventoryUnitId}/media?workspace=${encodeURIComponent(nextWorkspaceId)}`,
     );
   }
-  if (!workspaceId) {
-    return (
-      <main className="vehicle-media-manager" id="vehicle-media-main">
-        <div className="vehicle-media-manager__loading" role="status">
-          <LoaderCircle aria-hidden="true" size={21} />
-          {copy.loading}
-        </div>
-      </main>
-    );
-  }
-  return (
+
+  const shellWorkspaces =
+    workspaces.length > 0
+      ? workspaces
+      : [{ id: "", name: uploadCopy.workspaceLoading }];
+  const content = resolutionFailed ? (
+    <div className="vehicle-media-manager">
+      <div className="vehicle-media-manager__error" role="alert">
+        <CircleAlert aria-hidden="true" size={20} />
+        <p>{copy.loadError}</p>
+      </div>
+    </div>
+  ) : !workspaceId ? (
+    <div className="vehicle-media-manager">
+      <div className="vehicle-media-manager__loading" role="status">
+        <LoaderCircle aria-hidden="true" size={21} />
+        {copy.loading}
+      </div>
+    </div>
+  ) : (
     <VehicleMediaManager
       copy={copy}
       inventoryUnitId={inventoryUnitId}
+      key={workspaceId}
       locale={locale}
       previewEnabled={previewEnabled}
       uploadCopy={uploadCopy}
       workspaceId={workspaceId}
     />
+  );
+
+  return (
+    <OperatorShell
+      attentionCount={resolutionFailed ? 1 : 0}
+      contextLabel={
+        previewEnabled ? uploadCopy.developmentPreview : copy.eyebrow
+      }
+      copy={{
+        appName: "Vynlo",
+        attention: copy.statusFailed,
+        environment: copy.eyebrow,
+        localeLabel: uploadCopy.localeLabel,
+        localeNames: uploadCopy.localeNames,
+        navigationLabel: `${uploadCopy.navigationLabel} · Vynlo`,
+        skipToContent: copy.skipToContent,
+        workspaceLabel: uploadCopy.workspaceLabel,
+      }}
+      current="inventory"
+      locale={locale}
+      mainId="vehicle-media-main"
+      onWorkspaceChange={chooseWorkspace}
+      previewMode={previewEnabled ? "inventory" : null}
+      selectedWorkspaceId={workspaceId ?? ""}
+      summary={copy.description}
+      title={copy.heading}
+      workspaces={shellWorkspaces}
+    >
+      {content}
+    </OperatorShell>
   );
 }

@@ -448,10 +448,9 @@ test("an invited AAL1 user reloads workspace access after MFA verification", asy
   await page.getByLabel("Authenticator code").fill("123456");
   await page.getByRole("button", { name: "Verify secure session" }).click();
 
-  await expect(page.getByLabel("Active workspace")).toHaveValue(workspaceId);
-  await expect(page.getByLabel("Active workspace")).toContainText(
-    "Synthetic North",
-  );
+  const workspaceSelect = page.getByLabel("Workspace", { exact: true });
+  await expect(workspaceSelect).toHaveValue(workspaceId);
+  await expect(workspaceSelect).toContainText("Synthetic North");
   if ((page.viewportSize()?.width ?? 0) < 760) {
     await expect(
       page.getByRole("list").filter({ hasText: "N-00010" }),

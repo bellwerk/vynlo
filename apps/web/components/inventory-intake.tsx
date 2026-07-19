@@ -1,6 +1,10 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Checkbox } from "@vynlo/ui-web/components/checkbox";
+import { Input } from "@vynlo/ui-web/components/input";
+import { NativeSelect } from "@vynlo/ui-web/components/native-select";
+import { Textarea } from "@vynlo/ui-web/components/textarea";
 import {
   ArrowLeft,
   Check,
@@ -20,7 +24,7 @@ import type { InventoryIntakeCopy } from "../i18n/inventory-intake-messages";
 import type { Locale } from "../i18n/messages";
 import { parseMajorMoneyToMinor } from "../lib/inventory-money";
 import { getBrowserSupabase } from "../lib/supabase-browser";
-import { LocaleSwitcher } from "./locale-switcher";
+import { OperatorShell } from "./operator-shell";
 import { VehiclePhotoUpload } from "./vehicle-photo-upload";
 
 type CanonicalStatus = "active" | "archived" | "closed" | "draft" | "pending";
@@ -133,7 +137,7 @@ function VehicleFactFields({
     <div className="inventory-intake__vehicle-fields">
       <label>
         <span>{copy.modelYearLabel}</span>
-        <input
+        <Input
           inputMode="numeric"
           max="2200"
           min="1886"
@@ -145,7 +149,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.makeLabel}</span>
-        <input
+        <Input
           maxLength={100}
           onChange={(event) => onFieldChange("make", event.target.value)}
           required
@@ -154,7 +158,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.modelLabel}</span>
-        <input
+        <Input
           maxLength={100}
           onChange={(event) => onFieldChange("model", event.target.value)}
           required
@@ -163,7 +167,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.trimLabel}</span>
-        <input
+        <Input
           maxLength={200}
           onChange={(event) => onFieldChange("trimName", event.target.value)}
           value={fields.trimName}
@@ -171,7 +175,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.bodyTypeLabel}</span>
-        <input
+        <Input
           maxLength={200}
           onChange={(event) => onFieldChange("bodyType", event.target.value)}
           value={fields.bodyType}
@@ -179,7 +183,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.drivetrainLabel}</span>
-        <input
+        <Input
           maxLength={100}
           onChange={(event) => onFieldChange("drivetrain", event.target.value)}
           value={fields.drivetrain}
@@ -187,7 +191,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.transmissionLabel}</span>
-        <input
+        <Input
           maxLength={200}
           onChange={(event) =>
             onFieldChange("transmission", event.target.value)
@@ -197,7 +201,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.fuelTypeLabel}</span>
-        <input
+        <Input
           maxLength={100}
           onChange={(event) => onFieldChange("fuelType", event.target.value)}
           value={fields.fuelType}
@@ -205,7 +209,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.engineLabel}</span>
-        <input
+        <Input
           inputMode="decimal"
           maxLength={6}
           onChange={(event) =>
@@ -216,7 +220,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.cylindersLabel}</span>
-        <input
+        <Input
           inputMode="numeric"
           max="64"
           min="1"
@@ -227,7 +231,7 @@ function VehicleFactFields({
       </label>
       <label>
         <span>{copy.horsepowerLabel}</span>
-        <input
+        <Input
           inputMode="numeric"
           max="10000"
           min="1"
@@ -868,9 +872,6 @@ export function InventoryIntake({
       reviewed &&
       intakeApproved &&
       reviewDecision === "override_open_duplicate");
-  const returnTo = previewEnabled
-    ? "/inventory/new?preview=inventory"
-    : "/inventory/new";
   const inventoryHref = previewEnabled
     ? "/inventory?preview=inventory"
     : "/inventory";
@@ -1698,65 +1699,44 @@ export function InventoryIntake({
   const stepLabels = [copy.stepVin, copy.stepDecode, copy.stepDetails] as const;
   const duplicateCleared =
     !decodeStatus?.job.reviewRequired || (reviewed && intakeApproved);
+  const shellWorkspaces =
+    workspaces.length === 0
+      ? [{ id: "", name: copy.workspaceLoading }]
+      : busy !== null
+        ? workspaces.filter((workspace) => workspace.id === workspaceId)
+        : workspaces;
 
   return (
-    <div className="inventory-intake">
-      <a className="skip-link" href="#inventory-intake-main">
-        {copy.skipToContent}
-      </a>
-      <header className="inventory-intake__header">
-        <a className="brand" href="/" aria-label={copy.brandHome}>
-          <span className="brand-mark" aria-hidden="true">
-            V
-          </span>
-          <span>Vynlo</span>
-        </a>
-        <div className="inventory-intake__header-controls">
-          <label>
-            <span className="control-label">{copy.workspaceLabel}</span>
-            <select
-              aria-label={copy.workspaceLabel}
-              disabled={workspaces.length < 2 || busy !== null}
-              onChange={(event) => void chooseWorkspace(event.target.value)}
-              value={workspaceId}
-            >
-              {workspaces.length === 0 ? (
-                <option value="">{copy.workspaceLoading}</option>
-              ) : null}
-              {workspaces.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <LocaleSwitcher
-            activeLocale={locale}
-            label={copy.localeLabel}
-            localeNames={copy.localeNames}
-            returnTo={returnTo}
-          />
-        </div>
-      </header>
-
-      <main
-        className="inventory-intake__main"
-        id="inventory-intake-main"
-        tabIndex={-1}
-      >
+    <OperatorShell
+      attentionCount={errorMessage || busy !== null ? 1 : 0}
+      contextLabel={previewEnabled ? copy.developmentPreview : copy.backAction}
+      copy={{
+        appName: "Vynlo",
+        attention: copy.pendingStatus,
+        environment: copy.heading,
+        localeLabel: copy.localeLabel,
+        localeNames: copy.localeNames,
+        navigationLabel: `${copy.navigationLabel} · Vynlo`,
+        skipToContent: copy.skipToContent,
+        workspaceLabel: copy.workspaceLabel,
+      }}
+      current="inventory"
+      locale={locale}
+      mainId="inventory-intake-main"
+      onWorkspaceChange={(nextWorkspaceId) => {
+        if (busy === null) void chooseWorkspace(nextWorkspaceId);
+      }}
+      previewMode={previewEnabled ? "inventory" : null}
+      selectedWorkspaceId={workspaceId}
+      summary={copy.introduction}
+      title={copy.heading}
+      workspaces={shellWorkspaces}
+    >
+      <div className="inventory-intake__main">
         <a className="back-link" href={inventoryHref}>
           <ArrowLeft aria-hidden="true" size={17} />
           {copy.backAction}
         </a>
-        <header className="inventory-intake__intro">
-          {previewEnabled ? (
-            <p className="inventory-intake__preview">
-              {copy.developmentPreview}
-            </p>
-          ) : null}
-          <h1>{copy.heading}</h1>
-          <p>{copy.introduction}</p>
-        </header>
 
         <nav
           aria-label={copy.navigationLabel}
@@ -1810,7 +1790,7 @@ export function InventoryIntake({
             <form onSubmit={startDecode}>
               <label>
                 <span>{copy.vinLabel}</span>
-                <input
+                <Input
                   autoCapitalize="characters"
                   autoComplete="off"
                   maxLength={17}
@@ -1822,7 +1802,7 @@ export function InventoryIntake({
               </label>
               <label>
                 <span>{copy.modelYearHintLabel}</span>
-                <input
+                <Input
                   inputMode="numeric"
                   max="2200"
                   min="1886"
@@ -1898,7 +1878,7 @@ export function InventoryIntake({
                 </div>
                 <label>
                   <span>{copy.retryReasonLabel}</span>
-                  <textarea
+                  <Textarea
                     maxLength={2_000}
                     onChange={(event) => setRetryReason(event.target.value)}
                     required
@@ -1947,7 +1927,7 @@ export function InventoryIntake({
                 />
                 <label>
                   <span>{copy.manualReasonLabel}</span>
-                  <textarea
+                  <Textarea
                     maxLength={2_000}
                     onChange={(event) => setManualReason(event.target.value)}
                     required
@@ -1991,7 +1971,7 @@ export function InventoryIntake({
                   <legend>{copy.manualDuplicateLegend}</legend>
                   <label>
                     <span>{copy.manualDuplicateDecisionLabel}</span>
-                    <select
+                    <NativeSelect
                       onChange={(event) =>
                         setManualDuplicateDecision(
                           event.target.value as "" | DuplicateDecision,
@@ -2006,12 +1986,12 @@ export function InventoryIntake({
                           {decisionLabel(copy, manualRequiredDuplicateDecision)}
                         </option>
                       )}
-                    </select>
+                    </NativeSelect>
                   </label>
                   {manualDuplicateDecision !== "" ? (
                     <label>
                       <span>{copy.manualDuplicateReasonLabel}</span>
-                      <textarea
+                      <Textarea
                         maxLength={2_000}
                         onChange={(event) =>
                           setManualDuplicateReason(event.target.value)
@@ -2023,12 +2003,11 @@ export function InventoryIntake({
                   ) : null}
                 </fieldset>
                 <label className="inventory-intake__fact-confirmation">
-                  <input
+                  <Checkbox
                     checked={manualFactsConfirmed}
-                    onChange={(event) =>
-                      setManualFactsConfirmed(event.target.checked)
+                    onCheckedChange={(checked) =>
+                      setManualFactsConfirmed(checked === true)
                     }
-                    type="checkbox"
                   />
                   <span>{copy.manualConfirmationLabel}</span>
                 </label>
@@ -2130,7 +2109,7 @@ export function InventoryIntake({
                       <form onSubmit={reviewDuplicate}>
                         <label>
                           <span>{copy.decisionLabel}</span>
-                          <select
+                          <NativeSelect
                             onChange={(event) =>
                               setReviewDecision(
                                 event.target.value as DuplicateDecision,
@@ -2141,11 +2120,11 @@ export function InventoryIntake({
                             <option value={reviewDecision}>
                               {decisionLabel(copy, reviewDecision)}
                             </option>
-                          </select>
+                          </NativeSelect>
                         </label>
                         <label>
                           <span>{copy.reviewReasonLabel}</span>
-                          <textarea
+                          <Textarea
                             maxLength={2_000}
                             onChange={(event) =>
                               setReviewReason(event.target.value)
@@ -2227,7 +2206,7 @@ export function InventoryIntake({
               <div className="inventory-intake__field-pair">
                 <label>
                   <span>{copy.locationLabel}</span>
-                  <select
+                  <NativeSelect
                     onChange={(event) => setLocationId(event.target.value)}
                     required
                     value={locationId}
@@ -2237,11 +2216,11 @@ export function InventoryIntake({
                         {location.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
                 <label>
                   <span>{copy.conditionLabel}</span>
-                  <select
+                  <NativeSelect
                     onChange={(event) => setConditionKey(event.target.value)}
                     required
                     value={conditionKey}
@@ -2251,12 +2230,12 @@ export function InventoryIntake({
                         {conditionDefinitionLabel(definition, locale)}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
               </div>
               <label>
                 <span>{copy.stockDefinitionLabel}</span>
-                <select
+                <NativeSelect
                   onChange={(event) => setStockDefinitionId(event.target.value)}
                   required
                   value={stockDefinitionId}
@@ -2268,14 +2247,14 @@ export function InventoryIntake({
                       {definition.version}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               {!linksExistingOpenUnit ? (
                 <>
                   <div className="inventory-intake__field-pair">
                     <label>
                       <span>{copy.acquisitionDateLabel}</span>
-                      <input
+                      <Input
                         onChange={(event) =>
                           setAcquisitionDate(event.target.value)
                         }
@@ -2287,7 +2266,7 @@ export function InventoryIntake({
                       <span>
                         {copy.odometerLabel} · {workspace?.odometerUnit ?? ""}
                       </span>
-                      <input
+                      <Input
                         inputMode="numeric"
                         min="0"
                         onChange={(event) => setOdometer(event.target.value)}
@@ -2299,7 +2278,7 @@ export function InventoryIntake({
                   <div className="inventory-intake__field-pair">
                     <label>
                       <span>{copy.priceLabel}</span>
-                      <input
+                      <Input
                         inputMode="decimal"
                         onChange={(event) => setPrice(event.target.value)}
                         placeholder="0.00"
@@ -2308,7 +2287,7 @@ export function InventoryIntake({
                     </label>
                     <label>
                       <span>{copy.currencyLabel}</span>
-                      <input
+                      <Input
                         disabled
                         readOnly
                         value={workspace?.currencyCode ?? ""}
@@ -2317,7 +2296,7 @@ export function InventoryIntake({
                   </div>
                   <label>
                     <span>{copy.notesLabel}</span>
-                    <textarea
+                    <Textarea
                       maxLength={4_000}
                       onChange={(event) => setNotes(event.target.value)}
                       value={notes}
@@ -2392,7 +2371,7 @@ export function InventoryIntake({
             />
           </div>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </OperatorShell>
   );
 }

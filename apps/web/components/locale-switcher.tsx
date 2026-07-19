@@ -1,3 +1,6 @@
+import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
+
 import { setLocale } from "../app/actions/locale";
 import type { Locale } from "../i18n/messages";
 
@@ -16,11 +19,11 @@ export function LocaleSwitcher({
 }: LocaleSwitcherProps) {
   return (
     <form action={setLocale} className="locale-switcher">
-      <input name="returnTo" type="hidden" value={returnTo} />
+      <Input name="returnTo" type="hidden" value={returnTo} />
       <span className="control-label">{label}</span>
       <div aria-label={label} className="locale-options" role="group">
         {(["en", "fr"] as const).map((locale) => (
-          <button
+          <Button
             aria-pressed={activeLocale === locale}
             key={locale}
             name="locale"
@@ -29,7 +32,7 @@ export function LocaleSwitcher({
           >
             <span aria-hidden="true">{locale.toUpperCase()}</span>
             <span className="sr-only">{localeNames[locale]}</span>
-          </button>
+          </Button>
         ))}
       </div>
     </form>

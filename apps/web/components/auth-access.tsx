@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
 import { KeyRound, Mail, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -177,7 +178,7 @@ export function AuthAccess({
         <span>{copy.emailLabel}</span>
         <span className="field-with-icon">
           <Mail aria-hidden="true" size={18} />
-          <input
+          <Input
             autoComplete="email"
             disabled={!configured || busy}
             inputMode="email"
@@ -195,7 +196,7 @@ export function AuthAccess({
         <span>{copy.passwordLabel}</span>
         <span className="field-with-icon">
           <KeyRound aria-hidden="true" size={18} />
-          <input
+          <Input
             autoComplete="current-password"
             disabled={!configured || busy}
             maxLength={200}

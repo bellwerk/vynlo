@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
+import { Textarea } from "@vynlo/ui-web/components/textarea";
 import {
   Check,
   CircleAlert,
@@ -724,7 +726,7 @@ export function VehiclePhotoUpload({
             <span>
               {file ? copy.photoChooseAnotherAction : copy.photoChooseAction}
             </span>
-            <input
+            <Input
               accept={VEHICLE_PHOTO_ACCEPT}
               aria-describedby={hintId}
               disabled={busy}
@@ -913,7 +915,7 @@ export function VehiclePhotoUpload({
               <label htmlFor={retryReasonId}>
                 {copy.photoRetryReasonLabel}
               </label>
-              <textarea
+              <Textarea
                 aria-describedby={
                   retryReasonError ? retryReasonErrorId : undefined
                 }

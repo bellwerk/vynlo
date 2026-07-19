@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Toaster } from "@vynlo/ui-web/components/sonner";
+import { TooltipProvider } from "@vynlo/ui-web/components/tooltip";
 import { PwaLifecycle } from "../components/pwa-lifecycle";
+import { ThemeProvider } from "../components/theme-provider";
 import { messages } from "../i18n/messages";
 import { getRequestLocale } from "../i18n/server";
 import "./globals.css";
@@ -20,8 +23,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "light",
-  themeColor: "#17251f",
+  colorScheme: "light dark",
+  themeColor: [
+    { color: "#f5f5f7", media: "(prefers-color-scheme: light)" },
+    { color: "#0b0b0c", media: "(prefers-color-scheme: dark)" },
+  ],
   width: "device-width",
 };
 
@@ -31,10 +37,15 @@ export default async function RootLayout({
   const locale = await getRequestLocale();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body>
-        <PwaLifecycle messages={messages[locale].pwa} />
-        {children}
+        <ThemeProvider>
+          <TooltipProvider delayDuration={800}>
+            <PwaLifecycle messages={messages[locale].pwa} />
+            {children}
+            <Toaster closeButton position="bottom-right" richColors />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

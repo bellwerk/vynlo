@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
+import { NativeSelect } from "@vynlo/ui-web/components/native-select";
 import {
   Bookmark,
   CircleAlert,
@@ -28,7 +30,7 @@ import {
   parseMajorMoneyToMinor,
 } from "../lib/inventory-money";
 import { getBrowserSupabase } from "../lib/supabase-browser";
-import { LocaleSwitcher } from "./locale-switcher";
+import { OperatorShell } from "./operator-shell";
 
 type CanonicalStatus = "active" | "archived" | "closed" | "draft" | "pending";
 type LoadPhase = "empty" | "error" | "loading" | "ready";
@@ -1034,9 +1036,6 @@ export function InventoryWorkbench({
       ? copy.resultsCountOne
       : interpolate(copy.resultsCount, items.length);
   const localeTag = locale === "fr" ? "fr-CA" : "en-CA";
-  const returnTo = previewEnabled
-    ? "/inventory?preview=inventory"
-    : "/inventory";
   const newInventoryHref = previewEnabled
     ? "/inventory/new?preview=inventory"
     : "/inventory/new";
@@ -1053,84 +1052,52 @@ export function InventoryWorkbench({
     `/inventory/${inventoryUnitId}${media ? "/media" : ""}${
       inventoryNavigationQuery ? `?${inventoryNavigationQuery}` : ""
     }`;
+  const shellWorkspaces =
+    workspaces.length === 0
+      ? [{ currencyCode: "", id: "", name: copy.workspaceLoading }]
+      : saving
+        ? workspaces.filter((workspace) => workspace.id === workspaceId)
+        : workspaces;
 
   return (
-    <div className="inventory-browser">
-      <a className="skip-link" href="#inventory-main">
-        {copy.skipToContent}
-      </a>
-
-      <header className="inventory-browser__header">
-        <div className="inventory-browser__topbar">
-          <a className="brand" href="/" aria-label={copy.brandHome}>
-            <span className="brand-mark" aria-hidden="true">
-              V
-            </span>
-            <span>Vynlo</span>
-          </a>
-          <div className="inventory-browser__controls">
-            <label className="inventory-browser__workspace">
-              <span className="control-label">{copy.workspaceLabel}</span>
-              <select
-                aria-label={copy.workspaceLabel}
-                disabled={workspaces.length < 2 || saving}
-                onChange={(event) => void chooseWorkspace(event.target.value)}
-                value={workspaceId}
-              >
-                {workspaces.length === 0 ? (
-                  <option value="">{copy.workspaceLoading}</option>
-                ) : null}
-                {workspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <LocaleSwitcher
-              activeLocale={locale}
-              label={copy.localeLabel}
-              localeNames={copy.localeNames}
-              returnTo={returnTo}
-            />
-          </div>
+    <OperatorShell
+      attentionCount={
+        items.filter((item) => item.canonicalStatus === "pending").length
+      }
+      contextLabel={
+        previewEnabled ? copy.developmentPreview : copy.inventoryNavigation
+      }
+      copy={{
+        appName: "Vynlo",
+        attention: copy.pendingStatus,
+        environment: copy.inventoryNavigation,
+        localeLabel: copy.localeLabel,
+        localeNames: copy.localeNames,
+        navigationLabel: copy.navigationLabel,
+        skipToContent: copy.skipToContent,
+        workspaceLabel: copy.workspaceLabel,
+      }}
+      current="inventory"
+      locale={locale}
+      mainId="inventory-main"
+      onWorkspaceChange={(nextWorkspaceId) => {
+        if (!saving) void chooseWorkspace(nextWorkspaceId);
+      }}
+      previewMode={previewEnabled ? "inventory" : null}
+      selectedWorkspaceId={workspaceId}
+      summary={copy.introduction}
+      title={copy.heading}
+      workspaces={shellWorkspaces}
+    >
+      <div className="inventory-browser__main">
+        <div className="inventory-browser__intro-copy">
+          <Button asChild>
+            <a href={newInventoryHref}>
+              <Plus aria-hidden="true" size={17} />
+              {copy.addInventoryAction}
+            </a>
+          </Button>
         </div>
-        <nav
-          aria-label={copy.navigationLabel}
-          className="inventory-browser__nav"
-        >
-          <a href="/">{copy.overviewNavigation}</a>
-          <a aria-current="page" href="/inventory">
-            {copy.inventoryNavigation}
-          </a>
-          <a href="/health">{copy.systemNavigation}</a>
-        </nav>
-      </header>
-
-      <main
-        className="inventory-browser__main"
-        id="inventory-main"
-        tabIndex={-1}
-      >
-        <header className="inventory-browser__intro">
-          <div>
-            {previewEnabled ? (
-              <p className="inventory-browser__preview">
-                {copy.developmentPreview}
-              </p>
-            ) : null}
-            <h1>{copy.heading}</h1>
-          </div>
-          <div className="inventory-browser__intro-copy">
-            <p>{copy.introduction}</p>
-            <Button asChild>
-              <a href={newInventoryHref}>
-                <Plus aria-hidden="true" size={17} />
-                {copy.addInventoryAction}
-              </a>
-            </Button>
-          </div>
-        </header>
 
         <section
           aria-labelledby="inventory-filters-heading"
@@ -1142,7 +1109,7 @@ export function InventoryWorkbench({
               <span>{copy.searchLabel}</span>
               <span className="inventory-browser__search-field">
                 <Search aria-hidden="true" size={18} />
-                <input
+                <Input
                   autoComplete="off"
                   maxLength={200}
                   onChange={(event) => setFilter("query", event.target.value)}
@@ -1154,7 +1121,7 @@ export function InventoryWorkbench({
             </label>
             <label>
               <span>{copy.statusLabel}</span>
-              <select
+              <NativeSelect
                 onChange={(event) =>
                   setFilter(
                     "status",
@@ -1169,11 +1136,11 @@ export function InventoryWorkbench({
                 <option value="draft">{copy.draftStatus}</option>
                 <option value="closed">{copy.closedStatus}</option>
                 <option value="archived">{copy.archivedStatus}</option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               <span>{copy.locationFilterLabel}</span>
-              <select
+              <NativeSelect
                 onChange={(event) =>
                   setFilter("locationId", event.target.value)
                 }
@@ -1185,12 +1152,12 @@ export function InventoryWorkbench({
                     {location.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <div className="inventory-browser__saved-filter">
               <label>
                 <span>{copy.savedViewsLabel}</span>
-                <select
+                <NativeSelect
                   onChange={(event) =>
                     setSelectedSavedViewId(event.target.value)
                   }
@@ -1203,7 +1170,7 @@ export function InventoryWorkbench({
                       {view.isOwner ? "" : ` · ${copy.sharedViewLabel}`}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
               <div className="inventory-browser__saved-filter-actions">
                 <Button
@@ -1233,7 +1200,7 @@ export function InventoryWorkbench({
               <div className="inventory-browser__range">
                 <label>
                   <span>{copy.minimumPriceLabel}</span>
-                  <input
+                  <Input
                     inputMode="decimal"
                     onChange={(event) =>
                       setFilter("minimumPrice", event.target.value)
@@ -1244,7 +1211,7 @@ export function InventoryWorkbench({
                 </label>
                 <label>
                   <span>{copy.maximumPriceLabel}</span>
-                  <input
+                  <Input
                     inputMode="decimal"
                     onChange={(event) =>
                       setFilter("maximumPrice", event.target.value)
@@ -1260,7 +1227,7 @@ export function InventoryWorkbench({
               <div className="inventory-browser__range">
                 <label>
                   <span>{copy.minimumAgeLabel}</span>
-                  <input
+                  <Input
                     inputMode="numeric"
                     min="0"
                     onChange={(event) =>
@@ -1272,7 +1239,7 @@ export function InventoryWorkbench({
                 </label>
                 <label>
                   <span>{copy.maximumAgeLabel}</span>
-                  <input
+                  <Input
                     inputMode="numeric"
                     min="0"
                     onChange={(event) =>
@@ -1504,7 +1471,7 @@ export function InventoryWorkbench({
             </>
           ) : null}
         </section>
-      </main>
-    </div>
+      </div>
+    </OperatorShell>
   );
 }

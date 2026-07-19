@@ -1,3 +1,5 @@
+import { NativeSelect } from "@vynlo/ui-web/components/native-select";
+
 interface WorkspaceOption {
   readonly id: string;
   readonly name: string;
@@ -17,7 +19,7 @@ export function WorkspaceSwitcher({
   return (
     <label className="workspace-switcher">
       <span className="control-label">{label}</span>
-      <select
+      <NativeSelect
         defaultValue={selectedWorkspaceId}
         disabled={options.length < 2}
         name="workspace"
@@ -27,7 +29,7 @@ export function WorkspaceSwitcher({
             {workspace.name}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </label>
   );
 }

@@ -388,14 +388,30 @@ test("[M2-MEDIA-AC-023][T-MED-002][T-MED-003][T-UX-001][T-UX-002] preserves a le
   const signedKind = uploader.getByLabel("Signed original");
   const fileInput = uploader.getByLabel("PDF or source image");
   await expect(documentSelect).toHaveValue(documentId);
-  await expect(
-    uploader.getByRole("group", { name: "Original type" }),
-  ).toBeVisible();
+  const originalTypeGroup = uploader.getByRole("group", {
+    name: "Original type",
+  });
+  await expect(originalTypeGroup).toBeVisible();
+  await originalTypeGroup.evaluate((element) => {
+    element.dataset.keyboardSelectionClicks = "0";
+    element.addEventListener("click", (event) => {
+      if (!(event.target as Element).closest('[role="radio"]')) {
+        return;
+      }
+      element.dataset.keyboardSelectionClicks = String(
+        Number(element.dataset.keyboardSelectionClicks) + 1,
+      );
+    });
+  });
   await documentSelect.focus();
   await page.keyboard.press("Tab");
   await expect(legalKind).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(signedKind).toBeChecked();
+  await expect(originalTypeGroup).toHaveAttribute(
+    "data-keyboard-selection-clicks",
+    "1",
+  );
   await expect(
     uploader.getByText(
       /strong authentication verified within the last 15 minutes/u,
@@ -403,6 +419,22 @@ test("[M2-MEDIA-AC-023][T-MED-002][T-MED-003][T-UX-001][T-UX-002] preserves a le
   ).toBeVisible();
   await page.keyboard.press("ArrowLeft");
   await expect(legalKind).toBeChecked();
+  await expect(originalTypeGroup).toHaveAttribute(
+    "data-keyboard-selection-clicks",
+    "2",
+  );
+
+  // A held key emits repeated keydown events before keyup. Each move must
+  // select exactly once, even while Radix's document-level arrow flag is set.
+  await page.keyboard.down("ArrowRight");
+  await expect(signedKind).toBeChecked();
+  await page.keyboard.down("ArrowRight");
+  await page.keyboard.up("ArrowRight");
+  await expect(legalKind).toBeChecked();
+  await expect(originalTypeGroup).toHaveAttribute(
+    "data-keyboard-selection-clicks",
+    "4",
+  );
 
   await fileInput.setInputFiles({
     buffer: legalOriginalBytes,

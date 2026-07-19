@@ -5,6 +5,9 @@ import {
   type PlatformPermissionKey,
 } from "@vynlo/auth";
 import { Button } from "@vynlo/ui-web/components/button";
+import { Checkbox } from "@vynlo/ui-web/components/checkbox";
+import { Input } from "@vynlo/ui-web/components/input";
+import { NativeSelect } from "@vynlo/ui-web/components/native-select";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   Check,
@@ -27,6 +30,7 @@ import {
 import type { LegalOriginalUploadCopy } from "../i18n/legal-original-messages";
 import { getBrowserSupabase } from "../lib/supabase-browser";
 import { LegalOriginalUpload } from "./legal-original-upload";
+import { OperatorShell, type OperatorShellCopy } from "./operator-shell";
 
 interface OperationsCopy {
   readonly authRequired: string;
@@ -415,7 +419,12 @@ async function loadWorkspaceResources(
 export function OperationsWorkbench({
   copy,
   locale,
-}: Readonly<{ copy: OperationsCopy; locale: "en" | "fr" }>) {
+  shellCopy,
+}: Readonly<{
+  copy: OperationsCopy;
+  locale: "en" | "fr";
+  shellCopy: OperatorShellCopy;
+}>) {
   const router = useRouter();
   const idempotency = useRef(
     new Map<string, Readonly<{ fingerprint: string; key: string }>>(),
@@ -779,18 +788,20 @@ export function OperationsWorkbench({
   const can = (permission: PlatformPermissionKey) =>
     resources.permissions.has(permission);
 
-  return (
-    <div className="operations-shell">
+  const attentionCount = resources.documents.filter(
+    (document) => document.status === "failed" || document.status === "queued",
+  ).length;
+  const shellWorkspaces =
+    !configured || busy === "workspace"
+      ? workspaces.filter((item) => item.id === selectedWorkspaceId)
+      : workspaces;
+
+  const content = (
+    <div className="operations-shell" key={selectedWorkspaceId || "unselected"}>
       <header className="operations-header">
-        <div>
-          <p className="eyebrow">
-            <span>{copy.stage}</span>
-          </p>
-          <h1>{copy.sessionHeading}</h1>
-          <a className="back-link" href="/">
-            {copy.backAction}
-          </a>
-        </div>
+        <a className="back-link" href="/">
+          {copy.backAction}
+        </a>
         <Button onClick={signOut} size="sm" type="button" variant="outline">
           <LogOut aria-hidden="true" size={16} /> {copy.signOutAction}
         </Button>
@@ -800,7 +811,7 @@ export function OperationsWorkbench({
         <section aria-labelledby="mfa-title" className="mfa-gate">
           <ShieldCheck aria-hidden="true" size={28} />
           <div>
-            <h1 id="mfa-title">{copy.mfaHeading}</h1>
+            <h2 id="mfa-title">{copy.mfaHeading}</h2>
             <p>{copy.mfaIntroduction}</p>
           </div>
           {!mfaFactorId ? (
@@ -827,7 +838,7 @@ export function OperationsWorkbench({
             <form className="mfa-verify" onSubmit={verifyMfa}>
               <label>
                 <span>{copy.mfaCodeLabel}</span>
-                <input
+                <Input
                   autoComplete="one-time-code"
                   inputMode="numeric"
                   maxLength={8}
@@ -846,20 +857,6 @@ export function OperationsWorkbench({
       ) : (
         <>
           <section className="workspace-context">
-            <label>
-              <span>{copy.workspaceLabel}</span>
-              <select
-                disabled={!configured || busy === "workspace"}
-                onChange={(event) => chooseWorkspace(event.target.value)}
-                value={selectedWorkspaceId}
-              >
-                {workspaces.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <p>
               <Check aria-hidden="true" size={16} /> {copy.localeLabel}:{" "}
               {workspace?.locale} · {copy.currencyLabel}:{" "}
@@ -885,7 +882,7 @@ export function OperationsWorkbench({
               <form onSubmit={handleCreateInvitation}>
                 <label>
                   <span>{copy.inviteEmailLabel}</span>
-                  <input
+                  <Input
                     autoComplete="email"
                     inputMode="email"
                     maxLength={254}
@@ -896,7 +893,7 @@ export function OperationsWorkbench({
                 </label>
                 <label>
                   <span>{copy.inviteLocaleLabel}</span>
-                  <select
+                  <NativeSelect
                     defaultValue={
                       workspace?.locale.toLowerCase().startsWith("fr")
                         ? "fr-CA"
@@ -906,14 +903,14 @@ export function OperationsWorkbench({
                   >
                     <option value="en-CA">English (Canada)</option>
                     <option value="fr-CA">Français (Canada)</option>
-                  </select>
+                  </NativeSelect>
                 </label>
                 <fieldset>
                   <legend>{copy.inviteRolesLabel}</legend>
                   <div className="role-options">
                     {resources.roles.map((role) => (
                       <label key={role.id}>
-                        <input name="roleId" type="checkbox" value={role.id} />
+                        <Checkbox name="roleId" value={role.id} />
                         <span>{role.name}</span>
                       </label>
                     ))}
@@ -966,16 +963,16 @@ export function OperationsWorkbench({
               <form onSubmit={createParty}>
                 <label>
                   <span>{copy.partyTypeLabel}</span>
-                  <select defaultValue="person" name="partyType">
+                  <NativeSelect defaultValue="person" name="partyType">
                     <option value="person">{copy.personOption}</option>
                     <option value="organization">
                       {copy.organizationOption}
                     </option>
-                  </select>
+                  </NativeSelect>
                 </label>
                 <label>
                   <span>{copy.displayNameLabel}</span>
-                  <input maxLength={200} name="displayName" required />
+                  <Input maxLength={200} name="displayName" required />
                 </label>
                 <Button
                   disabled={!can("crm.create") || busy === "party"}
@@ -997,27 +994,27 @@ export function OperationsWorkbench({
               <form onSubmit={createDeal}>
                 <label>
                   <span>{copy.dealTypeLabel}</span>
-                  <input defaultValue="retail.cash" name="dealType" required />
+                  <Input defaultValue="retail.cash" name="dealType" required />
                 </label>
                 <label>
                   <span>{copy.partyHeading}</span>
-                  <select name="partyId" required>
+                  <NativeSelect name="partyId" required>
                     {resources.parties.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.displayName}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
                 <label>
                   <span>{copy.inventoryHeading}</span>
-                  <select name="inventoryUnitId" required>
+                  <NativeSelect name="inventoryUnitId" required>
                     {resources.inventory.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.stockNumber}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
                 <Button
                   disabled={
@@ -1047,13 +1044,13 @@ export function OperationsWorkbench({
               <form onSubmit={requestPreview}>
                 <label>
                   <span>{copy.dealHeading}</span>
-                  <select name="dealId" required>
+                  <NativeSelect name="dealId" required>
                     {resources.deals.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.id.slice(0, 8)} · {item.status}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
                 <Button
                   disabled={
@@ -1162,5 +1159,27 @@ export function OperationsWorkbench({
         {status}
       </p>
     </div>
+  );
+
+  return (
+    <OperatorShell
+      attentionCount={attentionCount}
+      contextLabel={copy.stage}
+      copy={shellCopy}
+      current="inventory"
+      grantedPermissions={resources.permissions}
+      locale={locale}
+      mainId="operations-main"
+      onWorkspaceChange={chooseWorkspace}
+      previewMode={null}
+      selectedWorkspaceId={selectedWorkspaceId}
+      summary={
+        mfaVerified ? copy.inventoryIntakeDescription : copy.mfaIntroduction
+      }
+      title={copy.sessionHeading}
+      workspaces={shellWorkspaces}
+    >
+      {content}
+    </OperatorShell>
   );
 }

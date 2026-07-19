@@ -18,7 +18,7 @@ test("T-SEARCH-001 / T-UX-001 renders mobile cards and a desktop table without p
 
   const mobileCards = page.getByRole("list", { name: "Inventory results" });
   const desktopTable = page.getByRole("table", { name: "Inventory results" });
-  if (testInfo.project.name === "mobile-360") {
+  if (testInfo.project.name === "mobile-touch-360") {
     await expect(mobileCards).toBeVisible();
     await expect(mobileCards.getByRole("article")).toHaveCount(3);
     await expect(desktopTable).toBeHidden();
@@ -52,7 +52,7 @@ test("T-SEARCH-001 filters synthetic results, exposes empty state, and saves a v
   await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page.getByText("1 vehicle", { exact: true })).toBeVisible();
 
-  if (testInfo.project.name === "mobile-360") {
+  if (testInfo.project.name === "mobile-touch-360") {
     await expect(
       page
         .getByRole("list", { name: "Inventory results" })

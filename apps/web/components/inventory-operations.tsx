@@ -1,6 +1,9 @@
 "use client";
 
 import { Button } from "@vynlo/ui-web/components/button";
+import { Input } from "@vynlo/ui-web/components/input";
+import { NativeSelect } from "@vynlo/ui-web/components/native-select";
+import { Textarea } from "@vynlo/ui-web/components/textarea";
 import {
   ArrowLeft,
   ArrowRightLeft,
@@ -28,7 +31,7 @@ import {
   parseMajorMoneyToMinor,
 } from "../lib/inventory-money";
 import { getBrowserSupabase } from "../lib/supabase-browser";
-import { LocaleSwitcher } from "./locale-switcher";
+import { OperatorShell } from "./operator-shell";
 
 type Phase = "error" | "loading" | "ready";
 type ActionState = "conflict" | "error" | "idle" | "saved" | "step_up";
@@ -1054,9 +1057,6 @@ export function InventoryOperations({
   ]
     .filter((value): value is string => value !== null)
     .join("&");
-  const returnTo = `/inventory/${inventoryUnitId}${
-    navigationQuery ? `?${navigationQuery}` : ""
-  }`;
   const mediaHref = `/inventory/${inventoryUnitId}/media${
     navigationQuery ? `?${navigationQuery}` : ""
   }`;
@@ -1085,52 +1085,55 @@ export function InventoryOperations({
       (entry) =>
         entry.entryKind === "cost" && entry.effectiveStatus === "posted",
     ) ?? [];
+  const workspaceSwitchBlocked = phase === "loading" || busyAction !== null;
+  const shellWorkspaces =
+    workspaces.length === 0
+      ? [{ id: "", name: copy.workspaceLoading }]
+      : workspaceSwitchBlocked
+        ? workspaces.filter((workspace) => workspace.id === workspaceId)
+        : workspaces;
 
   return (
-    <div className="inventory-operations">
-      <a className="skip-link" href="#inventory-operations-main">
-        {copy.actionsHeading}
-      </a>
-      <header className="inventory-operations__bar">
-        <a className="brand" href="/" aria-label={copy.brandHome}>
-          <span className="brand-mark" aria-hidden="true">
-            V
-          </span>
-          <span>Vynlo</span>
-        </a>
-        <div className="inventory-operations__bar-controls">
-          <label>
-            <span className="control-label">{copy.workspaceLabel}</span>
-            <select
-              aria-label={copy.workspaceLabel}
-              disabled={
-                workspaces.length < 2 ||
-                phase === "loading" ||
-                busyAction !== null
-              }
-              onChange={(event) => chooseWorkspace(event.target.value)}
-              value={workspaceId}
-            >
-              {workspaces.length === 0 ? (
-                <option value="">{copy.workspaceLoading}</option>
-              ) : null}
-              {workspaces.map((workspace) => (
-                <option key={workspace.id} value={workspace.id}>
-                  {workspace.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <LocaleSwitcher
-            activeLocale={locale}
-            label={copy.localeLabel}
-            localeNames={copy.localeNames}
-            returnTo={returnTo}
-          />
-        </div>
-      </header>
-
-      <main id="inventory-operations-main" tabIndex={-1}>
+    <OperatorShell
+      attentionCount={
+        actionState === "conflict" ||
+        actionState === "error" ||
+        actionState === "step_up"
+          ? 1
+          : 0
+      }
+      contextLabel={
+        previewEnabled
+          ? copy.previewLabel
+          : detail
+            ? `${copy.stockLabel} · ${detail.stockNumber}`
+            : copy.inventoryNavigation
+      }
+      copy={{
+        appName: "Vynlo",
+        attention: copy.statusPending,
+        environment: copy.actionsHeading,
+        localeLabel: copy.localeLabel,
+        localeNames: copy.localeNames,
+        navigationLabel: `${copy.inventoryNavigation} · Vynlo`,
+        skipToContent: copy.actionsHeading,
+        workspaceLabel: copy.workspaceLabel,
+      }}
+      current="inventory"
+      locale={locale}
+      mainId="inventory-operations-main"
+      onWorkspaceChange={(nextWorkspaceId) => {
+        if (!workspaceSwitchBlocked) chooseWorkspace(nextWorkspaceId);
+      }}
+      previewMode={previewEnabled ? "inventory" : null}
+      selectedWorkspaceId={workspaceId}
+      summary={
+        phase === "loading" ? copy.loadingDescription : copy.actionsHeading
+      }
+      title={vehicleTitle}
+      workspaces={shellWorkspaces}
+    >
+      <div className="inventory-operations">
         <nav
           aria-label={copy.inventoryNavigation}
           className="inventory-operations__breadcrumb"
@@ -1156,7 +1159,7 @@ export function InventoryOperations({
               className="inventory-browser__spinner"
             />
             <div>
-              <h1>{copy.loadingHeading}</h1>
+              <h2>{copy.loadingHeading}</h2>
               <p>{copy.loadingDescription}</p>
             </div>
           </section>
@@ -1168,7 +1171,7 @@ export function InventoryOperations({
           >
             <CircleAlert aria-hidden="true" />
             <div>
-              <h1>{copy.unavailableHeading}</h1>
+              <h2>{copy.unavailableHeading}</h2>
               <p>{copy.unavailableDescription}</p>
               <Button
                 onClick={() => void loadData(workspaceId)}
@@ -1194,7 +1197,6 @@ export function InventoryOperations({
                 <p className="inventory-operations__stock">
                   {copy.stockLabel} · {detail.stockNumber}
                 </p>
-                <h1>{vehicleTitle}</h1>
                 <p className="inventory-operations__vin">
                   {detail.vehicleFacts.vin}
                 </p>
@@ -1254,7 +1256,7 @@ export function InventoryOperations({
                     <div className="inventory-operations__form-grid">
                       <label>
                         <span>{copy.acquisitionDateLabel}</span>
-                        <input
+                        <Input
                           disabled={!detail.capabilities.canUpdateDetails}
                           onChange={(event) =>
                             setDetailForm({
@@ -1268,7 +1270,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.conditionLabel}</span>
-                        <input
+                        <Input
                           disabled={!detail.capabilities.canUpdateDetails}
                           maxLength={100}
                           onChange={(event) =>
@@ -1282,7 +1284,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.advertisedPriceLabel}</span>
-                        <input
+                        <Input
                           disabled={!detail.capabilities.canUpdateDetails}
                           inputMode="decimal"
                           onChange={(event) =>
@@ -1296,7 +1298,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.expectedSalePriceLabel}</span>
-                        <input
+                        <Input
                           disabled={!detail.capabilities.canUpdateDetails}
                           inputMode="decimal"
                           onChange={(event) =>
@@ -1310,7 +1312,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.odometerLabel}</span>
-                        <input
+                        <Input
                           disabled={!detail.capabilities.canUpdateDetails}
                           inputMode="numeric"
                           onChange={(event) =>
@@ -1324,7 +1326,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.odometerUnitLabel}</span>
-                        <select
+                        <NativeSelect
                           disabled={!detail.capabilities.canUpdateDetails}
                           onChange={(event) =>
                             setDetailForm({
@@ -1336,12 +1338,12 @@ export function InventoryOperations({
                         >
                           <option value="km">km</option>
                           <option value="mi">mi</option>
-                        </select>
+                        </NativeSelect>
                       </label>
                     </div>
                     <label>
                       <span>{copy.publicNotesLabel}</span>
-                      <textarea
+                      <Textarea
                         disabled={!detail.capabilities.canUpdateDetails}
                         maxLength={4000}
                         onChange={(event) =>
@@ -1357,7 +1359,7 @@ export function InventoryOperations({
                     {detail.capabilities.canReadInternal ? (
                       <label>
                         <span>{copy.internalNotesLabel}</span>
-                        <textarea
+                        <Textarea
                           disabled={!detail.capabilities.canUpdateInternal}
                           maxLength={8000}
                           onChange={(event) =>
@@ -1396,7 +1398,7 @@ export function InventoryOperations({
                     <form onSubmit={submitTransfer}>
                       <label>
                         <span>{copy.locationLabel}</span>
-                        <select
+                        <NativeSelect
                           onChange={(event) =>
                             setTargetLocationId(event.target.value)
                           }
@@ -1408,11 +1410,11 @@ export function InventoryOperations({
                               {location.name}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </label>
                       <label>
                         <span>{copy.reasonLabel}</span>
-                        <textarea
+                        <Textarea
                           maxLength={2000}
                           onChange={(event) =>
                             setTransferReason(event.target.value)
@@ -1450,7 +1452,7 @@ export function InventoryOperations({
                     <form onSubmit={submitTransition}>
                       <label>
                         <span>{copy.transitionLabel}</span>
-                        <select
+                        <NativeSelect
                           onChange={(event) =>
                             setTransitionKey(event.target.value)
                           }
@@ -1467,11 +1469,11 @@ export function InventoryOperations({
                               )}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </label>
                       <label>
                         <span>{copy.reasonLabel}</span>
-                        <textarea
+                        <Textarea
                           maxLength={2000}
                           onChange={(event) =>
                             setTransitionReason(event.target.value)
@@ -1532,7 +1534,7 @@ export function InventoryOperations({
                           <div className="inventory-operations__form-grid">
                             <label>
                               <span>{copy.categoryLabel}</span>
-                              <select
+                              <NativeSelect
                                 onChange={(event) =>
                                   setCostCategoryId(event.target.value)
                                 }
@@ -1548,11 +1550,11 @@ export function InventoryOperations({
                                     )}
                                   </option>
                                 ))}
-                              </select>
+                              </NativeSelect>
                             </label>
                             <label>
                               <span>{copy.costAmountLabel}</span>
-                              <input
+                              <Input
                                 inputMode="decimal"
                                 onChange={(event) =>
                                   setCostAmount(event.target.value)
@@ -1563,7 +1565,7 @@ export function InventoryOperations({
                             </label>
                             <label>
                               <span>{copy.costDateLabel}</span>
-                              <input
+                              <Input
                                 onChange={(event) =>
                                   setCostDate(event.target.value)
                                 }
@@ -1575,7 +1577,7 @@ export function InventoryOperations({
                           </div>
                           <label>
                             <span>{copy.costDescriptionLabel}</span>
-                            <textarea
+                            <Textarea
                               maxLength={2000}
                               onChange={(event) =>
                                 setCostDescription(event.target.value)
@@ -1642,7 +1644,7 @@ export function InventoryOperations({
                           ) : null}
                           <label>
                             <span>{copy.reversalEntryLabel}</span>
-                            <select
+                            <NativeSelect
                               onChange={(event) =>
                                 setReversalCostId(event.target.value)
                               }
@@ -1664,11 +1666,11 @@ export function InventoryOperations({
                                   )}
                                 </option>
                               ))}
-                            </select>
+                            </NativeSelect>
                           </label>
                           <label>
                             <span>{copy.reversalDateLabel}</span>
-                            <input
+                            <Input
                               onChange={(event) =>
                                 setReversalDate(event.target.value)
                               }
@@ -1679,7 +1681,7 @@ export function InventoryOperations({
                           </label>
                           <label>
                             <span>{copy.reasonLabel}</span>
-                            <textarea
+                            <Textarea
                               maxLength={2000}
                               onChange={(event) =>
                                 setReversalReason(event.target.value)
@@ -1735,7 +1737,7 @@ export function InventoryOperations({
                     <div className="inventory-operations__form-grid">
                       <label>
                         <span>{copy.modelYearLabel}</span>
-                        <input
+                        <Input
                           inputMode="numeric"
                           onChange={(event) =>
                             setFactsForm({
@@ -1748,7 +1750,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.makeLabel}</span>
-                        <input
+                        <Input
                           maxLength={100}
                           onChange={(event) =>
                             setFactsForm({
@@ -1761,7 +1763,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.modelLabel}</span>
-                        <input
+                        <Input
                           maxLength={100}
                           onChange={(event) =>
                             setFactsForm({
@@ -1774,7 +1776,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.trimLabel}</span>
-                        <input
+                        <Input
                           maxLength={200}
                           onChange={(event) =>
                             setFactsForm({
@@ -1787,7 +1789,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.bodyTypeLabel}</span>
-                        <input
+                        <Input
                           maxLength={200}
                           onChange={(event) =>
                             setFactsForm({
@@ -1800,7 +1802,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.drivetrainLabel}</span>
-                        <input
+                        <Input
                           maxLength={100}
                           onChange={(event) =>
                             setFactsForm({
@@ -1813,7 +1815,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.engineLitersLabel}</span>
-                        <input
+                        <Input
                           inputMode="decimal"
                           onChange={(event) =>
                             setFactsForm({
@@ -1826,7 +1828,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.cylindersLabel}</span>
-                        <input
+                        <Input
                           inputMode="numeric"
                           onChange={(event) =>
                             setFactsForm({
@@ -1839,7 +1841,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.fuelTypeLabel}</span>
-                        <input
+                        <Input
                           maxLength={100}
                           onChange={(event) =>
                             setFactsForm({
@@ -1852,7 +1854,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.horsepowerLabel}</span>
-                        <input
+                        <Input
                           inputMode="numeric"
                           onChange={(event) =>
                             setFactsForm({
@@ -1865,7 +1867,7 @@ export function InventoryOperations({
                       </label>
                       <label>
                         <span>{copy.transmissionLabel}</span>
-                        <input
+                        <Input
                           maxLength={200}
                           onChange={(event) =>
                             setFactsForm({
@@ -1879,7 +1881,7 @@ export function InventoryOperations({
                     </div>
                     <label>
                       <span>{copy.reasonLabel}</span>
-                      <textarea
+                      <Textarea
                         maxLength={2000}
                         onChange={(event) =>
                           setFactsForm({
@@ -1920,7 +1922,7 @@ export function InventoryOperations({
             </div>
           </>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </OperatorShell>
   );
 }

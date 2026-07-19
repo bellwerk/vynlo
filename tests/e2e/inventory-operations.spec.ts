@@ -143,7 +143,10 @@ test("T-SEARCH-001 round-trips an active location through an owned saved view", 
   await page
     .getByLabel("Location")
     .selectOption("00000000-0000-4000-8000-000000000222");
-  await page.getByLabel("Status").selectOption("pending");
+  await page
+    .getByRole("region", { name: "Find inventory" })
+    .getByRole("combobox", { exact: true, name: "Status" })
+    .selectOption("pending");
   await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page.getByText("1 vehicle", { exact: true })).toBeVisible();
 

@@ -1,4 +1,5 @@
 import { LocaleSwitcher } from "../../components/locale-switcher";
+import { ThemeSwitcher } from "../../components/theme-switcher";
 import { messages } from "../../i18n/messages";
 import { getRequestLocale } from "../../i18n/server";
 
@@ -17,12 +18,15 @@ export default async function HealthPage() {
           </span>
           <span>Vynlo</span>
         </a>
-        <LocaleSwitcher
-          activeLocale={locale}
-          label={copy.localeLabel}
-          localeNames={copy.localeNames}
-          returnTo="/health"
-        />
+        <div className="flex items-start gap-2">
+          <ThemeSwitcher locale={locale} />
+          <LocaleSwitcher
+            activeLocale={locale}
+            label={copy.localeLabel}
+            localeNames={copy.localeNames}
+            returnTo="/health"
+          />
+        </div>
       </header>
       <section aria-labelledby="health-title" className="health-panel">
         <p className="eyebrow">

@@ -2,6 +2,7 @@ import type { PlatformPermissionKey } from "@vynlo/auth";
 import { Button } from "@vynlo/ui-web/components/button";
 import { ArrowUpRight, CircleDot, ShieldCheck } from "lucide-react";
 import { LocaleSwitcher } from "../components/locale-switcher";
+import { ThemeSwitcher } from "../components/theme-switcher";
 import { WorkspaceSwitcher } from "../components/workspace-switcher";
 import { messages } from "../i18n/messages";
 import { getRequestLocale } from "../i18n/server";
@@ -37,12 +38,15 @@ export default async function HomePage() {
               options={[{ id: "foundation", name: copy.currentWorkspace }]}
               selectedWorkspaceId="foundation"
             />
-            <LocaleSwitcher
-              activeLocale={locale}
-              label={copy.localeLabel}
-              localeNames={copy.localeNames}
-              returnTo="/"
-            />
+            <div className="flex items-end gap-2">
+              <ThemeSwitcher locale={locale} />
+              <LocaleSwitcher
+                activeLocale={locale}
+                label={copy.localeLabel}
+                localeNames={copy.localeNames}
+                returnTo="/"
+              />
+            </div>
           </div>
         </div>
 

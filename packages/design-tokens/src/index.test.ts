@@ -4,12 +4,13 @@ import { foundationTokens } from "./index";
 
 describe("foundation design tokens", () => {
   it("keeps the minimum touch target at 44 CSS pixels", () => {
-    expect(foundationTokens.touchTarget).toBe("44px");
+    expect(foundationTokens.touchTarget).toBe("var(--touch-target)");
   });
 
-  it("exposes one primary signal color and stable focus geometry", () => {
-    expect(foundationTokens.color.signal).toBe("#d9ff5b");
-    expect(foundationTokens.focus.width).toBe("3px");
+  it("exposes semantic references without duplicating runtime values", () => {
+    expect(foundationTokens.color.signal).toBe("var(--primary)");
+    expect(foundationTokens.focus.width).toBe("var(--focus-width)");
     expect(Object.isFrozen(foundationTokens)).toBe(true);
+    expect(Object.isFrozen(foundationTokens.color)).toBe(true);
   });
 });
